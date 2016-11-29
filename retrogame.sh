@@ -80,10 +80,6 @@ if [ $RETROGAME_SELECT -lt 5 ]; then
 	fi
 
 	echo -n "Downloading, installing retrogame.cfg..."
-	if [ $RETROGAME_SELECT -eq 4 ]; then
-		# Make sure I2C is enabled in /boot/config.txt
-		reconfig /boot/config.txt ^.*dtparam=i2c_arm.*$ dtparam=i2c_arm=on 
-	fi
 	curl -f -s -o /boot/retrogame.cfg https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/configs/retrogame.cfg.${CONFIGNAME[$RETROGAME_SELECT-1]}
 	if [ $? -eq 0 ]; then
 		echo "OK"
@@ -95,6 +91,11 @@ if [ $RETROGAME_SELECT -lt 5 ]; then
 
 	# Add udev rule (will overwrite if present)
 	echo "SUBSYSTEM==\"input\", ATTRS{name}==\"retrogame\", ENV{ID_INPUT_KEYBOARD}=\"1\"" > /etc/udev/rules.d/10-retrogame.rules
+
+	if [ $RETROGAME_SELECT -eq 4 ]; then
+		# If bonnet, make sure I2C is enabled in /boot/config.txt
+		reconfig /boot/config.txt ^.*dtparam=i2c_arm.*$ dtparam=i2c_arm=on 
+	fi
 
 	# Start on boot
 	grep retrogame /etc/rc.local >/dev/null
