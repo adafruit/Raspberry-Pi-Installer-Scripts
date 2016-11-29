@@ -25,6 +25,20 @@ selectN() {
 	done
 }
 
+# Given a filename, a regex pattern to match and a replacement string,
+# perform replacement if found, else append replacement to end of file.
+# (# $1 = filename, $2 = pattern to match, $3 = replacement)
+reconfig() {
+	grep $2 $1 >/dev/null
+	if [ $? -eq 0 ]; then
+		# Pattern found; replace in file
+		sed -i s/$2/$3/g $1 >/dev/null
+	else
+		# Not found; append (silently)
+		echo $3 | sudo tee -a $1 >/dev/null
+	fi
+}
+
 clear
 echo "This script downloads and installs"
 echo "retrogame, a GPIO-to-keypress utility"
@@ -66,7 +80,11 @@ if [ $RETROGAME_SELECT -lt 5 ]; then
 	fi
 
 	echo -n "Downloading, installing retrogame.cfg..."
-	curl -f -s -o /boot/retrogame.cfg https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/retrogame.cfg.${CONFIGNAME[$RETROGAME_SELECT-1]}
+	if [ $RETROGAME_SELECT -eq 4 ]; then
+		# Make sure I2C is enabled in /boot/config.txt
+		reconfig /boot/config.txt ^.*dtparam=i2c_arm.*$ dtparam=i2c_arm=on 
+	fi
+	curl -f -s -o /boot/retrogame.cfg https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/configs/retrogame.cfg.${CONFIGNAME[$RETROGAME_SELECT-1]}
 	if [ $? -eq 0 ]; then
 		echo "OK"
 	else
