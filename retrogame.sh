@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 if [ $(id -u) -ne 0 ]; then
 	echo "Installer must be run as root."
 	echo "Try 'sudo bash $0'"
@@ -23,20 +24,6 @@ selectN() {
 			return $REPLY
 		fi
 	done
-}
-
-# Given a filename, a regex pattern to match and a replacement string,
-# perform replacement if found, else append replacement to end of file.
-# (# $1 = filename, $2 = pattern to match, $3 = replacement)
-reconfig() {
-	grep $2 $1 >/dev/null
-	if [ $? -eq 0 ]; then
-		# Pattern found; replace in file
-		sed -i s/$2/$3/g $1 >/dev/null
-	else
-		# Not found; append (silently)
-		echo $3 | sudo tee -a $1 >/dev/null
-	fi
 }
 
 clear
@@ -71,8 +58,10 @@ if [ $RETROGAME_SELECT -lt 5 ]; then
 	fi
 
 	echo -n "Downloading, installing retrogame..."
-	curl -f -s -o /usr/local/bin/retrogame https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/retrogame
+	# Download to tmpfile because might already be running
+	curl -f -s -o /tmp/retrogame https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/retrogame
 	if [ $? -eq 0 ]; then
+		mv /tmp/retrogame /usr/local/bin
 		chmod 755 /usr/local/bin/retrogame
 		echo "OK"
 	else
@@ -93,8 +82,9 @@ if [ $RETROGAME_SELECT -lt 5 ]; then
 	echo "SUBSYSTEM==\"input\", ATTRS{name}==\"retrogame\", ENV{ID_INPUT_KEYBOARD}=\"1\"" > /etc/udev/rules.d/10-retrogame.rules
 
 	if [ $RETROGAME_SELECT -eq 4 ]; then
-		# If bonnet, make sure I2C is enabled in /boot/config.txt
-		reconfig /boot/config.txt ^.*dtparam=i2c_arm.*$ dtparam=i2c_arm=on 
+		# If Bonnet, make sure I2C is enabled.  Call the I2C
+		# setup function in raspi-config (noninteractive):
+		raspi-config nonint do_i2c 0
 	fi
 
 	# Start on boot
