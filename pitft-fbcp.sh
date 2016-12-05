@@ -56,18 +56,24 @@ PITFT_VALUES=(pitft22 pitft28-resistive pitft28-capacitive pitft35-resistive)
 WIDTH_VALUES=(320 320 320 480)
 HEIGHT_VALUES=(240 240 240 320)
 HZ_VALUES=(80000000 80000000 80000000 64000000)
-ROTATE_VALUES=(0 90 180 270)
+# Framebuffer (HDMI out) rotation:
+FBROTATE_VALUES=(0 90 180 270)
+# PiTFT (MADCTL) rotation:
+TFTROTATE_VALUES=(0 90 180 270)
 
 if [ $PROJ_SELECT -lt 2 ]; then
 
 	# Use preconfigured settings per-project
 
-	# 2 elements per project; first is index (1+) into
-	# PITFT_VALUES, second is index into ROTATE_VALUES:
-	PROJ_VALUES=(2 1)
+	# 3 elements per project; first is index (1+) into
+	# PITFT_VALUES, second and third are index into
+	# FBROTATE_VALUES and TFTROTATE_VALUES:
+	PROJ_VALUES=(2 1 2)
+	# FBROTATE is almost always 0, except for HDMI portrait mode
 
-	PITFT_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*2]}
-	ROTATE_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*2+1]}
+	PITFT_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*3]}
+	FBROTATE_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*3+1]}
+	TFTROTATE_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*3+2]}
 
 elif [ $PROJ_SELECT -eq 2 ]; then
 
@@ -83,12 +89,20 @@ elif [ $PROJ_SELECT -eq 2 ]; then
 	PITFT_SELECT=$?
 
 	echo
-	echo "Display rotation:"
+	echo "HDMI rotation:"
 	selectN "Normal (landscape)" \
 		"90° clockwise (portrait)" \
 		"180° (landscape)" \
 		"90° counterclockwise (portrait)"
-	ROTATE_SELECT=$?
+	FBROTATE_SELECT=$?
+
+	echo
+	echo "TFT (MADCTL) rotation:"
+	selectN "0" \
+		"90" \
+		"180" \
+		"270"
+	TFTROTATE_SELECT=$?
 
 fi
 
@@ -96,7 +110,8 @@ fi
 
 echo
 echo "Device: ${PITFT_VALUES[$PITFT_SELECT-1]}"
-echo "Rotate: ${ROTATE_VALUES[$ROTATE_SELECT-1]}"
+echo "HDMI framebuffer rotate: ${FBROTATE_VALUES[$FBROTATE_SELECT-1]}"
+echo "TFT MADCTL rotate: ${TFTROTATE_VALUES[$TFTROTATE_SELECT-1]}"
 echo
 echo -n "CONTINUE? [y/N] "
 read
@@ -161,10 +176,10 @@ echo "Configuring PiTFT..."
 raspi-config nonint do_spi 0
 
 # Set up PiTFT device tree overlay
-reconfig /boot/config.txt "^.*dtoverlay=pitft.*$" "dtoverlay=${PITFT_VALUES[PITFT_SELECT-1]},rotate=90,speed=${HZ_VALUES[PITFT_SELECT-1]},fps=60"
+reconfig /boot/config.txt "^.*dtoverlay=pitft.*$" "dtoverlay=${PITFT_VALUES[PITFT_SELECT-1]},rotate=${TFTROTATE_VALUES[TFTROTATE_SELECT-1]},speed=${HZ_VALUES[PITFT_SELECT-1]},fps=60"
 
 # Set up framebuffer rotation
-reconfig /boot/config.txt "^.*display_rotate.*$" "display_rotate=${ROTATE_VALUES[ROTATE_SELECT-1]}"
+reconfig /boot/config.txt "^.*display_rotate.*$" "display_rotate=${FBROTATE_VALUES[FBROTATE_SELECT-1]}"
 
 # Disable overscan compensation (use full screen):
 raspi-config nonint do_overscan 1
