@@ -55,6 +55,7 @@ PROJ_SELECT=$?
 PITFT_VALUES=(pitft22 pitft28-resistive pitft28-capacitive pitft35-resistive)
 WIDTH_VALUES=(320 320 320 480)
 HEIGHT_VALUES=(240 240 240 320)
+HZ_VALUES=(80000000 80000000 80000000 64000000)
 ROTATE_VALUES=(0 90 180 270)
 
 if [ $PROJ_SELECT -lt 2 ]; then
@@ -94,7 +95,7 @@ fi
 # START INSTALL ------------------------------------------------------------
 
 echo
-echo "PiTFT overlay: ${PITFT_VALUES[$PITFT_SELECT-1]}"
+echo "Device: ${PITFT_VALUES[$PITFT_SELECT-1]}"
 echo "Rotate: ${ROTATE_VALUES[$ROTATE_SELECT-1]}"
 echo
 echo -n "CONTINUE? [y/N] "
@@ -119,7 +120,7 @@ reconfig() {
 	grep $2 $1 >/dev/null
 	if [ $? -eq 0 ]; then
 		# Pattern found; replace in file
-		sed -i s/$2/$3/g $1 >/dev/null
+		sed -i "s/$2/$3/g" $1 >/dev/null
 	else
 		# Not found; append (silently)
 		echo $3 | sudo tee -a $1 >/dev/null
@@ -160,7 +161,7 @@ echo "Configuring PiTFT..."
 raspi-config nonint do_spi 0
 
 # Set up PiTFT device tree overlay
-reconfig /boot/config.txt "^.*dtoverlay=pitft.*$" "dtoverlay=${PITFT_VALUES[PITFT_SELECT-1]},rotate=90,speed=80000000,fps=60"
+reconfig /boot/config.txt "^.*dtoverlay=pitft.*$" "dtoverlay=${PITFT_VALUES[PITFT_SELECT-1]},rotate=90,speed=${HZ_VALUES[PITFT_SELECT-1]},fps=60"
 
 # Set up framebuffer rotation
 reconfig /boot/config.txt "^.*display_rotate.*$" "display_rotate=${ROTATE_VALUES[ROTATE_SELECT-1]}"
@@ -183,7 +184,7 @@ echo "Done."
 echo
 echo "Settings take effect on next boot."
 echo
-echo -n "REBOOT NOW? [y/N]"
+echo -n "REBOOT NOW? [y/N] "
 read
 if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
 	echo "Exiting without reboot."
