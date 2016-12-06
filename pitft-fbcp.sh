@@ -68,7 +68,7 @@ if [ $PROJ_SELECT -lt 2 ]; then
 	# 3 elements per project; first is index (1+) into
 	# PITFT_VALUES, second and third are index into
 	# FBROTATE_VALUES and TFTROTATE_VALUES:
-	PROJ_VALUES=(2 1 2)
+	PROJ_VALUES=(2 1 4)
 	# FBROTATE is almost always 0, except for HDMI portrait mode
 
 	PITFT_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*3]}
