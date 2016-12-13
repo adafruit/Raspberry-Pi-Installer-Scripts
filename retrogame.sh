@@ -35,8 +35,9 @@ echo
 
 echo "Select configuration:"
 selectN "PiGRRL 2 controls" \
-        "Pocket PiGRRL controls" \
-        "PiGRRL Zero controls" \
+        "Pocket PiGRRL" \
+        "PiGRRL Zero" \
+        "Super Game Pi" \
         "Two buttons + joystick" \
         "Six buttons + joystick" \
         "Adafruit Arcade Bonnet" \
@@ -44,9 +45,9 @@ selectN "PiGRRL 2 controls" \
 RETROGAME_SELECT=$?
 # These are the retrogame.cfg.* filenames on Github corresponding in
 # order to each of the above selections (e.g. retrogame.cfg.pigrrl2):
-CONFIGNAME=(pigrrl2 pocket zero 2button 6button bonnet)
+CONFIGNAME=(pigrrl2 pocket zero super 2button 6button bonnet)
 
-if [ $RETROGAME_SELECT -lt 7 ]; then
+if [ $RETROGAME_SELECT -lt 8 ]; then
 	if [ -e /boot/retrogame.cfg ]; then
 		echo "/boot/retrogame.cfg already exists."
 		echo "Continuing will overwrite file."
@@ -82,7 +83,7 @@ if [ $RETROGAME_SELECT -lt 7 ]; then
 	# Add udev rule (will overwrite if present)
 	echo "SUBSYSTEM==\"input\", ATTRS{name}==\"retrogame\", ENV{ID_INPUT_KEYBOARD}=\"1\"" > /etc/udev/rules.d/10-retrogame.rules
 
-	if [ $RETROGAME_SELECT -eq 6 ]; then
+	if [ $RETROGAME_SELECT -eq 7 ]; then
 		# If Bonnet, make sure I2C is enabled.  Call the I2C
 		# setup function in raspi-config (noninteractive):
 		raspi-config nonint do_i2c 0
