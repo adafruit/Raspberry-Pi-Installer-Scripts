@@ -77,7 +77,7 @@ fi
 
 echo
 echo "Screen type: ${SCREEN_NAMES[$SCREEN_SELECT-1]}"
-echo "Install GPIO-halt: ${OPTION_NAMES[$INSTALL_HALT]} (GPIO$HALT_PIN)"
+echo "Install GPIO-halt: ${OPTION_NAMES[$INSTALL_HALT]} ($HALT_PIN)"
 echo "Ethernet USB gadget support: ${OPTION_NAMES[$INSTALL_GADGET]}"
 echo
 echo -n "CONTINUE? [y/N] "
@@ -187,6 +187,11 @@ fi
 
 if [ $INSTALL_GADGET -ne 0 ]; then
 	reconfig /boot/config.txt "^.*dtoverlay=dwc2.*$" "dtoverlay=dwc2"
+	grep "modules-load=dwc2,g_ether" /boot/cmdline.txt >/dev/null
+	if [ $? -eq 0 ]; then
+		# Insert ethernet gadget into config.txt after 'rootwait'
+		sed -i "s/rootwait/rootwait modules-load=dwc2,g_ether/g" /boot/cmdline.txt >/dev/null
+	fi
 fi
 
 # PROMPT FOR REBOOT --------------------------------------------------------
