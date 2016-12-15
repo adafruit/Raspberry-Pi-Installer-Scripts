@@ -16,7 +16,7 @@ echo "  python-dev, python-imaging"
 echo "- Install Adafruit eye code and data in /boot"
 echo "- Enable SPI0 and SPI1 peripherals"
 echo "- Set HDMI resolution to 640x480, disable overscan"
-echo "Run time ~15 minutes. Reboot required."
+echo "Run time ~25 minutes. Reboot required."
 echo "EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN."
 echo
 echo -n "CONTINUE? [y/N] "
@@ -78,7 +78,7 @@ fi
 echo
 echo "Screen type: ${SCREEN_NAMES[$SCREEN_SELECT-1]}"
 if [ $INSTALL_HALT -eq 1 ]; then
-	echo "Install GPIO-halt: YES ($HALT_PIN)"
+	echo "Install GPIO-halt: YES (GPIO$HALT_PIN)"
 else
 	echo "Install GPIO-halt: NO"
 fi
@@ -192,7 +192,7 @@ fi
 if [ $INSTALL_GADGET -ne 0 ]; then
 	reconfig /boot/config.txt "^.*dtoverlay=dwc2.*$" "dtoverlay=dwc2"
 	grep "modules-load=dwc2,g_ether" /boot/cmdline.txt >/dev/null
-	if [ $? -eq 0 ]; then
+	if [ $? -ne 0 ]; then
 		# Insert ethernet gadget into config.txt after 'rootwait'
 		sed -i "s/rootwait/rootwait modules-load=dwc2,g_ether/g" /boot/cmdline.txt >/dev/null
 	fi
