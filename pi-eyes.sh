@@ -77,7 +77,11 @@ fi
 
 echo
 echo "Screen type: ${SCREEN_NAMES[$SCREEN_SELECT-1]}"
-echo "Install GPIO-halt: ${OPTION_NAMES[$INSTALL_HALT]} ($HALT_PIN)"
+if [ $INSTALL_HALT -eq 1 ]; then
+	echo "Install GPIO-halt: YES ($HALT_PIN)"
+else
+	echo "Install GPIO-halt: NO"
+fi
 echo "Ethernet USB gadget support: ${OPTION_NAMES[$INSTALL_GADGET]}"
 echo
 echo -n "CONTINUE? [y/N] "
