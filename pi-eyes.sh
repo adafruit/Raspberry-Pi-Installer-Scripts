@@ -30,6 +30,7 @@ fi
 # Installation doesn't begin until after all user input is taken.
 
 INSTALL_HALT=0
+INSTALL_ADC=0
 INSTALL_GADGET=0
 
 # Given a list of strings representing options, display each option
@@ -69,6 +70,12 @@ if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
 	HALT_PIN=$REPLY
 fi
 
+echo -n "Install ADC support? [y/N] "
+read
+if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
+	INSTALL_ADC=1
+fi
+
 echo -n "Install USB Ethernet gadget support? (Pi Zero) [y/N] "
 read
 if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
@@ -82,6 +89,7 @@ if [ $INSTALL_HALT -eq 1 ]; then
 else
 	echo "Install GPIO-halt: NO"
 fi
+echo "ADC support: ${OPTION_NAMES[$INSTALL_ADC]}"
 echo "Ethernet USB gadget support: ${OPTION_NAMES[$INSTALL_GADGET]}"
 echo
 echo -n "CONTINUE? [y/N] "
@@ -116,6 +124,10 @@ apt-get update
 echo "Installing Python libraries..."
 apt-get install -y --force-yes python-pip python-dev python-imaging
 pip install numpy pi3d svg.path
+if [ $INSTALL_ADC -ne 0 ]; then
+	apt-get install -y --force-yes python-smbus
+	pip install adafruit-ads1x15
+fi
 
 echo "Installing Adafruit code and data in /boot..."
 cd /tmp
@@ -148,6 +160,11 @@ reconfig /boot/config.txt "^.*dtoverlay=spi1.*$" "dtoverlay=spi1-3cs"
 
 # Disable overscan compensation (use full screen):
 raspi-config nonint do_overscan 1
+
+# Enable I2C for ADC
+if [ $INSTALL_ADC -ne 0 ]; then
+	raspi-config nonint do_i2c 0
+fi
 
 # HDMI settings for Pi eyes
 reconfig /boot/config.txt "^.*hdmi_force_hotplug.*$" "hdmi_force_hotplug=1"
