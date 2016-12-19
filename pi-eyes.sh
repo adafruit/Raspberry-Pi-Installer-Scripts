@@ -122,12 +122,10 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Installing Python libraries..."
-apt-get install -y --force-yes python-pip python-dev python-imaging
-pip install numpy pi3d svg.path
-if [ $INSTALL_ADC -ne 0 ]; then
-	apt-get install -y --force-yes python-smbus
-	pip install adafruit-ads1x15
-fi
+apt-get install -y --force-yes python-pip python-dev python-imaging python-smbus
+pip install numpy pi3d svg.path adafruit-ads1x15
+# smbus and ads1x15 Python libs are installed regardless whether ADC
+# is enabled; simplifies the Python code a little (no "uncomment this")
 
 echo "Installing Adafruit code and data in /boot..."
 cd /tmp
