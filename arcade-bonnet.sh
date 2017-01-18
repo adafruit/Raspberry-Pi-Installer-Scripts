@@ -18,6 +18,8 @@ echo "- Install arcadeBonnet.py in /boot and"
 echo "  configure /etc/rc.local to auto-start script."
 echo "- Enable I2C bus."
 echo "- OPTIONAL: disable overscan."
+echo "I2S audio IS NOT INSTALLED by this script!"
+echo "Run the i2samp.sh script separately for that."
 echo "Run time ~10 minutes. Reboot required."
 echo "EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN."
 echo
