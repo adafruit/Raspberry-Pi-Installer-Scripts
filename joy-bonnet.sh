@@ -9,15 +9,13 @@ fi
 clear
 
 echo "This script installs software for the Adafruit"
-echo "Arcade Bonnet for Raspberry Pi. Steps include:"
+echo "Joy Bonnet for Raspberry Pi. Steps include:"
 echo "- Update package index files (apt-get update)."
 echo "- Install Python libraries: smbus, evdev."
-echo "- Install arcadeBonnet.py in /boot and"
+echo "- Install joyBonnet.py in /boot and"
 echo "  configure /etc/rc.local to auto-start script."
 echo "- Enable I2C bus."
 echo "- OPTIONAL: disable overscan."
-echo "I2S audio IS NOT INSTALLED by this script!"
-echo "Run the i2samp.sh script separately for that."
 echo "Run time ~10 minutes. Reboot required."
 echo "EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN."
 echo
@@ -115,10 +113,10 @@ pip install evdev
 
 echo "Installing Adafruit code in /boot..."
 cd /tmp
-curl -LO https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/arcadeBonnet.py
+curl -LO https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/joyBonnet.py
 # Moving between filesystems requires copy-and-delete:
-cp -r arcadeBonnet.py /boot
-rm -f arcadeBonnet.py
+cp -r joyBonnet.py /boot
+rm -f joyBonnet.py
 if [ $INSTALL_HALT -ne 0 ]; then
 	echo "Installing gpio-halt in /usr/local/bin..."
 	curl -LO https://github.com/adafruit/Adafruit-GPIO-Halt/archive/master.zip
@@ -154,14 +152,14 @@ if [ $INSTALL_HALT -ne 0 ]; then
 	fi
 fi
 
-# Auto-start arcadeBonnet.py on boot
-grep arcadeBonnet.py /etc/rc.local >/dev/null
+# Auto-start joyBonnet.py on boot
+grep joyBonnet.py /etc/rc.local >/dev/null
 if [ $? -eq 0 ]; then
-	# arcadeBonnet.py already in rc.local, but make sure correct:
-	sed -i "s/^.*arcadeBonnet.py.*$/cd \/boot;python arcadeBonnet.py \&/g" /etc/rc.local >/dev/null
+	# joyBonnet.py already in rc.local, but make sure correct:
+	sed -i "s/^.*joyBonnet.py.*$/cd \/boot;python joyBonnet.py \&/g" /etc/rc.local >/dev/null
 else
-	# Insert arcadeBonnet.py into rc.local before final 'exit 0'
-sed -i "s/^exit 0/cd \/boot;python arcadeBonnet.py \&\\nexit 0/g" /etc/rc.local >/dev/null
+	# Insert joyBonnet.py into rc.local before final 'exit 0'
+sed -i "s/^exit 0/cd \/boot;python joyBonnet.py \&\\nexit 0/g" /etc/rc.local >/dev/null
 fi
 
 # Add udev rule (will overwrite if present)
