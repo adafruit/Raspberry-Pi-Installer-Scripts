@@ -109,7 +109,7 @@ apt-get update
 
 echo "Installing Python libraries..."
 apt-get install -y --force-yes python-pip python-dev python-smbus
-pip install evdev
+pip install evdev --upgrade
 
 echo "Installing Adafruit code in /boot..."
 cd /tmp
