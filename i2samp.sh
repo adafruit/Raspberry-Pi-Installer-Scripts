@@ -191,7 +191,7 @@ os_check() {
             fi
         done
     fi
-    if [ -f ~/.pt-dashboard-config ] || [ -d ~/.pt-dashboard ]; then
+    if [ -f ~/.pt-dashboard-config ] || [ -d ~/.pt-dashboard ] || [ -d ~/.pt-os-dashboard ]; then
         IS_RASPBIAN=false
         for os in ${oswarning[@]}; do
             if [ $os == "PiTop" ]; then
