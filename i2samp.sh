@@ -346,6 +346,13 @@ if confirm "Do you wish to continue?"; then
             ASK_TO_REBOOT=true
         fi
 
+        if [ -e $CONFIG ] && grep -q "^dtoverlay=i2s-mmap$" $CONFIG; then
+            echo "i2s mmap dtoverlay already active"
+        else
+            echo "dtoverlay=i2s-mmap" | sudo tee -a $CONFIG
+            ASK_TO_REBOOT=true
+        fi
+
         if [ -e $BLACKLIST ]; then
             newline
             echo "Commenting out Blacklist entry in "
@@ -389,8 +396,46 @@ if confirm "Do you wish to continue?"; then
         fi
         sudo mv /etc/asound.conf /etc/asound.conf.old
     fi
-    sudo echo -e "pcm.\041default {\n type hw\n card 0\n}" > ~/asound.conf
-    sudo echo -e "ctl.\041default {\n type hw\n card 0\n}" >> ~/asound.conf
+    cat > ~/asound.conf << 'EOL'
+pcm.speakerbonnet {
+   type hw card 0
+}
+
+pcm.dmixer {
+   type dmix
+   ipc_key 1024
+   ipc_perm 0666
+   slave {
+     pcm "speakerbonnet"
+     period_time 0
+     period_size 1024
+     buffer_size 8192
+     rate 44100
+     channels 2
+   }
+}
+
+ctl.dmixer {
+    type hw card 0
+}
+
+pcm.softvol {
+    type softvol
+    slave.pcm "dmixer"
+    control.name "PCM"
+    control.card 0
+}
+
+ctl.softvol {
+    type hw card 0
+}
+
+pcm.!default {
+    type             plug
+    slave.pcm       "softvol"
+}
+EOL
+
     sudo mv ~/asound.conf /etc/asound.conf
 
     if [ $bcm2835off == "yes" ]; then
