@@ -441,10 +441,10 @@ EOL
     if [ $bcm2835off == "yes" ]; then
         newline
         echo "We can now test your $productname"
-        warning "Set your speakers at a low volume!"
+        warning "Set your speakers at a low volume if possible!"
         if confirm "Do you wish to test your system now?"; then
             echo "Testing..."
-            speaker-test -l5 -c2 -t wav
+            speaker-test -Dsoftvol -l5 -c2 -t wav
         fi
     fi
     newline
