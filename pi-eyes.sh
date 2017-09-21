@@ -14,7 +14,7 @@ echo "- Update package index files (apt-get update)"
 echo "- Install Python libraries: numpy, pi3d, svg.path,"
 echo "  python-dev, python-imaging"
 echo "- Install Adafruit eye code and data in /boot"
-echo "- Enable SPI0 and SPI1 peripherals"
+echo "- Enable SPI0 and SPI1 peripherals if needed"
 echo "- Set HDMI resolution to 640x480, disable overscan"
 echo "Run time ~25 minutes. Reboot required."
 echo "EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN."
@@ -53,12 +53,13 @@ selectN() {
 }
 
 SCREEN_VALUES=(-o -t)
-SCREEN_NAMES=(OLED TFT)
+SCREEN_NAMES=(OLED TFT HDMI)
 OPTION_NAMES=(NO YES)
 echo
 echo "Select screen type:"
 selectN "${SCREEN_NAMES[0]}" \
-        "${SCREEN_NAMES[1]}"
+        "${SCREEN_NAMES[1]}" \
+        "${SCREEN_NAMES[2]}"
 SCREEN_SELECT=$?
 
 echo -n "Install GPIO-halt utility? [y/N] "
@@ -91,6 +92,7 @@ else
 fi
 echo "ADC support: ${OPTION_NAMES[$INSTALL_ADC]}"
 echo "Ethernet USB gadget support: ${OPTION_NAMES[$INSTALL_GADGET]}"
+echo "Video resolution will be set to 640x480, no overscan"
 echo
 echo -n "CONTINUE? [y/N] "
 read
@@ -149,20 +151,8 @@ fi
 
 echo "Configuring system..."
 
-# Enable SPI0 using raspi-config
-raspi-config nonint do_spi 0
-
-# Enable SPI1 by adding overlay to /boot/config.txt
-reconfig /boot/config.txt "^.*dtparam=spi1.*$" "dtparam=spi1=on"
-reconfig /boot/config.txt "^.*dtoverlay=spi1.*$" "dtoverlay=spi1-3cs"
-
 # Disable overscan compensation (use full screen):
 raspi-config nonint do_overscan 1
-
-# Enable I2C for ADC
-if [ $INSTALL_ADC -ne 0 ]; then
-	raspi-config nonint do_i2c 0
-fi
 
 # HDMI settings for Pi eyes
 reconfig /boot/config.txt "^.*hdmi_force_hotplug.*$" "hdmi_force_hotplug=1"
@@ -170,7 +160,10 @@ reconfig /boot/config.txt "^.*hdmi_group.*$" "hdmi_group=2"
 reconfig /boot/config.txt "^.*hdmi_mode.*$" "hdmi_mode=87"
 reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=640 480 60 1 0 0 0"
 
-SCREEN_OPT=${SCREEN_VALUES[($SCREEN_SELECT-1)]}
+# Enable I2C for ADC
+if [ $INSTALL_ADC -ne 0 ]; then
+	raspi-config nonint do_i2c 0
+fi
 
 if [ $INSTALL_HALT -ne 0 ]; then
 	# Add gpio-halt to /rc.local:
@@ -179,29 +172,56 @@ if [ $INSTALL_HALT -ne 0 ]; then
 		# gpio-halt already in rc.local, but make sure correct:
 		sed -i "s/^.*gpio-halt.*$/\/usr\/local\/bin\/gpio-halt $HALT_PIN \&/g" /etc/rc.local >/dev/null
 	else
-		# Insert fbcp into rc.local before final 'exit 0'
+		# Insert gpio-halt into rc.local before final 'exit 0'
 		sed -i "s/^exit 0/\/usr\/local\/bin\/gpio-halt $HALT_PIN \&\\nexit 0/g" /etc/rc.local >/dev/null
 	fi
 fi
 
-# Auto-start fbx2 on boot
-grep fbx2 /etc/rc.local >/dev/null
-if [ $? -eq 0 ]; then
-	# fbx2 already in rc.local, but make sure correct:
-	sed -i "s/^.*fbx2.*$/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&/g" /etc/rc.local >/dev/null
-else
-	# Insert fbx2 into rc.local before final 'exit 0'
-sed -i "s/^exit 0/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&\\nexit 0/g" /etc/rc.local >/dev/null
-fi
+# If using OLED or TFT, enable SPI and install fbx2 and eyes.py,
+# else (HDMI) skip SPI, fbx2 and install cyclops.py (single eye)
+if [ $SCREEN_SELECT -ne 3 ]; then
 
-# Auto-start eyes.py on boot
-grep eyes.py /etc/rc.local >/dev/null
-if [ $? -eq 0 ]; then
-	# eyes.py already in rc.local, but make sure correct:
-	sed -i "s/^.*eyes.py.*$/cd \/boot\/Pi_Eyes;python eyes.py \&/g" /etc/rc.local >/dev/null
+	# Enable SPI0 using raspi-config
+	raspi-config nonint do_spi 0
+
+	# Enable SPI1 by adding overlay to /boot/config.txt
+	reconfig /boot/config.txt "^.*dtparam=spi1.*$" "dtparam=spi1=on"
+	reconfig /boot/config.txt "^.*dtoverlay=spi1.*$" "dtoverlay=spi1-3cs"
+
+	SCREEN_OPT=${SCREEN_VALUES[($SCREEN_SELECT-1)]}
+
+	# Auto-start fbx2 on boot
+	grep fbx2 /etc/rc.local >/dev/null
+	if [ $? -eq 0 ]; then
+		# fbx2 already in rc.local, but make sure correct:
+		sed -i "s/^.*fbx2.*$/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&/g" /etc/rc.local >/dev/null
+	else
+		# Insert fbx2 into rc.local before final 'exit 0'
+	sed -i "s/^exit 0/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&\\nexit 0/g" /etc/rc.local >/dev/null
+	fi
+
+	# Auto-start eyes.py on boot
+	grep eyes.py /etc/rc.local >/dev/null
+	if [ $? -eq 0 ]; then
+		# eyes.py already in rc.local, but make sure correct:
+		sed -i "s/^.*eyes.py.*$/cd \/boot\/Pi_Eyes;python eyes.py \&/g" /etc/rc.local >/dev/null
+	else
+		# Insert eyes.py into rc.local before final 'exit 0'
+	sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;python eyes.py \&\\nexit 0/g" /etc/rc.local >/dev/null
+	fi
+
 else
-	# Insert eyes.py into rc.local before final 'exit 0'
-sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;python eyes.py \&\\nexit 0/g" /etc/rc.local >/dev/null
+
+	# Auto-start cyclops.py on boot
+	grep cyclops.py /etc/rc.local >/dev/null
+	if [ $? -eq 0 ]; then
+		# cyclops.py already in rc.local, but make sure correct:
+		sed -i "s/^.*cyclops.py.*$/cd \/boot\/Pi_Eyes;python cyclops.py \&/g" /etc/rc.local >/dev/null
+	else
+		# Insert cyclops.py into rc.local before final 'exit 0'
+	sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;python cyclops.py \&\\nexit 0/g" /etc/rc.local >/dev/null
+	fi
+
 fi
 
 if [ $INSTALL_GADGET -ne 0 ]; then
