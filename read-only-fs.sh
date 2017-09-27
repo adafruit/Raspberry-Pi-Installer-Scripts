@@ -178,7 +178,10 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Removing unwanted packages..."
-apt-get remove -y --force-yes --purge triggerhappy cron logrotate dbus \
+#apt-get remove -y --force-yes --purge triggerhappy cron logrotate dbus \
+# dphys-swapfile xserver-common lightdm fake-hwclock
+# Let's keep dbus...that includes avahi-daemon, a la 'raspberrypi.local'
+apt-get remove -y --force-yes --purge triggerhappy cron logrotate \
  dphys-swapfile xserver-common lightdm fake-hwclock
 apt-get -y --force-yes autoremove --purge
 
@@ -217,6 +220,8 @@ if [ $INSTALL_WATCHDOG -ne 0 ]; then
 	replace /etc/watchdog.conf "#watchdog-device" "watchdog-device"
 	replace /etc/watchdog.conf "#max-load-1" "max-load-1"
 	# Start watchdog at system start and start right away
+	# Raspbian Stretch needs this package installed first
+	apt-get install -y --force-yes insserv
 	insserv watchdog; /etc/init.d/watchdog start
 	# Additional settings needed on Jessie
 	append1 /lib/systemd/system/watchdog.service "WantedBy" "WantedBy=multi-user.target"
