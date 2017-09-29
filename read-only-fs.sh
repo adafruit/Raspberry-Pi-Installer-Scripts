@@ -181,8 +181,9 @@ echo "Removing unwanted packages..."
 #apt-get remove -y --force-yes --purge triggerhappy cron logrotate dbus \
 # dphys-swapfile xserver-common lightdm fake-hwclock
 # Let's keep dbus...that includes avahi-daemon, a la 'raspberrypi.local',
+# also keeping xserver & lightdm for GUI login (WIP, not working yet)
 apt-get remove -y --force-yes --purge triggerhappy cron logrotate \
- dphys-swapfile xserver-common lightdm fake-hwclock
+ dphys-swapfile fake-hwclock
 apt-get -y --force-yes autoremove --purge
 
 # Replace log management with busybox (use logread if needed)
@@ -259,9 +260,15 @@ append2 /boot/cmdline.txt fastboot fastboot
 append2 /boot/cmdline.txt noswap noswap
 append2 /boot/cmdline.txt ro^o^t ro
 
-# Move spool to /tmp
-rm -rf  /var/spool
+# Move /var/spool to /tmp
+rm -rf /var/spool
 ln -s /tmp /var/spool
+
+# Move /var/lib/lightdm and /var/cache/lightdm to /tmp
+rm -rf /var/lib/lightdm
+rm -rf /var/cache/lightdm
+ln -s /tmp /var/lib/lightdm
+ln -s /tmp /var/cache/lightdm
 
 # Make SSH work
 replaceAppend /etc/ssh/sshd_config "^.*UsePrivilegeSeparation.*$" "UsePrivilegeSeparation no"
