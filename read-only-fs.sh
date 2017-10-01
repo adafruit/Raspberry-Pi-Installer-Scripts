@@ -199,6 +199,7 @@ if [ \`gpio -g read $RW_PIN\` -eq 0 ] ; then\n\
 \tmount -o remount,rw \/boot\n\
 fi\n"
 if [ $INSTALL_RW_JUMPER -ne 0 ]; then
+	apt-get install -y --force-yes wiringpi
 	# Check if already present in rc.local:
 	grep "gpio -g read" /etc/rc.local >/dev/null
 	if [ $? -eq 0 ]; then
