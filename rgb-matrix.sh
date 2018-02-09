@@ -22,9 +22,9 @@ echo "RGB Matrix Bonnet or HAT for Raspberry Pi."
 echo "Steps include:"
 echo "- Update package index files (apt-get update)"
 echo "- Install prerequisite software"
-echo "- Install RGB matrix driver software"
+echo "- Install RGB matrix driver software and examples"
 echo "- Configure boot options"
-echo "Run time ~10 minutes. Some options require reboot."
+echo "Run time ~15 minutes. Some options require reboot."
 echo "EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN."
 echo
 echo -n "CONTINUE? [y/N] "
@@ -153,7 +153,7 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Downloading prerequisites..."
-apt-get install -y --force-yes python-dev python-imaging
+apt-get install -y --force-yes python2.7-dev python-pillow python3-dev python3-pillow
 
 echo "Downloading RGB matrix software..."
 curl -L $GITUSER/$REPO/archive/$COMMIT.zip -o $REPO-$COMMIT.zip
@@ -163,13 +163,21 @@ mv $REPO-$COMMIT rpi-rgb-led-matrix
 echo "Building RGB matrix software..."
 cd rpi-rgb-led-matrix
 if [ $QUALITY_MOD -eq 1 ]; then
-	HARDWARE_DESC=adafruit-hat-pwm make
-	cd bindings/python
-	python setup.py install
+	# Build then install for Python 2.7...
+	make build-python HARDWARE_DESC=adafruit-hat-pwm
+	make install-python HARDWARE_DESC=adafruit-hat-pwm
+	# Do over for Python 3...
+	make clean
+	make build-python HARDWARE_DESC=adafruit-hat-pwm PYTHON=$(which python3)
+	make install-python HARDWARE_DESC=adafruit-hat-pwm PYTHON=$(which python3)
 else
-	HARDWARE_DESC=adafruit-hat make USER_DEFINES="-DDISABLE_HARDWARE_PULSES"
-	cd bindings/python
-	python setup.py install
+	# Build then install for Python 2.7...
+	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES"
+	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES"
+	# Do over for Python 3...
+	make clean
+	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES" PYTHON=$(which python3)
+	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES" PYTHON=$(which python3)
 fi
 # Change ownership to user calling sudo
 cd ../../..
