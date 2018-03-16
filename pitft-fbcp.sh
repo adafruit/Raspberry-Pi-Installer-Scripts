@@ -51,6 +51,8 @@ echo "Select project:"
 selectN "PiGRRL 2" \
         "Pocket PiGRRL" \
         "PiGRRL Zero" \
+        "Cupcade (horizontal)" \
+        "Cupcade (vertical)" \
         "Configure options manually"
 PROJ_SELECT=$?
 
@@ -63,14 +65,14 @@ FBROTATE_VALUES=(0 1 2 3)
 # PiTFT (MADCTL) rotation:
 TFTROTATE_VALUES=(0 90 180 270)
 
-if [ $PROJ_SELECT -lt 4 ]; then
+if [ $PROJ_SELECT -lt 6 ]; then
 
 	# Use preconfigured settings per-project
 
 	# 3 elements per project; first is index (1+) into
 	# PITFT_VALUES, second and third are index into
 	# FBROTATE_VALUES and TFTROTATE_VALUES:
-	PROJ_VALUES=(2 1 4   1 1 4   1 1 4)
+	PROJ_VALUES=(2 1 4   1 1 4   1 1 4   2 0 2   2 1 2)
 	# FBROTATE index is almost always 1, except for HDMI portrait mode
 
 	PITFT_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*3]}
@@ -194,6 +196,9 @@ reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=${WIDTH_VALUES[PITFT_SELECT
 # Use smaller console font:
 reconfig /etc/default/console-setup "^.*FONTFACE.*$" "FONTFACE=\"Terminus\""
 reconfig /etc/default/console-setup "^.*FONTSIZE.*$" "FONTSIZE=\"6x12\""
+
+# Enable Retropie video smoothing
+reconfig /opt/retropie/configs/all/retroarch.cfg "^.*video_smooth.*$" "video_smooth = \"true\""
 
 # PROMPT FOR REBOOT --------------------------------------------------------
 
