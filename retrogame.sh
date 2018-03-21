@@ -48,7 +48,7 @@ RETROGAME_SELECT=$?
 # order to each of the above selections (e.g. retrogame.cfg.pigrrl2):
 CONFIGNAME=(pigrrl2 pocket zero super 2button 6button bonnet cupcade-orig)
 
-if [ $RETROGAME_SELECT -lt 8 ]; then
+if [ $RETROGAME_SELECT -lt 9 ]; then
 	if [ -e /boot/retrogame.cfg ]; then
 		echo "/boot/retrogame.cfg already exists."
 		echo "Continuing will overwrite file."
