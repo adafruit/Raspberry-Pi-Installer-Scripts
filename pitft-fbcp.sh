@@ -51,8 +51,8 @@ echo "Select project:"
 selectN "PiGRRL 2" \
         "Pocket PiGRRL" \
         "PiGRRL Zero" \
-        "Cupcade (horizontal)" \
-        "Cupcade (vertical)" \
+        "Cupcade (horizontal screen)" \
+        "Cupcade (vertical screen)" \
         "Configure options manually"
 PROJ_SELECT=$?
 
@@ -72,7 +72,7 @@ if [ $PROJ_SELECT -lt 6 ]; then
 	# 3 elements per project; first is index (1+) into
 	# PITFT_VALUES, second and third are index into
 	# FBROTATE_VALUES and TFTROTATE_VALUES:
-	PROJ_VALUES=(2 1 4   1 1 4   1 1 4   2 0 2   2 1 2)
+	PROJ_VALUES=(2 1 4   1 1 4   1 1 4   2 1 2   2 2 2)
 	# FBROTATE index is almost always 1, except for HDMI portrait mode
 
 	PITFT_SELECT=${PROJ_VALUES[($PROJ_SELECT-1)*3]}
