@@ -15,6 +15,27 @@ fi
 
 UPDATE_DB=false
 
+
+############################ CALIBRATIONS ############################
+# For TSLib
+POINTERCAL_28r0="4232 11 -879396 1 5786 -752768 65536"
+POINTERCAL_28r90="33 -5782 21364572 4221 35 -1006432 65536"
+POINTERCAL_28r180="-4273 61 16441290 4 -5772 21627524 65536"
+POINTERCAL_28r270="-9 5786 -784608 -4302 19 16620508 65536"
+
+POINTERCAL_35r0="5724 -6 -1330074 26 8427 -1034528 65536"
+POINTERCAL_35r90="5 8425 -978304 -5747 61 22119468 65536"
+POINTERCAL_35r180="-5682 -1 22069150 13 -8452 32437698 65536"
+POINTERCAL_35r270="3 -8466 32440206 5703 -1 -1308696 65536"
+
+POINTERCAL_28c="320 65536 0 -65536 0 15728640 65536"
+
+# for PIXEL desktop
+TRANSFORM_28r0="0.988809 -0.023645 0.060523 -0.028817 1.003935 0.034176 0 0 1"
+TRANSFORM_28r90="0.014773 -1.132874 1.033662 1.118701 0.009656 -0.065273 0 0 1"
+TRANSFORM_28r180="-1.115235 -0.010589 1.057967 -0.005964 -1.107968 1.025780 0 0 1"
+TRANSFORM_28r270="-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1"
+
 ############################ Script assisters ############################
 
 # Given a list of strings representing options, display each option
@@ -205,58 +226,14 @@ SUBSYSTEM=="input", ATTRS{name}=="*stmpe*", ENV{DEVNAME}=="*event*", SYMLINK+="i
 EOF
 }
 
-# currently for '90' rotation only
-function update_pointercal() {
-    if [ "${pitfttype}" == "28r" ]; then
-	if [ "${pitftrot}" == "90" ]; then
-	    cat > /etc/pointercal <<EOF
-33 -5782 21364572 4221 35 -1006432 65536
-EOF
-	fi
-	if [ "${pitftrot}" == "180" ]; then
-	    cat > /etc/pointercal <<EOF
--4273 61 16441290 4 -5772 21627524 65536
-EOF
-	fi
-	if [ "${pitftrot}" == "270" ]; then
-	    cat > /etc/pointercal <<EOF
--9 5786 -784608 -4302 19 16620508 65536
-EOF
-	fi
-	if [ "${pitftrot}" == "0" ]; then
-	    cat > /etc/pointercal <<EOF
-4232 11 -879396 1 5786 -752768 65536
-EOF
-	fi
-    fi
 
-    if [ "${pitfttype}" == "35r" ]; then
-	if [ "${pitftrot}" == "90" ]; then
-	    cat > /etc/pointercal <<EOF
-5 8425 -978304 -5747 61 22119468 65536
-EOF
-	fi
-	if [ "${pitftrot}" == "180" ]; then
-	    cat > /etc/pointercal <<EOF
--5682 -1 22069150 13 -8452 32437698 65536
-EOF
-	fi
-	if [ "${pitftrot}" == "270" ]; then
-	    cat > /etc/pointercal <<EOF
-3 -8466 32440206 5703 -1 -1308696 65536
-EOF
-	fi
-	if [ "${pitftrot}" == "0" ]; then
-	    cat > /etc/pointercal <<EOF
-5724 -6 -1330074 26 8427 -1034528 65536
-EOF
-	fi
+function update_pointercal() {
+    if [ "${pitfttype}" == "28r" ] || [ "${pitfttype}" == "35r" ]; then
+       echo $(eval echo "\$POINTERCAL_$pitfttype$pitftrot") > /etc/pointercal
     fi
 
     if [ "${pitfttype}" == "28c" ]; then
-        cat > /etc/pointercal <<EOF
-320 65536 0 -65536 0 15728640 65536
-EOF
+       echo $(eval echo "\$POINTERCAL_$pitfttype") > /etc/pointercal
     fi
 }
 
@@ -285,7 +262,7 @@ function install_console() {
     reconfig /etc/default/console-setup "^.*FONTSIZE.*$" "FONTSIZE=\"6x12\""
 
     echo "Setting raspi-config to boot to console w/o login..."
-    raspi-config nonint do_boot_behaviour B2
+    (cd ~pi && raspi-config nonint do_boot_behaviour B2)
 
     # remove fbcp
     sed -i -e "/^.*fbcp.*$/d" /etc/rc.local
@@ -363,6 +340,24 @@ function install_fbcp() {
     HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
     reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=${WIDTH} ${HEIGHT} 60 1 0 0 0"
 
+    if [ "${pitftrot}" == "90" ] || [ "${pitftrot}" == "270" ]; then
+	# dont rotate HDMI on 90 or 270
+	reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" ""
+    fi
+
+    if [ "${pitftrot}" == "0" ]; then
+	reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" "display_hdmi_rotate=1"
+	# this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
+	pitftrot=90
+	update_configtxt || bail "Unable to update /boot/config.txt"
+    fi
+    if [ "${pitftrot}" == "180" ]; then
+	reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" "display_hdmi_rotate=3"
+	# this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
+	pitftrot=90
+	update_configtxt || bail "Unable to update /boot/config.txt"
+    fi
+
 }
 
 function uninstall_fbcp() {
@@ -380,28 +375,17 @@ function uninstall_fbcp() {
     sed -i -e '/^hdmi_cvt=.*$/d' /boot/config.txt
 }
 
-# currently for '90' rotation only
 function update_xorg() {
-    if [ "${pitfttype}" == "28r" ]; then
+    if [ "${pitfttype}" == "28r" ] || [ "${pitfttype}" == "35r" ]; then
+	matrix=$(eval echo "\$TRANSFORM_$pitfttype$pitftrot")
+	transform="Option \"TransformationMatrix\" \"${matrix}\""
         cat > /usr/share/X11/xorg.conf.d/20-calibration.conf <<EOF
 Section "InputClass"
         Identifier "STMPE Touchscreen Calibration"
         MatchProduct "stmpe"
         MatchDevicePath "/dev/input/event*"
         Driver "libinput"
-        Option "TransformationMatrix" "0.024710 -1.098824 1.013750 1.113069 -0.008984 -0.069884 0 0 1"
-EndSection
-EOF
-    fi
-
-    if [ "${pitfttype}" == "35r" ]; then
-        cat > /usr/share/X11/xorg.conf.d/20-calibration.conf <<EOF
-Section "InputClass"
-        Identifier "STMPE Touchscreen Calibration"
-        MatchProduct "stmpe"
-        MatchDevicePath "/dev/input/event*"
-        Driver "libinput"
-        Option "TransformationMatrix" "0.004374 -1.087174 1.023063 1.089687 -0.007586 -0.059126 0 0 1"
+        ${transform}
 EndSection
 EOF
     fi
