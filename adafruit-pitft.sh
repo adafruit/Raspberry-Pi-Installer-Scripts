@@ -310,6 +310,7 @@ function install_fbcp() {
     make  1> /dev/null  || { warning "Failed to make fbcp!" && exit 1; }
     echo "Installing rpi-fbcp..."
     install fbcp /usr/local/bin/fbcp
+    cd ~
     rm -rf /tmp/rpi-fbcp-master
 
     # Add fbcp to /rc.local:
