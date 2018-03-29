@@ -36,6 +36,17 @@ TRANSFORM_28r90="0.014773 -1.132874 1.033662 1.118701 0.009656 -0.065273 0 0 1"
 TRANSFORM_28r180="-1.115235 -0.010589 1.057967 -0.005964 -1.107968 1.025780 0 0 1"
 TRANSFORM_28r270="-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1"
 
+TRANSFORM_35r0="-1.098388 0.003455 1.052099 0.005512 -1.093095 1.026309 0 0 1"
+TRANSFORM_35r90="-0.000087 1.094214 -0.028826 -1.091711 -0.004364 1.057821 0 0 1"
+TRANSFORM_35r180="1.102807 0.000030 -0.066352 0.001374 1.085417 -0.027208 0 0 1"
+TRANSFORM_35r270="0.003893 -1.087542 1.025913 1.084281 0.008762 -0.060700 0 0 1"
+
+TRANSFORM_28c0="-1 0 1 0 -1 1 0 0 1"
+TRANSFORM_28c90="0 1 0 -1 0 1 0 0 1"
+TRANSFORM_28c180="1 0 0 0 1 0 0 0 1"
+TRANSFORM_28c270="0 -1 1 1 0 0 0 0 1"
+
+
 ############################ Script assisters ############################
 
 # Given a list of strings representing options, display each option
@@ -125,16 +136,6 @@ function ask() {
 }
 
 
-function has_repo() {
-    # Checks for the right raspbian repository
-    # http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware
-    if [[ $(grep -h ^deb /etc/apt/sources.list /etc/apt/sources.list.d/* | grep "mirrordirector.raspbian.org") ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
 progress() {
     count=0
     until [ $count -eq $1 ]; do
@@ -146,8 +147,6 @@ progress() {
 
 sysupdate() {
     if ! $UPDATE_DB; then
-	echo "Checking for correct software repositories..."
-	has_repo || { warning "Missing Apt repo, please add deb http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware to /etc/apt/sources.list.d/raspi.list" && exit 1; }
         echo "Updating apt indexes..." && progress 3 &
         sudo apt-get update 1> /dev/null || { warning "Apt failed to update indexes!" && exit 1; }
         echo "Reading package lists..."
@@ -174,7 +173,7 @@ reconfig() {
 ############################ Sub-Scripts ############################
 
 function softwareinstall() {
-    echo "Installing Pre-requisite Software...This may take a few minutes!"
+    echo "Installing Pre-requisite Software...This may take a few minutes!" 
     apt-get install -y bc fbi git python-pip python-smbus python-spidev evtest tslib libts-bin 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     pip install evdev 1> /dev/null  || { warning "Pip failed to install software!" && exit 1; }
 }
@@ -363,12 +362,14 @@ function install_fbcp() {
 	# this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
 	pitftrot=90
 	update_configtxt || bail "Unable to update /boot/config.txt"
+	pitftrot=0
     fi
     if [ "${pitftrot}" == "180" ]; then
 	reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" "display_hdmi_rotate=3"
 	# this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
 	pitftrot=90
 	update_configtxt || bail "Unable to update /boot/config.txt"
+	pitftrot=180
     fi
 
 }
@@ -404,13 +405,15 @@ EOF
     fi
 
     if [ "${pitfttype}" == "28c" ]; then
+	matrix=$(eval echo "\$TRANSFORM_$pitfttype$pitftrot")
+	transform="Option \"TransformationMatrix\" \"${matrix}\""
         cat > /usr/share/X11/xorg.conf.d/20-calibration.conf <<EOF
 Section "InputClass"
         Identifier "FocalTech Touchscreen Calibration"
         MatchProduct "EP0110M09"
         MatchDevicePath "/dev/input/event*"
         Driver "libinput"
-        Option "TransformationMatrix" "0 1 0 -1 0 1 0 0 1"
+        ${transform}
 EndSection
 EOF
     fi
