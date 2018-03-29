@@ -135,6 +135,15 @@ function ask() {
     done
 }
 
+function has_repo() {
+    # Checks for the right raspbian repository
+    # http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware
+    if [[ $(grep -h ^deb /etc/apt/sources.list /etc/apt/sources.list.d/* | grep "mirrordirector.raspbian.org") ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
 
 progress() {
     count=0
@@ -147,6 +156,8 @@ progress() {
 
 sysupdate() {
     if ! $UPDATE_DB; then
+	echo "Checking for correct software repositories..."
+	has_repo || { warning "Missing Apt repo, please add deb http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware to /etc/apt/sources.list.d/raspi.list" && exit 1; }
         echo "Updating apt indexes..." && progress 3 &
         sudo apt-get update 1> /dev/null || { warning "Apt failed to update indexes!" && exit 1; }
         echo "Reading package lists..."
@@ -173,7 +184,7 @@ reconfig() {
 ############################ Sub-Scripts ############################
 
 function softwareinstall() {
-    echo "Installing Pre-requisite Software...This may take a few minutes!" 
+    echo "Installing Pre-requisite Software...This may take a few minutes!"
     apt-get install -y bc fbi git python-pip python-smbus python-spidev evtest tslib libts-bin 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     pip install evdev 1> /dev/null  || { warning "Pip failed to install software!" && exit 1; }
 }
