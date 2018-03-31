@@ -47,6 +47,10 @@ TRANSFORM_28c180="1 0 0 0 1 0 0 0 1"
 TRANSFORM_28c270="0 -1 1 1 0 0 0 0 1"
 
 
+warning() { 
+	echo WARNING : $1
+}
+
 ############################ Script assisters ############################
 
 # Given a list of strings representing options, display each option
