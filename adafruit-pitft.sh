@@ -566,13 +566,15 @@ else
     uninstall_console || bail "Unable to configure console"
 
     if ask "Would you like the HDMI display to mirror to the PiTFT display?"; then
-	info PITFT "Adding FBCP support..."
-	install_fbcp || bail "Unable to configure fbcp"
-
-	if [ -e /etc/lightdm ]; then
-	    info PITFT "Updating X11 default calibration..."
-	    update_xorg || bail "Unable to update calibration"
-	fi
+        info PITFT "Adding FBCP support..."
+        install_fbcp || bail "Unable to configure fbcp"
+        
+        if [ -e /etc/lightdm ]; then
+            info PITFT "Updating X11 default calibration..."
+            update_xorg || bail "Unable to update calibration"
+        fi
+	else
+		uninstall_fbcp || bail "Unable to remove fbcp"
     fi
 fi
 
