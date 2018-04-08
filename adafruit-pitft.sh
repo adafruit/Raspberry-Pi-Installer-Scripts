@@ -569,12 +569,13 @@ else
         info PITFT "Adding FBCP support..."
         install_fbcp || bail "Unable to configure fbcp"
         
-        if [ -e /etc/lightdm ]; then
-            info PITFT "Updating X11 default calibration..."
-            update_xorg || bail "Unable to update calibration"
-        fi
 	else
 		uninstall_fbcp || bail "Unable to remove fbcp"
+    fi
+	
+    if [ -e /etc/lightdm ]; then
+        info PITFT "Updating X11 default calibration..."
+        update_xorg || bail "Unable to update calibration"
     fi
 fi
 
