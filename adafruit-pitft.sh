@@ -223,15 +223,6 @@ function update_configtxt() {
 
     cat >> /boot/config.txt <<EOF
 # --- added by adafruit-pitft-helper $date ---
-[pi0]
-device_tree=bcm2708-rpi-0-w.dtb
-[pi1]
-device_tree=bcm2708-rpi-b-plus.dtb
-[pi2]
-device_tree=bcm2709-rpi-2-b.dtb
-[pi3]
-device_tree=bcm2710-rpi-3-b.dtb
-[all]
 dtparam=spi=on
 dtparam=i2c1=on
 dtparam=i2c_arm=on
