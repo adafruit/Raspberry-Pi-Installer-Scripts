@@ -9,14 +9,12 @@ fi
 clear
 echo "This script will install and/or modify"
 echo "packages needed for the Adafruit Pi"
-echo "Camera project. It should be installed"
-echo "atop one of Adafruit's PiTFT-enabled"
-echo "Raspbian setups (either resistive or"
-echo "capacitive), NOT a stock Raspbian OS."
+echo "Camera project. It requires that the"
+echo "adafruit-pitft.sh installer script (for"
+echo "PiTFT display support) was run first."
 echo
 echo "Operations performed include:"
-echo "- In /boot/config.txt, enable Pi"
-echo "  camera and boost PiTFT speed"
+echo "- In /boot/config.txt, enable camera"
 echo "- apt-get update"
 echo "- Install Python libraries:"
 echo "  picamera, pygame, PIL"
@@ -25,14 +23,7 @@ echo "  touch compatibility"
 echo "- Download Dropbox Updater and"
 echo "  Adafruit Pi Cam software"
 echo
-echo "NEVER perform an 'apt-get upgrade' on"
-echo "a PiTFT-enabled system; it may fail to"
-echo "boot. Upgrades, if necessary, should"
-echo "be done by downloading & installing"
-echo "the latest PiTFT-enabled OS image from"
-echo "Adafruit and running this script."
-echo
-echo "Run time 10+ minutes. Reboot required."
+echo "Run time 5+ minutes. Reboot required."
 echo
 
 if [ "$1" != '-y' ]; then
@@ -48,7 +39,7 @@ echo "Continuing..."
 
 if ! grep -q "dtoverlay=pitft" /boot/config.txt ; then
 	echo "PiTFT overlay not in /boot/config.txt."
-	echo "Run script on Adafruit PiTFT-enabled OS."
+	echo "Download & run adafruit-pitft.sh first."
 	echo "Canceling."
 	exit 1
 fi
@@ -79,16 +70,18 @@ fi # else gpu_mem OK as-is
 
 echo "Installing prerequisite packages..."
 
-# Enable Wheezy package sources
+# Enable Wheezy package sources (for SDL downgrade)
 echo "deb http://archive.raspbian.org/raspbian wheezy main
 " > /etc/apt/sources.list.d/wheezy.list
  
-# Set stable as default package source (currently jessie)
+# Set 'stable' as default package source (current OS)
 echo "APT::Default-release \"stable\";
 " > /etc/apt/apt.conf.d/10defaultRelease
 
-# Set priority for libsdl from wheezy higher then the jessie package
+# Set priority for libsdl from Wheezy higher than current package
 echo "Package: libsdl1.2debian
+Pin: release n=stretch
+Pin-Priority: -10
 Pin: release n=jessie
 Pin-Priority: -10
 Package: libsdl1.2debian
