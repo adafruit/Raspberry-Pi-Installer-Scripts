@@ -311,6 +311,7 @@ function install_fbcp() {
     mkdir build
     cd build
     echo "Building rpi-fbcp..."
+    echo -e "\nset (CMAKE_C_FLAGS \"-std=gnu99 ${CMAKE_C_FLAGS}\")" >> ../CMakeLists.txt
     cmake ..  1> /dev/null  || { warning "Failed to cmake fbcp!" && exit 1; }
     make  1> /dev/null  || { warning "Failed to make fbcp!" && exit 1; }
     echo "Installing rpi-fbcp..."
