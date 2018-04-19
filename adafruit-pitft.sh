@@ -90,29 +90,29 @@ function print_help() {
     echo "where this script currently is."
     echo
     echo "setupVars.conf example:"
-    echo " #========= BEGINNING OF setupVars.conf ==========="
-    echo " # PiTFT 2.8\" capacitive touch (240x320):"
-    echo " PITFT_SELECT=3     # 1 - PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)"
+    echo "#========= BEGINNING OF setupVars.conf ==========="
+    echo "# PiTFT 2.8\" capacitive touch (240x320):"
+    echo "PITFT_SELECT=3      # 1 - PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)"
     echo "                    # 2 - PiTFT 2.2\" no touch (240x320) "
     echo "                    # 3 - PiTFT 2.8\" capacitive touch (240x320)"
     echo "                    # 4 - PiTFT 3.5\" resistive touch (320x480)"
     echo "                    # 5 - Quit without installing"
     echo
-    echo " # Rotaton: 270 degrees:"
-    echo " PITFT_ROTATE=3     # 1 - 90 degrees (landscape)"
+    echo "# Rotaton: 270 degrees:"
+    echo "PITFT_ROTATE=1      # 1 - 90 degrees (landscape)"
     echo "                    # 2 - 180 degrees (portrait)"
     echo "                    # 3 - 270 degrees (landscape)"
     echo "                    # 4 - 0 degrees (portrait)"
     echo
-    echo " PITFT_CONSOLE=true       # true - console appears on Pitft"
+    echo "PITFT_CONSOLE=true        # true - console appears on Pitft"
     echo "                          # false - console will not appear on Pitft"
     echo
-    echo " PITFT_HDMI_MIRROR=false  # true - pitft will appear on HDMI display"
+    echo "PITFT_HDMI_MIRROR=false   # true - pitft will appear on HDMI display"
     echo "                          # false - pitft will not appear on HDMI display"
     echo
-    echo " # Reboot after successful installation:"
-    echo " PITFT_REBOOT=true  # Comment or remove this line if no reboot needed"   
-    echo " #========= END OF setupVars.conf ================="
+    echo "# Reboot after successful installation:"
+    echo "PITFT_REBOOT=true  # Comment or remove this line if no reboot needed"   
+    echo "#========= END OF setupVars.conf ================="
     exit 1
 }
 
