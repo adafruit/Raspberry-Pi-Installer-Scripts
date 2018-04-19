@@ -457,12 +457,6 @@ EOF
     fi
 }
 
-function unattended_instructions() {
-	echo "In order to run the script in non-interactive way,"
-	echo "please create a file called 'setupVars.conf' in the directory,"
-	echo "where this script currently is."
-	echo
-}
 
 ####################################################### MAIN
 target_homedir="/home/pi"
@@ -542,7 +536,6 @@ PITFT_TYPES=("28r" "22" "28c" "35r")
 WIDTH_VALUES=(320 320 320 480)
 HEIGHT_VALUES=(240 240 240 320)
 HZ_VALUES=(64000000 64000000 64000000 32000000)
-
 
 
 # check init system (technique borrowed from raspi-config):
