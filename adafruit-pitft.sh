@@ -83,8 +83,39 @@ function print_help() {
     echo "    -h            Print this help"
     echo "    -v            Print version information"
     echo "    -u [homedir]  Specify path of primary user's home directory (defaults to /home/pi)"
+    echo "    -U            Run script in undattended mode"
+    echo
+    echo "In order to run the script in non-interactive way,"
+    echo "please create a file called 'setupVars.conf' in the directory,"
+    echo "where this script currently is."
+    echo
+    echo "setupVars.conf example:"
+    echo " #========= BEGINNING OF setupVars.conf ==========="
+    echo " # PiTFT 2.8\" capacitive touch (240x320):"
+    echo " PITFT_SELECT=3     # 1 - PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)"
+    echo "                    # 2 - PiTFT 2.2\" no touch (240x320) "
+    echo "                    # 3 - PiTFT 2.8\" capacitive touch (240x320)"
+    echo "                    # 4 - PiTFT 3.5\" resistive touch (320x480)"
+    echo "                    # 5 - Quit without installing"
+    echo
+    echo " # Rotaton: 270 degrees:"
+    echo " PITFT_ROTATE=3     # 1 - 90 degrees (landscape)"
+    echo "                    # 2 - 180 degrees (portrait)"
+    echo "                    # 3 - 270 degrees (landscape)"
+    echo "                    # 4 - 0 degrees (portrait)"
+    echo
+    echo " PITFT_CONSOLE=true       # true - console appears on Pitft"
+    echo "                          # false - console will not appear on Pitft"
+    echo
+    echo " PITFT_HDMI_MIRROR=false  # true - pitft will appear on HDMI display"
+    echo "                          # false - pitft will not appear on HDMI display"
+    echo
+    echo " # Reboot after successful installation:"
+    echo " PITFT_REBOOT=true  # Comment or remove this line if no reboot needed"   
+    echo " #========= END OF setupVars.conf ================="
     exit 1
 }
+
 
 group=ADAFRUIT
 function info() {
@@ -426,11 +457,54 @@ EOF
     fi
 }
 
+function unattended_instructions() {
+	echo "In order to run the script in non-interactive way,"
+	echo "please create a file called 'setupVars.conf' in the directory,"
+	echo "where this script currently is."
+	echo
+}
+
 ####################################################### MAIN
 target_homedir="/home/pi"
 
+runUnattended=false
+setupVars='setupVars.conf'
+useSetupVars=false
+PITFT_CONSOLE=true
+PITFT_HDMI_MIRROR=false
+PITFT_REBOOT=false
+
+args=$(getopt -uo 'hvri:o:b:u:U' -- $*)
+[ $? != 0 ] && print_help
+set -- $args
+
+for i; do
+    case "$i" in
+        -h) print_help ;;
+        -v) print_version ;;
+        -u) target_homedir="$2"
+            echo "Homedir = ${2}"
+            shift
+            shift;;
+	-U) runUnattended=true;;
+    esac
+done
 
 clear
+
+# if it's running unattended,
+if [[ "${runUnattended}" == true ]]; then
+    # If the setup variable file exists,
+    if [[ -f "${setupVars}" ]]; then
+        echo "Performing unattended setup, no whiptail dialogs will be displayed"
+	echo
+        # Use the setup variables
+        useSetupVars=true
+    else
+        print_help
+    fi
+fi
+
 echo "This script downloads and installs"
 echo "PiTFT Support using userspace touch"
 echo "controls and a DTO for display drawing."
@@ -438,25 +512,29 @@ echo "one of several configuration files."
 echo "Run time of up to 5 minutes. Reboot required!"
 echo
 
-echo "Select configuration:"
-selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
-        "PiTFT 2.2\" no touch (240x320)" \
-        "PiTFT 2.8\" capacitive touch (240x320)" \
-        "PiTFT 3.5\" resistive touch (320x480)" \
-        "Quit without installing"
-PITFT_SELECT=$?
-if [ $PITFT_SELECT -gt 4 ]; then
-    exit 1
-fi
+if [[ "${useSetupVars}" == true ]]; then
+    source "${setupVars}" 
+else
+    echo "Select configuration:"
+    selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
+            "PiTFT 2.2\" no touch (240x320)" \
+            "PiTFT 2.8\" capacitive touch (240x320)" \
+            "PiTFT 3.5\" resistive touch (320x480)" \
+            "Quit without installing"
+    PITFT_SELECT=$?
+    if [ $PITFT_SELECT -gt 4 ]; then
+        exit 1
+    fi
 
-echo "Select rotation:"
-selectN "90 degrees (landscape)" \
-        "180 degrees (portait)" \
-        "270 degrees (landscape)" \
-        "0 degrees (portait)"
-PITFT_ROTATE=$?
-if [ $PITFT_ROTATE -gt 4 ]; then
-    exit 1
+    echo "Select rotation:"
+    selectN "90 degrees (landscape)" \
+            "180 degrees (portait)" \
+            "270 degrees (landscape)" \
+            "0 degrees (portait)"
+    PITFT_ROTATE=$?
+    if [ $PITFT_ROTATE -gt 4 ]; then
+        exit 1
+    fi
 fi
 
 PITFT_ROTATIONS=("90" "180" "270" "0")
@@ -466,29 +544,6 @@ HEIGHT_VALUES=(240 240 240 320)
 HZ_VALUES=(64000000 64000000 64000000 32000000)
 
 
-
-args=$(getopt -uo 'hvri:o:b:u:' -- $*)
-[ $? != 0 ] && print_help
-set -- $args
-
-for i
-do
-    case "$i"
-    in
-        -h)
-            print_help
-            ;;
-        -v)
-            print_version
-            ;;
-        -u)
-            target_homedir="$2"
-            echo "Homedir = ${2}"
-            shift
-            shift
-            ;;
-    esac
-done
 
 # check init system (technique borrowed from raspi-config):
 info PITFT 'Checking init system...'
@@ -548,26 +603,45 @@ if [ "${pitfttype}" == "28r" ] || [ "${pitfttype}" == "35r" ]  || [ "${pitfttype
    update_pointercal || bail "Unable to update /etc/pointercal"
 fi
 
-# ask for console access
-if ask "Would you like the console to appear on the PiTFT display?"; then
-    info PITFT "Updating console to PiTFT..."
-    uninstall_fbcp  || bail "Unable to uninstall fbcp"
-    install_console || bail "Unable to configure console"
-else
-    info PITFT "Making sure console doesn't use PiTFT"
-    uninstall_console || bail "Unable to configure console"
 
-    if ask "Would you like the HDMI display to mirror to the PiTFT display?"; then
-	info PITFT "Adding FBCP support..."
-	install_fbcp || bail "Unable to configure fbcp"
-
-	if [ -e /etc/lightdm ]; then
-	    info PITFT "Updating X11 default calibration..."
-	    update_xorg || bail "Unable to update calibration"
+if [[ "${useSetupVars}" == true ]]; then
+    if [[ "${PITFT_CONSOLE}" == true ]]; then
+	info PITFT "Updating console to PiTFT..."
+        uninstall_fbcp  || bail "Unable to uninstall fbcp"
+        install_console || bail "Unable to configure console"
+    else
+	info PITFT "Making sure console doesn't use PiTFT"
+        uninstall_console || bail "Unable to configure console"
+    	if [[ "${PITFT_HDMI_MIRROR}" == true ]]; then
+	    info PITFT "Adding FBCP support..."
+            install_fbcp || bail "Unable to configure fbcp"
+	    if [ -e /etc/lightdm ]; then
+                info PITFT "Updating X11 default calibration..."
+                update_xorg || bail "Unable to update calibration"
+            fi
 	fi
     fi
-fi
+else
+    # ask for console access
+    if ask "Would you like the console to appear on the PiTFT display?"; then
+        info PITFT "Updating console to PiTFT..."
+        uninstall_fbcp  || bail "Unable to uninstall fbcp"
+        install_console || bail "Unable to configure console"
+    else
+        info PITFT "Making sure console doesn't use PiTFT"
+        uninstall_console || bail "Unable to configure console"
+    
+        if ask "Would you like the HDMI display to mirror to the PiTFT display?"; then
+            info PITFT "Adding FBCP support..."
+            install_fbcp || bail "Unable to configure fbcp"
 
+            if [ -e /etc/lightdm ]; then
+                info PITFT "Updating X11 default calibration..."
+                update_xorg || bail "Unable to update calibration"
+            fi
+        fi
+    fi
+fi
 
 #info PITFT "Updating X11 setup tweaks..."
 #update_x11profile || bail "Unable to update X11 setup"
@@ -584,15 +658,23 @@ fi
 
 
 info PITFT "Success!"
-echo
-echo "Settings take effect on next boot."
-echo
-echo -n "REBOOT NOW? [y/N] "
-read
-if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-	echo "Exiting without reboot."
-	exit 0
+if [[ "${useSetupVars}" == true ]]; then
+#    source "${setupVars}"
+    if [[ "${PITFT_REBOOT}" == true ]]; then
+	reboot
+    fi
+    exit 0
+else
+    echo
+    echo "Settings take effect on next boot."
+    echo
+    echo -n "REBOOT NOW? [y/N] "
+    read
+    if [[ ! "${REPLY}" =~ ^(yes|y|Y)$ ]]; then
+    	echo "Exiting without reboot."
+    	exit 0
+    fi
+    echo "Reboot started..."
+    reboot
+    exit 0
 fi
-echo "Reboot started..."
-reboot
-exit 0
