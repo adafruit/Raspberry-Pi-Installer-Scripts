@@ -5,6 +5,14 @@
 # hallard.me/raspberry-pi-read-only
 # k3a.me/how-to-make-raspberrypi-truly-read-only-reliable-and-trouble-free
 
+# Env variables available for configuration:
+# INSTALL_RW_JUMPER & RW_PIN
+# INSTALL_HALT & HALT_PIN
+# INSTALL_WATCHDOG & WD_TARGET
+# I_KNOW_WHAT_IM_DOING
+# I_REALLY_KNOW_WHAT_IM_DOING
+# REBOOT_NOW
+
 if [ $(id -u) -ne 0 ]; then
 	echo "Installer must be run as root."
 	echo "Try 'sudo bash $0'"
@@ -33,19 +41,18 @@ echo "this script. MAKE A BACKUP FIRST."
 echo
 echo "Run time ~5 minutes. Reboot required."
 echo
-echo -n "CONTINUE? [y/N] "
-read
-if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-	echo "Canceled."
-	exit 0
+
+if [[ -z "$I_KNOW_WHAT_IM_DOING" ]]; then
+	echo -n "CONTINUE? [y/N] "
+	read
+	if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
+		echo "Canceled."
+		exit 0
+	fi
 fi
 
 # FEATURE PROMPTS ----------------------------------------------------------
 # Installation doesn't begin until after all user input is taken.
-
-INSTALL_RW_JUMPER=0
-INSTALL_HALT=0
-INSTALL_WATCHDOG=0
 
 # Given a list of strings representing options, display each option
 # preceded by a number (1 to N), display a prompt, check input until
@@ -70,32 +77,44 @@ SYS_TYPES=(Pi\ 3\ /\ Pi\ Zero\ W All\ other\ models)
 WATCHDOG_MODULES=(bcm2835_wdog bcm2708_wdog)
 OPTION_NAMES=(NO YES)
 
-echo -n "Enable boot-time read/write jumper? [y/N] "
-read
-if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
-	INSTALL_RW_JUMPER=1
-	echo -n "GPIO pin for R/W jumper: "
+if [[ -z "$INSTALL_RW_JUMPER" ]] || [[ -z "$RW_PIN" ]]; then
+	echo -n "Enable boot-time read/write jumper? [y/N] "
 	read
-	RW_PIN=$REPLY
+	if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
+		INSTALL_RW_JUMPER=1
+		echo -n "GPIO pin for R/W jumper: "
+		read
+		RW_PIN=$REPLY
+	else
+		INSTALL_RW_JUMPER=0
+	fi
 fi
 
-echo -n "Install GPIO-halt utility? [y/N] "
-read
-if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
-	INSTALL_HALT=1
-	echo -n "GPIO pin for halt button: "
+if [[ -z "$INSTALL_HALT" ]] || [[ -z "$HALT_PIN" ]]; then
+	echo -n "Install GPIO-halt utility? [y/N] "
 	read
-	HALT_PIN=$REPLY
+	if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
+		INSTALL_HALT=1
+		echo -n "GPIO pin for halt button: "
+		read
+		HALT_PIN=$REPLY
+	else
+		INSTALL_HALT=0
+	fi
 fi
 
-echo -n "Enable kernel panic watchdog? [y/N] "
-read
-if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
-	INSTALL_WATCHDOG=1
-	echo "Target system type:"
-	selectN "${SYS_TYPES[0]}" \
-		"${SYS_TYPES[1]}"
-	WD_TARGET=$?
+if [[ -z "$INSTALL_WATCHDOG" ]] || [[ -z "$WD_TARGET" ]]; then
+	echo -n "Enable kernel panic watchdog? [y/N] "
+	read
+	if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
+		INSTALL_WATCHDOG=1
+		echo "Target system type:"
+		selectN "${SYS_TYPES[0]}" \
+			"${SYS_TYPES[1]}"
+		WD_TARGET=$?
+	else
+		INSTALL_WATCHDOG=0
+	fi
 fi
 
 # VERIFY SELECTIONS BEFORE CONTINUING --------------------------------------
@@ -117,11 +136,14 @@ else
 	echo "Enable watchdog: NO"
 fi
 echo
-echo -n "CONTINUE? [y/N] "
-read
-if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-	echo "Canceled."
-	exit 0
+
+if [[ -z "$I_REALLY_KNOW_WHAT_IM_DOING" ]]; then
+	echo -n "CONTINUE? [y/N] "
+	read
+	if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
+		echo "Canceled."
+		exit 0
+	fi
 fi
 
 # START INSTALL ------------------------------------------------------------
@@ -302,12 +324,16 @@ echo "Done."
 echo
 echo "Settings take effect on next boot."
 echo
-echo -n "REBOOT NOW? [y/N] "
-read
-if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-	echo "Exiting without reboot."
-	exit 0
+
+if [[ -z "$REBOOT_NOW" ]]; then
+	echo -n "REBOOT NOW? [y/N] "
+	read
+	if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
+		echo "Exiting without reboot."
+		exit 0
+	fi
+	echo "Reboot started..."
+	reboot
 fi
-echo "Reboot started..."
-reboot
+
 exit 0
