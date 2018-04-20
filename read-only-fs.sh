@@ -19,6 +19,59 @@ if [ $(id -u) -ne 0 ]; then
 	exit 1
 fi
 
+args=$(getopt '' -- $*)
+# [ $? != 0 ] && print_help
+set -- $args
+echo $args
+shift
+for i
+do
+	case "$i"
+	in
+		# -h)
+		# 	print_help
+		# 	;;
+		-rw)
+			INSTALL_RW_JUMPER="$2"
+			shift
+			shift
+			;;
+		-rw-pin)
+			RW_PIN="$2"
+			shift
+			shift
+			;;
+		-halt)
+			INSTALL_HALT=$2
+			shift
+			shift
+			;;
+		-halt-pin)
+			HALT_PIN=$2
+			shift
+			shift
+			;;
+		-wd)
+			INSTALL_WATCHDOG=$2
+			shift
+			shift
+			;;
+		-wd-target)
+			WD_TARGET="$2"
+			shift
+			shift
+			;;
+		-i-know)
+			I_KNOW_WHAT_IM_DOING=1
+			shift
+			;;
+		-i-really-know)
+			I_REALLY_KNOW_WHAT_IM_DOING=1
+			shift
+			;;
+	esac
+done
+
 clear
 
 echo "This script configures a Raspberry Pi"
@@ -120,17 +173,17 @@ fi
 # VERIFY SELECTIONS BEFORE CONTINUING --------------------------------------
 
 echo
-if [ $INSTALL_RW_JUMPER -eq 1 ]; then
+if [[ $INSTALL_RW_JUMPER -eq 1 ]]; then
 	echo "Boot-time R/W jumper: YES (GPIO$RW_PIN)"
 else
 	echo "Boot-time R/W jumper: NO"
 fi
-if [ $INSTALL_HALT -eq 1 ]; then
+if [[ $INSTALL_HALT -eq 1 ]]; then
 	echo "Install GPIO-halt: YES (GPIO$HALT_PIN)"
 else
 	echo "Install GPIO-halt: NO"
 fi
-if [ $INSTALL_WATCHDOG -eq 1 ]; then
+if [[ $INSTALL_WATCHDOG -eq 1 ]]; then
 	echo "Enable watchdog: YES (${SYS_TYPES[WD_TARGET-1]})"
 else
 	echo "Enable watchdog: NO"
