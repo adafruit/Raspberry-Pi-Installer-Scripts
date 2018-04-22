@@ -15,7 +15,7 @@ echo "- Install Python libraries: numpy, pi3d, svg.path,"
 echo "  python-dev, python-imaging"
 echo "- Install Adafruit eye code and data in /boot"
 echo "- Enable SPI0 and SPI1 peripherals if needed"
-echo "- Set HDMI resolution to 640x480, disable overscan"
+echo "- Set HDMI resolution, disable overscan"
 echo "Run time ~25 minutes. Reboot required."
 echo "EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN."
 echo
@@ -52,14 +52,16 @@ selectN() {
 	done
 }
 
-SCREEN_VALUES=(-o -t)
-SCREEN_NAMES=(OLED TFT HDMI)
+SCREEN_VALUES=(-o -t -i)
+SCREEN_NAMES=("OLED (128x128)" "TFT (128x128)" "IPS (240x240)" HDMI)
+RADIUS_VALUES=(128 128 240)
 OPTION_NAMES=(NO YES)
 echo
 echo "Select screen type:"
 selectN "${SCREEN_NAMES[0]}" \
         "${SCREEN_NAMES[1]}" \
-        "${SCREEN_NAMES[2]}"
+        "${SCREEN_NAMES[2]}" \
+        "${SCREEN_NAMES[3]}"
 SCREEN_SELECT=$?
 
 echo -n "Install GPIO-halt utility? [y/N] "
@@ -92,7 +94,11 @@ else
 fi
 echo "ADC support: ${OPTION_NAMES[$INSTALL_ADC]}"
 echo "Ethernet USB gadget support: ${OPTION_NAMES[$INSTALL_GADGET]}"
-echo "Video resolution will be set to 640x480, no overscan"
+if [ $SCREEN_SELECT -eq 3 ]; then
+	echo "Video resolution will be set to 1280x720, no overscan"
+else
+	echo "Video resolution will be set to 640x480, no overscan"
+fi
 echo
 echo -n "CONTINUE? [y/N] "
 read
@@ -115,6 +121,19 @@ reconfig() {
 	else
 		# Not found; append (silently)
 		echo $3 | sudo tee -a $1 >/dev/null
+	fi
+}
+
+# Same as above, but appends to same line rather than new line
+reconfig2() {
+	grep $2 $1 >/dev/null
+	if [ $? -eq 0 ]; then
+		# Pattern found; replace in file
+		sed -i "s/$2/$3/g" $1 >/dev/null
+	else
+		# Not found; append to line (silently)
+                sed -i "s/$/ $3/g" $1 >/dev/null
+
 	fi
 }
 
@@ -158,7 +177,13 @@ raspi-config nonint do_overscan 1
 reconfig /boot/config.txt "^.*hdmi_force_hotplug.*$" "hdmi_force_hotplug=1"
 reconfig /boot/config.txt "^.*hdmi_group.*$" "hdmi_group=2"
 reconfig /boot/config.txt "^.*hdmi_mode.*$" "hdmi_mode=87"
-reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=640 480 60 1 0 0 0"
+if [ $SCREEN_SELECT -eq 3 ]; then
+	# IPS display - set HDMI to 1280x720
+	reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=1280 720 60 1 0 0 0"
+else
+	# All others - set HDMI to 640x480
+	reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=640 480 60 1 0 0 0"
+fi
 
 # Enable I2C for ADC
 if [ $INSTALL_ADC -ne 0 ]; then
@@ -177,9 +202,9 @@ if [ $INSTALL_HALT -ne 0 ]; then
 	fi
 fi
 
-# If using OLED or TFT, enable SPI and install fbx2 and eyes.py,
+# If using OLED, TFT or IPS, enable SPI and install fbx2 and eyes.py,
 # else (HDMI) skip SPI, fbx2 and install cyclops.py (single eye)
-if [ $SCREEN_SELECT -ne 3 ]; then
+if [ $SCREEN_SELECT -ne 4 ]; then
 
 	# Enable SPI0 using raspi-config
 	raspi-config nonint do_spi 0
@@ -187,6 +212,9 @@ if [ $SCREEN_SELECT -ne 3 ]; then
 	# Enable SPI1 by adding overlay to /boot/config.txt
 	reconfig /boot/config.txt "^.*dtparam=spi1.*$" "dtparam=spi1=on"
 	reconfig /boot/config.txt "^.*dtoverlay=spi1.*$" "dtoverlay=spi1-3cs"
+
+	# Adjust spidev buffer size to 8K (default is 4K)
+	reconfig2 /boot/cmdline.txt "spidev\.bufsiz=.*" "spidev.bufsiz=8192"
 
 	SCREEN_OPT=${SCREEN_VALUES[($SCREEN_SELECT-1)]}
 
@@ -200,14 +228,15 @@ if [ $SCREEN_SELECT -ne 3 ]; then
 	sed -i "s/^exit 0/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&\\nexit 0/g" /etc/rc.local >/dev/null
 	fi
 
+	RADIUS=${RADIUS_VALUES[($SCREEN_SELECT-1)]}
 	# Auto-start eyes.py on boot
 	grep eyes.py /etc/rc.local >/dev/null
 	if [ $? -eq 0 ]; then
 		# eyes.py already in rc.local, but make sure correct:
-		sed -i "s/^.*eyes.py.*$/cd \/boot\/Pi_Eyes;python eyes.py \&/g" /etc/rc.local >/dev/null
+		sed -i "s/^.*eyes.py.*$/cd \/boot\/Pi_Eyes;python eyes.py --radius $RADIUS \&/g" /etc/rc.local >/dev/null
 	else
 		# Insert eyes.py into rc.local before final 'exit 0'
-	sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;python eyes.py \&\\nexit 0/g" /etc/rc.local >/dev/null
+	sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;python eyes.py --radius $RADIUS \&\\nexit 0/g" /etc/rc.local >/dev/null
 	fi
 
 else
