@@ -189,7 +189,7 @@ reconfig() {
 
 function softwareinstall() {
     echo "Installing Pre-requisite Software...This may take a few minutes!"
-    apt-get install -y bc fbi git python-pip python-smbus python-spidev evtest tslib libts-bin 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+    apt-get install -y bc fbi git python-dev python-pip python-smbus python-spidev evtest tslib libts-bin 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     pip install evdev 1> /dev/null  || { warning "Pip failed to install software!" && exit 1; }
 }
 
