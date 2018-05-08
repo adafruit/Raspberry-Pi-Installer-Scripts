@@ -180,8 +180,7 @@ else
 	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES" PYTHON=$(which python3)
 fi
 # Change ownership to user calling sudo
-cd ../../..
-chown -R $SUDO_USER:$(id -g $SUDO_USER) rpi-rgb-led-matrix
+chown -R $SUDO_USER:$(id -g $SUDO_USER) `pwd`
 
 
 # CONFIG -------------------------------------------------------------------
