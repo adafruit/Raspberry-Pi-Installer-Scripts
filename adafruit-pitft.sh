@@ -160,8 +160,8 @@ progress() {
 
 sysupdate() {
     if ! $UPDATE_DB; then
-	echo "Checking for correct software repositories..."
-	has_repo || { warning "Missing Apt repo, please add deb http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware to /etc/apt/sources.list.d/raspi.list" && exit 1; }
+	# echo "Checking for correct software repositories..."
+	# has_repo || { warning "Missing Apt repo, please add deb http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware to /etc/apt/sources.list.d/raspi.list" && exit 1; }
         echo "Updating apt indexes..." && progress 3 &
         sudo apt-get update 1> /dev/null || { warning "Apt failed to update indexes!" && exit 1; }
         echo "Reading package lists..."
