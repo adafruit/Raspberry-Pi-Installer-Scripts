@@ -319,21 +319,32 @@ function install_fbcp() {
     cd ~
     rm -rf /tmp/rpi-fbcp-master
 
-    # Add fbcp to /rc.local:
-    echo "Add fbcp to /etc/rc.local..."
-    grep fbcp /etc/rc.local >/dev/null
-    if [ $? -eq 0 ]; then
-	# fbcp already in rc.local, but make sure correct:
-	sed -i "s|^.*fbcp.*$|/usr/local/bin/fbcp \&|g" /etc/rc.local >/dev/null
+    # Start fbcp in the appropriate place, depending on init system:
+    if [ "$SYSTEMD" == "0" ]; then
+        # Add fbcp to /etc/rc.local:
+        echo "We have sysvinit, so add fbcp to /etc/rc.local..."
+        grep fbcp /etc/rc.local >/dev/null
+        if [ $? -eq 0 ]; then
+            # fbcp already in rc.local, but make sure correct:
+            sed -i "s|^.*fbcp.*$|/usr/local/bin/fbcp \&|g" /etc/rc.local >/dev/null
+        else
+            # Insert fbcp into rc.local before final 'exit 0':
+            sed -i "s|^exit 0|/usr/local/bin/fbcp \&\\nexit 0|g" /etc/rc.local >/dev/null
+        fi
     else
-	#Insert fbcp into rc.local before final 'exit 0'
-	sed -i "s|^exit 0|/usr/local/bin/fbcp \&\\nexit 0|g" /etc/rc.local >/dev/null
+        # Install fbcp systemd unit, first making sure it's not in rc.local:
+        uninstall_fbcp_rclocal
+        echo "We have systemd, so install fbcp systemd unit..."
+        install_fbcp_unit || bail "Unable to install fbcp unit file"
+        sudo systemctl enable fbcp.service
     fi
+
     # if there's X11 installed...
     if [ -e /etc/lightdm ]; then
 	echo "Setting raspi-config to boot to desktop w/o login..."
 	raspi-config nonint do_boot_behaviour B4
     fi
+
     # Disable overscan compensation (use full screen):
     raspi-config nonint do_overscan 1
     # Set up HDMI parameters:
@@ -381,11 +392,23 @@ function install_fbcp() {
 
 }
 
-function uninstall_fbcp() {
-    # Remove fbcp from /etc/rc.local:
-    echo "Remove fbcp from /etc/rc.local..."
-    sed -i -e '/^.*fbcp.*$/d' /etc/rc.local
+function install_fbcp_unit() {
+    cat > /etc/systemd/system/fbcp.service <<EOF
+[Unit]
+Description=Framebuffer copy utility for PiTFT
+After=network.target
 
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/fbcp
+
+[Install]
+WantedBy=multi-user.target
+EOF
+}
+
+function uninstall_fbcp() {
+    uninstall_fbcp_rclocal
     # Enable overscan compensation
     raspi-config nonint do_overscan 0
     # Set up HDMI parameters:
@@ -394,6 +417,12 @@ function uninstall_fbcp() {
     sed -i -e '/^hdmi_group=2.*$/d' /boot/config.txt
     sed -i -e '/^hdmi_mode=87.*$/d' /boot/config.txt
     sed -i -e '/^hdmi_cvt=.*$/d' /boot/config.txt
+}
+
+function uninstall_fbcp_rclocal() {
+    # Remove fbcp from /etc/rc.local:
+    echo "Remove fbcp from /etc/rc.local, if it's there..."
+    sed -i -e '/^.*fbcp.*$/d' /etc/rc.local
 }
 
 function update_xorg() {
