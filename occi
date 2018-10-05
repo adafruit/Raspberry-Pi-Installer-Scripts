@@ -36,22 +36,25 @@ See F</usr/share/doc/occi/occidentalis_example.txt> for a full example.
 
 =cut
 
-package OcciConfig v0.6.0;
+package OcciConfig v0.7.0;
 
 use warnings;
 use strict;
 use 5.10.0;
 
 use Getopt::Long;
-use IPC::System::Simple qw(capturex);
+use IPC::Cmd qw(can_run run);
 
 # Handle CLI options:
 my $OCCI_CONFIG  = "/boot/occidentalis.txt";
 my $show_version_and_exit = 0;
+my $install_and_exit = 0;
 GetOptions(
   "file=s"  => \$OCCI_CONFIG,
-  "version" => \$show_version_and_exit
+  "version" => \$show_version_and_exit,
+  "install" => \$install_and_exit
 ) or die("Error in command line arguments\n");
+
 
 diag("Adafruit Occidentalis configuration helper, ${OcciConfig::VERSION}");
 if ($show_version_and_exit) {
@@ -60,6 +63,11 @@ if ($show_version_and_exit) {
 
 have_config_or_exit($OCCI_CONFIG);
 my %config = parse_config($OCCI_CONFIG);
+
+if ($install_and_exit) {
+  install();
+  exit 0;
+}
 
 diag('file', $OCCI_CONFIG);
 
@@ -252,7 +260,6 @@ WPA
   }
 }
 
-
 =back
 
 =head1 UTILITY SUBROUTINES
@@ -267,19 +274,7 @@ error.
 =cut
 
 sub capture_string {
-  my ($cmd, @args) = @_;
-
-  my $output;
-
-  eval {
-    $output = capturex($cmd, @args);
-  };
-
-  if ($@) {
-    diag(1, 'error', $@);
-  }
-
-  return $output;
+  return join "", capture_list(@_);
 }
 
 =item capture_list($cmd, @args)
@@ -290,21 +285,16 @@ error.
 =cut
 
 sub capture_list {
-  my ($cmd, @args) = @_;
+  my (@cmd) = @_;
 
-  my @output;
-
-  eval {
-    @output = capturex($cmd, @args);
-  };
-
-  if ($@) {
-    diag(1, 'error', $@);
+  my ($success, $error_message, $full_buf, $stdout_buf, $stderr_buf) =
+  run(command => \@cmd, verbose => 0);
+  if ($success) {
+    return @$full_buf;
+  } else {
+    diag('error', $error_message);
   }
-
-  return @output;
 }
-
 
 =item parse_config($path_to_file)
 
@@ -469,7 +459,6 @@ Print columns of diagnostic output.
 
   sub diag {
     my (@cols) = @_;
-    # print "\t" x $depth;
     print join " :: ", (@diag_stack, @cols);
     print "\n";
   }
@@ -512,6 +501,18 @@ HELPTEXT
   exit 0;
 }
 
+=item install()
+
+Install occi systemwide, including systemd service for running at startup.
+
+=cut
+
+sub install {
+
+  # 1. copy to /usr/local/bin
+  # 2. set up systemd
+
+}
 
 =back
 
