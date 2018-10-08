@@ -21,8 +21,6 @@ F</boot/occidentalis.txt>.  The format is:
 Blank lines and comments starting with C<#> will be ignored.  Keys are
 case-insensitive.
 
-See F</usr/share/doc/occi/occidentalis_example.txt> for a full example.
-
 =head1 SYNOPSIS
 
     # apply configuration in /boot/occidentalis.txt
@@ -42,6 +40,8 @@ use warnings;
 use strict;
 use 5.10.0;
 
+use File::Basename;
+use File::Copy;
 use Getopt::Long;
 use IPC::Cmd qw(can_run run);
 
@@ -55,19 +55,18 @@ GetOptions(
   "install" => \$install_and_exit
 ) or die("Error in command line arguments\n");
 
-
 diag("Adafruit Occidentalis configuration helper, ${OcciConfig::VERSION}");
 if ($show_version_and_exit) {
   exit 0;
 }
 
-have_config_or_exit($OCCI_CONFIG);
-my %config = parse_config($OCCI_CONFIG);
-
 if ($install_and_exit) {
   install();
   exit 0;
 }
+
+have_config_or_exit($OCCI_CONFIG);
+my %config = parse_config($OCCI_CONFIG);
 
 diag('file', $OCCI_CONFIG);
 
@@ -110,7 +109,7 @@ It will automatically be called every time occi runs.
 
 =item handle_selftest()
 
-Run some basic sanity checks.
+Run some basic checks to make sure we have necessary stuff.
 
 =cut
 
@@ -122,7 +121,7 @@ sub handle_selftest {
     wifi_password wifi_ssid
   );
 
-  diag('Checking configuration for basic sanity.');
+  diag('Checking configuration integrity.');
 
   foreach my $key (sort keys %config) {
     if ($allowed_keys{$key}) {
@@ -133,15 +132,17 @@ sub handle_selftest {
   }
 
   # This is just a bit of a sanity check - do we know whether some
-  # things we might expect are installed?
-  my @check_packages = qw(occi occidentalis);
-  foreach my $package (@check_packages) {
-    if (is_installed_package($package)) {
-      diag('have package', $package);
-    } else {
-      diag('no package', $package);
-    }
-  }
+  # things we might expect are installed?  Currently commented out
+  # since we no longer rely on apt for installation of these tools.
+  #
+  # my @check_packages = qw(occi occidentalis);
+  # foreach my $package (@check_packages) {
+  #   if (is_installed_package($package)) {
+  #     diag('have package', $package);
+  #   } else {
+  #     diag('no package', $package);
+  #   }
+  # }
 
   chomp(my $dversion = get_file('/etc/debian_version'));
   diag('debian version', $dversion);
@@ -449,7 +450,8 @@ sub get_blurb {
 
 =item diag(@columns)
 
-Print columns of diagnostic output.
+Print columns of diagnostic output.  Use diag_push() to add a level of
+indentation, and diag_pop() to remove it.
 
 =cut
 
@@ -508,10 +510,50 @@ Install occi systemwide, including systemd service for running at startup.
 =cut
 
 sub install {
+  diag_push('install');
 
-  # 1. copy to /usr/local/bin
-  # 2. set up systemd
+  # Copy this script to /usr/local/bin:
+  my $src_path = __FILE__;
+  my $basename = basename($src_path);
+  if (copy($src_path, '/usr/local/bin/' . $basename)) {
+    diag("copied $src_path -> /usr/local/bin");
+  } else {
+    diag(
+      "copy of $src_path to /usr/local/bin failed - do you need to use sudo?"
+    );
+    exit(1);
+  }
 
+  # Create a /boot/occidentalis.txt if it doesn't exist:
+  if (-e '/boot/occidentalis.txt') {
+    diag("Found existing /boot/occidentalis.txt");
+  } else {
+    diag("Creating blank /boot/occidentalis.txt");
+    capture_string('touch', '/boot/occidentalis.txt');
+  }
+
+  # 3. set up systemd to run this file
+  my $unit_path = '/etc/systemd/system/occi.service';
+  my $unit_text = <<"SYSTEMD";
+[Unit]
+Description=Adafruit Occidentalis Configuration Helper for Raspberry Pi
+
+[Service]
+ExecStart=/usr/local/bin/occi
+
+[Install]
+WantedBy=multi-user.target
+SYSTEMD
+
+  diag("Writing $unit_path");
+  put_file($unit_path, $unit_text);
+  capture_string("chmod 664 $unit_path");
+
+  diag('Enabling occi.service');
+  capture_string('systemctl daemon-reload');
+  capture_string('systemctl enable occi.service');
+
+  diag_pop();
 }
 
 =back
