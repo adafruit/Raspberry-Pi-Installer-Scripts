@@ -514,9 +514,10 @@ sub install {
 
   # Copy this script to /usr/local/bin:
   my $src_path = __FILE__;
-  my $basename = basename($src_path);
-  if (copy($src_path, '/usr/local/bin/' . $basename)) {
+  my $install_path = '/usr/local/bin/' . basename($src_path);
+  if (copy($src_path, $install_path)) {
     diag("copied $src_path -> /usr/local/bin");
+    capture_string("chmod a+x $install_path");
   } else {
     diag(
       "copy of $src_path to /usr/local/bin failed - do you need to use sudo?"
@@ -525,11 +526,21 @@ sub install {
   }
 
   # Create a /boot/occidentalis.txt if it doesn't exist:
-  if (-e '/boot/occidentalis.txt') {
-    diag("Found existing /boot/occidentalis.txt");
+  if (-e $OCCI_CONFIG) {
+    diag("Found existing $OCCI_CONFIG");
   } else {
-    diag("Creating blank /boot/occidentalis.txt");
-    capture_string('touch', '/boot/occidentalis.txt');
+    diag("Creating example $OCCI_CONFIG");
+    my $occi_text = <<"INI";
+# Lines with a leading "#" are comments.  Blank lines are ignored.
+
+# Uncomment below to set hostname:
+# hostname=somepi
+
+# Uncomment below to configure a wireless network:
+# wifi_ssid=somewifinetwork
+# wifi_password=somepassword
+INI
+    put_file($OCCI_CONFIG, $occi_text);
   }
 
   # 3. set up systemd to run this file
