@@ -438,6 +438,32 @@ EOL
 
     sudo mv ~/asound.conf /etc/asound.conf
 
+    newline
+    echo "Installing aplay systemd unit"
+    sudo sh -c 'cat > /etc/systemd/system/aplay.service' << 'EOL'
+[Unit]
+Description=Invoke aplay from /dev/zero at system start.
+
+[Service]
+ExecStart=/usr/bin/aplay /dev/zero
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+    sudo systemctl daemon-reload
+    sudo systemctl disable aplay
+    newline
+    echo "You can optionally activate '/dev/zero' playback in"
+    echo "the background at boot. This will remove all"
+    echo "popping/clicking but does use some processor time."
+    newline
+    if confirm "Activate '/dev/zero' playback in background? [RECOMMENDED]"; then
+	newline
+	sudo systemctl enable aplay
+	ASK_TO_REBOOT=true
+    fi
+
     if [ $bcm2835off == "yes" ]; then
         newline
         echo "We can now test your $productname"
