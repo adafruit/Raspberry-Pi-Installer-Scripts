@@ -35,8 +35,10 @@ git clone git://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git .
 echo "Building libgpiod"
 echo
 
+include_path=`python3 -c "from sysconfig import get_paths; print(get_paths()['include'])"`
+
 export PYTHON_VERSION=3
-./autogen.sh --enable-tools=yes --prefix=/usr/local/ --enable-bindings-python CFLAGS="-I/usr/include/python3.5/" \
+./autogen.sh --enable-tools=yes --prefix=/usr/local/ --enable-bindings-python CFLAGS="-I/$include_path" \
    && make \
    && sudo make install \
    && sudo ldconfig
