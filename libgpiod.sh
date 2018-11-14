@@ -43,4 +43,9 @@ export PYTHON_VERSION=3
    && sudo make install \
    && sudo ldconfig
 
+# This is not the right way to do this:
+sudo cp bindings/python/.libs/gpiod.so /usr/local/lib/python3.5/dist-packages/
+sudo cp bindings/python/.libs/gpiod.la /usr/local/lib/python3.5/dist-packages/
+sudo cp bindings/python/.libs/gpiod.a /usr/local/lib/python3.5/dist-packages/
+
 exit 0
