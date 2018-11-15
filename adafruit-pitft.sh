@@ -279,7 +279,7 @@ function install_console() {
     reconfig /etc/default/console-setup "^.*FONTSIZE.*$" "FONTSIZE=\"6x12\""
 
     echo "Setting raspi-config to boot to console w/o login..."
-    (cd ~pi && raspi-config nonint do_boot_behaviour B2)
+    (cd "$target_homedir" && raspi-config nonint do_boot_behaviour B2)
 
     # remove fbcp
     sed -i -e "/^.*fbcp.*$/d" /etc/rc.local
