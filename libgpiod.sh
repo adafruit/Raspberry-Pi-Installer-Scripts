@@ -4,7 +4,7 @@
 # cd ~
 # wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/libgpiod.sh
 # chmod +x libgpiod.sh
-# ./adafruit-pitft.sh
+# ./libgpiod.sh
 
 
 echo "Installing build requirements - this may take a few minutes!"
