@@ -400,6 +400,7 @@ After=network.target
 
 [Service]
 Type=simple
+ExecStartPre=/bin/sleep 10
 ExecStart=/usr/local/bin/fbcp
 
 [Install]
