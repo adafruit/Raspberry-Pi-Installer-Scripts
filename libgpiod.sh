@@ -10,6 +10,7 @@
 echo "Installing build requirements - this may take a few minutes!"
 echo
 
+# install generic linux packages required
 sudo apt-get update && sudo apt-get install -y \
    autoconf \
    autoconf-archive \
@@ -21,9 +22,11 @@ sudo apt-get update && sudo apt-get install -y \
    python3 \
    python3-dev \
    python3-setuptools \
-   raspberrypi-kernel-headers \
    swig3.0 \
    wget
+
+# for raspberry pi we need...
+sudo apt-get install -y raspberrypi-kernel-headers
 
 build_dir=`mktemp -d /tmp/libgpiod.XXXX`
 echo "Cloning libgpiod repository to $build_dir"
