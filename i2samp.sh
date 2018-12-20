@@ -445,7 +445,7 @@ EOL
 Description=Invoke aplay from /dev/zero at system start.
 
 [Service]
-ExecStart=/usr/bin/aplay /dev/zero
+ExecStart=/usr/bin/aplay /dev/zero -f S16
 
 [Install]
 WantedBy=multi-user.target
