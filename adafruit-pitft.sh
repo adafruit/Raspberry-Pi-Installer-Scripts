@@ -1,5 +1,6 @@
 #!/bin/bash
-
+# (C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike
+#
 # Instructions!
 # cd ~
 # wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/adafruit-pitft.sh
