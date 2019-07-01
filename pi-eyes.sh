@@ -12,7 +12,7 @@ echo "This script installs software for the Adafruit"
 echo "Snake Eyes Bonnet for Raspberry Pi. Steps include:"
 echo "- Update package index files (apt-get update)"
 echo "- Install Python libraries: numpy, pi3d, svg.path,"
-echo "  python-dev, python-imaging"
+echo "  python-dev, python-pil"
 echo "- Install Adafruit eye code and data in /boot"
 echo "- Enable SPI0 and SPI1 peripherals if needed"
 echo "- Set HDMI resolution, disable overscan"
@@ -143,7 +143,8 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Installing Python libraries..."
-apt-get install -y --force-yes python-pip python-dev python-imaging python-smbus
+# WAS: apt-get install -y --force-yes python-pip python-dev python-imaging python-smbus
+apt-get install -y python-pip python-dev python-pil python-smbus
 pip install numpy pi3d svg.path adafruit-ads1x15
 # smbus and ads1x15 Python libs are installed regardless whether ADC
 # is enabled; simplifies the Python code a little (no "uncomment this")
