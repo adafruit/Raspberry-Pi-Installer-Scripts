@@ -7,7 +7,7 @@
 # we reference a specific commit (update this as needed):
 GITUSER=https://github.com/hzeller
 REPO=rpi-rgb-led-matrix
-COMMIT=814b79b5696d32dd1140304b41a1ec0068bb271a
+COMMIT=e3dd56dcc0408862f39cccc47c1d9dea1b0fb2d2 
 
 if [ $(id -u) -ne 0 ]; then
 	echo "Installer must be run as root."
