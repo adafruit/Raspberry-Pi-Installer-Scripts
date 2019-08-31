@@ -204,6 +204,12 @@ function update_configtxt() {
 	sed -i -e "/^# --- added by adafruit-pitft-helper/,/^# --- end adafruit-pitft-helper/d" /boot/config.txt
     fi
 
+    # remove any old flexfb/fbtft stuff
+    rm -f /etc/modprobe.d/fbtft.conf
+    sed -i 's/flexfb//g' "/etc/modules"
+    sed -i 's/fbtft_device//g' "/etc/modules"
+    sed -i 's/spi-bcm2835//g' "/etc/modules"
+
     if [ "${pitfttype}" == "22" ]; then
         overlay="dtoverlay=pitft22,rotate=${pitftrot},speed=64000000,fps=30"
     fi
@@ -231,11 +237,6 @@ EOF
         echo "fbtft_device" >> /etc/modules
         echo "spi-bcm2835" >> /etc/modules
         overlay=""
-    else
-        rm -f /etc/modprobe.d/fbtft.conf
-        sed -i 's/flexfb//g' "/etc/modules"
-        sed -i 's/fbtft_device//g' "/etc/modules"
-        sed -i 's/spi-bcm2835//g' "/etc/modules"
     fi
 
 
