@@ -164,6 +164,7 @@ sysupdate() {
         # echo "Checking for correct software repositories..."
         # has_repo || { warning "Missing Apt repo, please add deb http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware to /etc/apt/sources.list.d/raspi.list" && exit 1; }
         echo "Updating apt indexes..." && progress 3 &
+        sudo apt update 1> /dev/null || { warning "Apt failed to update indexes!" && exit 1; }
         sudo apt-get update 1> /dev/null || { warning "Apt failed to update indexes!" && exit 1; }
         echo "Reading package lists..."
         progress 3 && UPDATE_DB=true
@@ -241,10 +242,10 @@ EOF
 
     if [ "${pitfttype}" == "st7789_240x135" ]; then
         dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft114.dtbo overlays/minipitft114-overlay.dts
-        sudo apt update -y || { warning "Apt failed to install software!" && exit 1; }
-        sudo apt-get update || { warning "Apt failed to install software!" && exit 1; }
+        echo "############# UPGRADING KERNEL ###############"
         sudo apt-get upgrade || { warning "Apt failed to install software!" && exit 1; }
         apt-get install -y raspberrypi-kernel-headers 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+        [ -d /lib/modules/$(uname -r)/build ] ||  { warning "Kernel was updated, please reboot now and re-run script!" && exit 1; }
         cd st7789_module
         make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V driver!" && exit 1; }
         mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.BACK
