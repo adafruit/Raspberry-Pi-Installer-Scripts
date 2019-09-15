@@ -191,7 +191,7 @@ reconfig() {
 function softwareinstall() {
     echo "Installing Pre-requisite Software...This may take a few minutes!"
 		apt-get install -y libts0 1> /dev/null 2>&1 || apt-get install -y tslib 1> /dev/null 2>&1 || { warning "Apt failed to install TSLIB!" && exit 1; }
-    apt-get install -y bc fbi git python-dev python-pip python-smbus python-spidev evtest libts-bin 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+    apt-get install -y bc fbi git python-dev python-pip python-smbus python-spidev evtest libts-bin device-tree-compiler 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     pip install evdev 1> /dev/null  || { warning "Pip failed to install software!" && exit 1; }
 }
 
@@ -239,6 +239,15 @@ EOF
         overlay=""
     fi
 
+    if [ "${pitfttype}" == "st7789_240x135" ]; then
+	dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft114.dtbo overlays/minipitft114-overlay.dts
+	apt-get install -y raspberrypi-kernel-headers 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+	cd st7789_module
+	make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V driver!" && exit 1; }
+	mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.BACK
+	mv st7789v_ada.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko
+        overlay="dtoverlay=drm-minipitft114,rotation=${pitftrot}"
+    fi
 
     date=`date`
 
@@ -495,9 +504,10 @@ selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
         "PiTFT 2.8\" capacitive touch (240x320)" \
         "PiTFT 3.5\" resistive touch (320x480)" \
         "Braincraft 1.54\" display (240x240)" \
+        "MiniPiTFT 1.14\" display (240x135)" \
         "Quit without installing"
 PITFT_SELECT=$?
-if [ $PITFT_SELECT -gt 5 ]; then
+if [ $PITFT_SELECT -gt 6 ]; then
     exit 1
 fi
 
@@ -512,7 +522,7 @@ if [ $PITFT_ROTATE -gt 4 ]; then
 fi
 
 PITFT_ROTATIONS=("90" "180" "270" "0")
-PITFT_TYPES=("28r" "22" "28c" "35r" "st7789_240x240")
+PITFT_TYPES=("28r" "22" "28c" "35r" "st7789_240x240" "st7789_240x135")
 WIDTH_VALUES=(320 320 320 480 240)
 HEIGHT_VALUES=(240 240 240 320 240)
 HZ_VALUES=(64000000 64000000 64000000 32000000 64000000)
@@ -573,13 +583,14 @@ pitfttype=${PITFT_TYPES[$PITFT_SELECT-1]}
 pitftrot=${PITFT_ROTATIONS[$PITFT_ROTATE-1]}
 
 
-if [ "${pitfttype}" != "28r" ] && [ "${pitfttype}" != "28c" ] && [ "${pitfttype}" != "35r" ] && [ "${pitfttype}" != "22" ] && [ "${pitfttype}" != "st7789_240x240" ]; then
+if [ "${pitfttype}" != "28r" ] && [ "${pitfttype}" != "28c" ] && [ "${pitfttype}" != "35r" ] && [ "${pitfttype}" != "22" ] && [ "${pitfttype}" != "st7789_240x240" ] && [ "${pitfttype}" != "st7789_240x135" ]; then
     echo "Type must be one of:"
     echo "  '28r' (2.8\" resistive, PID 1601)"
     echo "  '28c' (2.8\" capacitive, PID 1983)"
     echo "  '35r' (3.5\" Resistive)"
     echo "  '22'  (2.2\" no touch)"
     echo "  'st7789_240x240' (1.54\" or 1.3\" no touch)"
+    echo "  'st7789_240x135' 1.14\" no touch)"
     echo
     print_help
 fi
