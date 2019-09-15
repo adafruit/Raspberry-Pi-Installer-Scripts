@@ -8,9 +8,9 @@
 # sudo ./adafruit-pitft.sh
 
 if [ $(id -u) -ne 0 ]; then
-	echo "Installer must be run as root."
-	echo "Try 'sudo bash $0'"
-	exit 1
+        echo "Installer must be run as root."
+        echo "Try 'sudo bash $0'"
+        exit 1
 fi
 
 
@@ -49,7 +49,7 @@ TRANSFORM_28c270="0 -1 1 1 0 0 0 0 1"
 
 
 warning() {
-	echo WARNING : $1
+        echo WARNING : $1
 }
 
 ############################ Script assisters ############################
@@ -58,19 +58,19 @@ warning() {
 # preceded by a number (1 to N), display a prompt, check input until
 # a valid number within the selection range is entered.
 selectN() {
-	for ((i=1; i<=$#; i++)); do
-		echo $i. ${!i}
-	done
-	echo
-	REPLY=""
-	while :
-	do
-		echo -n "SELECT 1-$#: "
-		read
-		if [[ $REPLY -ge 1 ]] && [[ $REPLY -le $# ]]; then
-			return $REPLY
-		fi
-	done
+        for ((i=1; i<=$#; i++)); do
+                echo $i. ${!i}
+        done
+        echo
+        REPLY=""
+        while :
+        do
+                echo -n "SELECT 1-$#: "
+                read
+                if [[ $REPLY -ge 1 ]] && [[ $REPLY -le $# ]]; then
+                        return $REPLY
+                fi
+        done
 }
 
 
@@ -161,8 +161,8 @@ progress() {
 
 sysupdate() {
     if ! $UPDATE_DB; then
-	# echo "Checking for correct software repositories..."
-	# has_repo || { warning "Missing Apt repo, please add deb http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware to /etc/apt/sources.list.d/raspi.list" && exit 1; }
+        # echo "Checking for correct software repositories..."
+        # has_repo || { warning "Missing Apt repo, please add deb http://mirrordirector.raspbian.org/raspbian/ stretch main contrib non-free rpi firmware to /etc/apt/sources.list.d/raspi.list" && exit 1; }
         echo "Updating apt indexes..." && progress 3 &
         sudo apt-get update 1> /dev/null || { warning "Apt failed to update indexes!" && exit 1; }
         echo "Reading package lists..."
@@ -175,14 +175,14 @@ sysupdate() {
 # perform replacement if found, else append replacement to end of file.
 # (# $1 = filename, $2 = pattern to match, $3 = replacement)
 reconfig() {
-	grep $2 $1 >/dev/null
-	if [ $? -eq 0 ]; then
-		# Pattern found; replace in file
-		sed -i "s/$2/$3/g" $1 >/dev/null
-	else
-		# Not found; append (silently)
-		echo $3 | sudo tee -a $1 >/dev/null
-	fi
+        grep $2 $1 >/dev/null
+        if [ $? -eq 0 ]; then
+                # Pattern found; replace in file
+                sed -i "s/$2/$3/g" $1 >/dev/null
+        else
+                # Not found; append (silently)
+                echo $3 | sudo tee -a $1 >/dev/null
+        fi
 }
 
 
@@ -190,7 +190,7 @@ reconfig() {
 
 function softwareinstall() {
     echo "Installing Pre-requisite Software...This may take a few minutes!"
-		apt-get install -y libts0 1> /dev/null 2>&1 || apt-get install -y tslib 1> /dev/null 2>&1 || { warning "Apt failed to install TSLIB!" && exit 1; }
+                apt-get install -y libts0 1> /dev/null 2>&1 || apt-get install -y tslib 1> /dev/null 2>&1 || { warning "Apt failed to install TSLIB!" && exit 1; }
     apt-get install -y bc fbi git python-dev python-pip python-smbus python-spidev evtest libts-bin device-tree-compiler 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     pip install evdev 1> /dev/null  || { warning "Pip failed to install software!" && exit 1; }
 }
@@ -199,9 +199,9 @@ function softwareinstall() {
 function update_configtxt() {
     if grep -q "adafruit-pitft-helper" "/boot/config.txt"; then
         echo "Already have an adafruit-pitft-helper section in /boot/config.txt."
-	echo "Removing old section..."
+        echo "Removing old section..."
         cp /boot/config.txt /boot/configtxt.bak
-	sed -i -e "/^# --- added by adafruit-pitft-helper/,/^# --- end adafruit-pitft-helper/d" /boot/config.txt
+        sed -i -e "/^# --- added by adafruit-pitft-helper/,/^# --- end adafruit-pitft-helper/d" /boot/config.txt
     fi
 
     # remove any old flexfb/fbtft stuff
@@ -240,12 +240,15 @@ EOF
     fi
 
     if [ "${pitfttype}" == "st7789_240x135" ]; then
-	dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft114.dtbo overlays/minipitft114-overlay.dts
-	apt-get install -y raspberrypi-kernel-headers 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
-	cd st7789_module
-	make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V driver!" && exit 1; }
-	mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.BACK
-	mv st7789v_ada.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko
+        dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft114.dtbo overlays/minipitft114-overlay.dts
+        sudo apt update -y || { warning "Apt failed to install software!" && exit 1; }
+        sudo apt-get update || { warning "Apt failed to install software!" && exit 1; }
+        sudo apt-get upgrade || { warning "Apt failed to install software!" && exit 1; }
+        apt-get install -y raspberrypi-kernel-headers 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+        cd st7789_module
+        make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V driver!" && exit 1; }
+        mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.BACK
+        mv st7789v_ada.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko
         overlay="dtoverlay=drm-minipitft114,rotation=${pitftrot}"
     fi
 
@@ -371,8 +374,8 @@ function install_fbcp() {
 
     # if there's X11 installed...
     if [ -e /etc/lightdm ]; then
-	echo "Setting raspi-config to boot to desktop w/o login..."
-	raspi-config nonint do_boot_behaviour B4
+        echo "Setting raspi-config to boot to desktop w/o login..."
+        raspi-config nonint do_boot_behaviour B4
     fi
 
     # Disable overscan compensation (use full screen):
@@ -385,39 +388,39 @@ function install_fbcp() {
 
     # if there's X11 installed...
     if [ -e /etc/lightdm ]; then
-	if [ "${pitfttype}" == "35r" ]; then
-	    echo "Using x1.5 resolution"
-	    SCALE=1.5
-	else
-	    echo "Using x2 resolution"
-	    SCALE=2.0
-	fi
+        if [ "${pitfttype}" == "35r" ]; then
+            echo "Using x1.5 resolution"
+            SCALE=1.5
+        else
+            echo "Using x2 resolution"
+            SCALE=2.0
+        fi
     else
-	echo "Using native resolution"
-	SCALE=1
+        echo "Using native resolution"
+        SCALE=1
     fi
     WIDTH=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
     HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
     reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=${WIDTH} ${HEIGHT} 60 1 0 0 0"
 
     if [ "${pitftrot}" == "90" ] || [ "${pitftrot}" == "270" ]; then
-	# dont rotate HDMI on 90 or 270
-	reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" ""
+        # dont rotate HDMI on 90 or 270
+        reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" ""
     fi
 
     if [ "${pitftrot}" == "0" ]; then
-	reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" "display_hdmi_rotate=1"
-	# this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
-	pitftrot=90
-	update_configtxt || bail "Unable to update /boot/config.txt"
-	pitftrot=0
+        reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" "display_hdmi_rotate=1"
+        # this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
+        pitftrot=90
+        update_configtxt || bail "Unable to update /boot/config.txt"
+        pitftrot=0
     fi
     if [ "${pitftrot}" == "180" ]; then
-	reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" "display_hdmi_rotate=3"
-	# this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
-	pitftrot=90
-	update_configtxt || bail "Unable to update /boot/config.txt"
-	pitftrot=180
+        reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" "display_hdmi_rotate=3"
+        # this is a hack but because we rotate HDMI we have to 'unrotate' the TFT!
+        pitftrot=90
+        update_configtxt || bail "Unable to update /boot/config.txt"
+        pitftrot=180
     fi
 
 }
@@ -458,8 +461,8 @@ function uninstall_fbcp_rclocal() {
 
 function update_xorg() {
     if [ "${pitfttype}" == "28r" ] || [ "${pitfttype}" == "35r" ]; then
-	matrix=$(eval echo "\$TRANSFORM_$pitfttype$pitftrot")
-	transform="Option \"TransformationMatrix\" \"${matrix}\""
+        matrix=$(eval echo "\$TRANSFORM_$pitfttype$pitftrot")
+        transform="Option \"TransformationMatrix\" \"${matrix}\""
         cat > /usr/share/X11/xorg.conf.d/20-calibration.conf <<EOF
 Section "InputClass"
         Identifier "STMPE Touchscreen Calibration"
@@ -472,8 +475,8 @@ EOF
     fi
 
     if [ "${pitfttype}" == "28c" ]; then
-	matrix=$(eval echo "\$TRANSFORM_$pitfttype$pitftrot")
-	transform="Option \"TransformationMatrix\" \"${matrix}\""
+        matrix=$(eval echo "\$TRANSFORM_$pitfttype$pitftrot")
+        transform="Option \"TransformationMatrix\" \"${matrix}\""
         cat > /usr/share/X11/xorg.conf.d/20-calibration.conf <<EOF
 Section "InputClass"
         Identifier "FocalTech Touchscreen Calibration"
@@ -504,7 +507,7 @@ selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
         "PiTFT 2.8\" capacitive touch (240x320)" \
         "PiTFT 3.5\" resistive touch (320x480)" \
         "Braincraft 1.54\" display (240x240)" \
-        "MiniPiTFT 1.14\" display (240x135)" \
+        "MiniPiTFT 1.14\" display (240x135) - WARNING! CUTTING EDGE! WILL UPGRADE YOUR KERNEL TO LATEST" \
         "Quit without installing"
 PITFT_SELECT=$?
 if [ $PITFT_SELECT -gt 6 ]; then
@@ -622,13 +625,13 @@ else
     uninstall_console || bail "Unable to configure console"
 
     if ask "Would you like the HDMI display to mirror to the PiTFT display?"; then
-	info PITFT "Adding FBCP support..."
-	install_fbcp || bail "Unable to configure fbcp"
+        info PITFT "Adding FBCP support..."
+        install_fbcp || bail "Unable to configure fbcp"
 
-	if [ -e /etc/lightdm ]; then
-	    info PITFT "Updating X11 default calibration..."
-	    update_xorg || bail "Unable to update calibration"
-	fi
+        if [ -e /etc/lightdm ]; then
+            info PITFT "Updating X11 default calibration..."
+            update_xorg || bail "Unable to update calibration"
+        fi
     fi
 fi
 
@@ -654,8 +657,8 @@ echo
 echo -n "REBOOT NOW? [y/N] "
 read
 if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-	echo "Exiting without reboot."
-	exit 0
+        echo "Exiting without reboot."
+        exit 0
 fi
 echo "Reboot started..."
 reboot
