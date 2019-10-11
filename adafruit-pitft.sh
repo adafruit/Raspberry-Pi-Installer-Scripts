@@ -243,7 +243,7 @@ EOF
     if [ "${pitfttype}" == "st7789_240x135" ]; then
         dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft114.dtbo overlays/minipitft114-overlay.dts
         echo "############# UPGRADING KERNEL ###############"
-        sudp apt update  || { warning "Apt failed to update itself!" && exit 1; }
+        sudo apt update  || { warning "Apt failed to update itself!" && exit 1; }
         sudo apt-get upgrade || { warning "Apt failed to install software!" && exit 1; }
         apt-get install -y raspberrypi-kernel-headers 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
         [ -d /lib/modules/$(uname -r)/build ] ||  { warning "Kernel was updated, please reboot now and re-run script!" && exit 1; }
