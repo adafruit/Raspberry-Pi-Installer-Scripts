@@ -41,7 +41,7 @@ fi
 INTERFACE_TYPE=0
 INSTALL_RTC=0
 QUALITY_MOD=0
-SLOWDOWN_GPIO=5
+#SLOWDOWN_GPIO=5
 #MATRIX_SIZE=3
 
 # Given a list of strings representing options, display each option
@@ -84,14 +84,14 @@ QUALITY_OPTS=( \
   "Convenience (sound on, no soldering)" \
 )
 
-SLOWDOWN_OPTS=( \
-  "0" \
-  "1" \
-  "2" \
-  "3" \
-  "4" \
-  "None -- specify at runtime with --led-slowdown-gpio" \
-)
+#SLOWDOWN_OPTS=( \
+#  "0" \
+#  "1" \
+#  "2" \
+#  "3" \
+#  "4" \
+#  "None -- specify at runtime with --led-slowdown-gpio" \
+#)
 
 # Default matrix dimensions are currently fixed at 32x32 in RGB matrix lib.
 # If that's compile-time configurable in the future, it'll happen here...
@@ -119,18 +119,18 @@ if [ $INTERFACE_TYPE -eq 1 ]; then
 	fi
 fi
 
-echo
-echo "OPTIONAL: GPIO throttling can be compiled-in so"
-echo "there's no need to specify this every time."
-echo "For Raspberry Pi 4, it's usually 4, sometimes 3."
-echo "Smaller values work for earlier, slower Pi models."
-echo "If unsure, test different settings with the"
-echo "--led-slowdown-gpio flag at runtime, then re-run"
-echo "this installer, selecting the minimum slowdown value"
-echo "that works reliably with your Pi and matrix."
-echo "GPIO slowdown setting:"
-selectN "${SLOWDOWN_OPTS[@]}"
-SLOWDOWN_GPIO=$?
+#echo
+#echo "OPTIONAL: GPIO throttling can be compiled-in so"
+#echo "there's no need to specify this every time."
+#echo "For Raspberry Pi 4, it's usually 4, sometimes 3."
+#echo "Smaller values work for earlier, slower Pi models."
+#echo "If unsure, test different settings with the"
+#echo "--led-slowdown-gpio flag at runtime, then re-run"
+#echo "this installer, selecting the minimum slowdown value"
+#echo "that works reliably with your Pi and matrix."
+#echo "GPIO slowdown setting:"
+#selectN "${SLOWDOWN_OPTS[@]}"
+#SLOWDOWN_GPIO=$?
 
 #echo
 #echo "OPTIONAL: matrix size can be compiled-in so"
@@ -167,7 +167,7 @@ echo "Interface board type: ${INTERFACES[$INTERFACE_TYPE]}"
 if [ $INTERFACE_TYPE -eq 1 ]; then
 	echo "Install RTC support: ${OPTION_NAMES[$INSTALL_RTC]}"
 fi
-echo "GPIO slowdown: ${SLOWDOWN_OPTS[$SLOWDOWN_GPIO]}"
+#echo "GPIO slowdown: ${SLOWDOWN_OPTS[$SLOWDOWN_GPIO]}"
 #echo "Matrix size: ${SIZE_OPTS[$MATRIX_SIZE]}"
 echo "Optimize: ${QUALITY_OPTS[$QUALITY_MOD]}"
 if [ $QUALITY_MOD -eq 0 ]; then
@@ -215,29 +215,27 @@ mv $REPO-$COMMIT rpi-rgb-led-matrix
 echo "Building RGB matrix software..."
 cd rpi-rgb-led-matrix
 USER_DEFINES=""
-if [ $SLOWDOWN_GPIO -lt 5 ]; then
-	USER_DEFINES+=" -DRGB_SLOWDOWN_GPIO=$SLOWDOWN_GPIO"
-fi
+#if [ $SLOWDOWN_GPIO -lt 5 ]; then
+#	USER_DEFINES+=" -DRGB_SLOWDOWN_GPIO=$SLOWDOWN_GPIO"
+#fi
 #if [ $MATRIX_SIZE --lt 3 ]; then
-#	USER_DEFINES+=" -DLED_ROWS=${MATRIX_WIDTHS[$MATRIX_SIZE]}"
-#	USER_DEFINES+=" -DLED_COLS=${MATRIX_HEIGHTS[$MATRIX_SIZE]}"
+#	USER_DEFINES+=" -DLED_COLS=${MATRIX_WIDTHS[$MATRIX_SIZE]}"
+#	USER_DEFINES+=" -DLED_ROWS=${MATRIX_HEIGHTS[$MATRIX_SIZE]}"
 #fi
 if [ $QUALITY_MOD -eq 0 ]; then
-	# Build then install for Python 2.7...
-	make build-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES"
-	make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES"
+	# Build and install for Python 2.7...
+	make clean
+	make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
 	# Do over for Python 3...
 	make clean
-	make build-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 	make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 else
 	# Build then install for Python 2.7...
 	USER_DEFINES+=" -DDISABLE_HARDWARE_PULSES"
-	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES"
-	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES"
+	make clean
+	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
 	# Do over for Python 3...
 	make clean
-	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 fi
 # Change ownership to user calling sudo
