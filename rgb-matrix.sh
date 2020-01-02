@@ -41,6 +41,8 @@ fi
 INTERFACE_TYPE=0
 INSTALL_RTC=0
 QUALITY_MOD=0
+SLOWDOWN_GPIO=5
+#MATRIX_SIZE=3
 
 # Given a list of strings representing options, display each option
 # preceded by a number (1 to N), display a prompt, check input until
@@ -48,17 +50,24 @@ QUALITY_MOD=0
 # Can we pass an array?
 selectN() {
 	args=("${@}")
+	if [[ ${args[0]} = "0" ]]; then
+		OFFSET=0
+	else
+		OFFSET=1
+	fi
 	for ((i=0; i<$#; i++)); do
-		echo $((i+1)). ${args[$i]}
+		echo $((i+$OFFSET)). ${args[$i]}
 	done
 	echo
 	REPLY=""
+	let LAST=$#+$OFFSET-1
 	while :
 	do
-		echo -n "SELECT 1-$#: "
+		echo -n "SELECT $OFFSET-$LAST: "
 		read
-		if [[ $REPLY -ge 1 ]] && [[ $REPLY -le $# ]]; then
-			return $REPLY
+		if [[ $REPLY -ge $OFFSET ]] && [[ $REPLY -le $LAST ]]; then
+			let RESULT=$REPLY-$OFFSET
+			return $RESULT
 		fi
 	done
 }
@@ -75,12 +84,32 @@ QUALITY_OPTS=( \
   "Convenience (sound on, no soldering)" \
 )
 
+SLOWDOWN_OPTS=( \
+  "0" \
+  "1" \
+  "2" \
+  "3" \
+  "4" \
+  "None -- specify at runtime with --led-slowdown-gpio" \
+)
+
+# Default matrix dimensions are currently fixed at 32x32 in RGB matrix lib.
+# If that's compile-time configurable in the future, it'll happen here...
+#MATRIX_WIDTHS=(32 32 64)
+#MATRIX_HEIGHTS=(16 32 32)
+#SIZE_OPTS=( \
+#  "${MATRIX_WIDTHS[0]} x ${MATRIX_HEIGHTS[0]}" \
+#  "${MATRIX_WIDTHS[1]} x ${MATRIX_HEIGHTS[1]}" \
+#  "${MATRIX_WIDTHS[2]} x ${MATRIX_HEIGHTS[2]}" \
+#  "None/other -- specify at runtime with --led-cols and --led-rows" \
+#)
+
 echo
 echo "Select interface board type:"
 selectN "${INTERFACES[@]}"
 INTERFACE_TYPE=$?
 
-if [ $INTERFACE_TYPE -eq 2 ]; then
+if [ $INTERFACE_TYPE -eq 1 ]; then
 	# For matrix HAT, ask about RTC install
 	echo
 	echo -n "Install realtime clock support? [y/N] "
@@ -89,6 +118,26 @@ if [ $INTERFACE_TYPE -eq 2 ]; then
 		INSTALL_RTC=1
 	fi
 fi
+
+echo
+echo "OPTIONAL: GPIO throttling can be compiled-in so"
+echo "there's no need to specify this every time."
+echo "For Raspberry Pi 4, it's usually 4, sometimes 3."
+echo "Smaller values work for earlier, slower Pi models."
+echo "If unsure, test different settings with the"
+echo "--led-slowdown-gpio flag at runtime, then re-run"
+echo "this installer, selecting the minimum slowdown value"
+echo "that works reliably with your Pi and matrix."
+echo "GPIO slowdown setting:"
+selectN "${SLOWDOWN_OPTS[@]}"
+SLOWDOWN_GPIO=$?
+
+#echo
+#echo "OPTIONAL: matrix size can be compiled-in so"
+#echo "there's no need to specify this every time."
+#echo "Some common Adafruit matrix sizes:"
+#selectN "${SIZE_OPTS[@]}"
+#MATRIX_SIZE=$?
 
 echo
 echo "Now you must choose between QUALITY and CONVENIENCE."
@@ -114,12 +163,14 @@ QUALITY_MOD=$?
 # VERIFY SELECTIONS BEFORE CONTINUING --------------------------------------
 
 echo
-echo "Interface board type: ${INTERFACES[$INTERFACE_TYPE-1]}"
-if [ $INTERFACE_TYPE -eq 2 ]; then
+echo "Interface board type: ${INTERFACES[$INTERFACE_TYPE]}"
+if [ $INTERFACE_TYPE -eq 1 ]; then
 	echo "Install RTC support: ${OPTION_NAMES[$INSTALL_RTC]}"
 fi
-echo "Optimize: ${QUALITY_OPTS[$QUALITY_MOD-1]}"
-if [ $QUALITY_MOD -eq 1 ]; then
+echo "GPIO slowdown: ${SLOWDOWN_OPTS[$SLOWDOWN_GPIO]}"
+#echo "Matrix size: ${SIZE_OPTS[$MATRIX_SIZE]}"
+echo "Optimize: ${QUALITY_OPTS[$QUALITY_MOD]}"
+if [ $QUALITY_MOD -eq 0 ]; then
 	echo "Reminder: you must SOLDER a wire between GPIO4"
 	echo "and GPIO18, and internal sound is DISABLED!"
 fi
@@ -163,22 +214,31 @@ rm $REPO-$COMMIT.zip
 mv $REPO-$COMMIT rpi-rgb-led-matrix
 echo "Building RGB matrix software..."
 cd rpi-rgb-led-matrix
-if [ $QUALITY_MOD -eq 1 ]; then
+USER_DEFINES=""
+if [ $SLOWDOWN_GPIO -lt 5 ]; then
+	USER_DEFINES+=" -DRGB_SLOWDOWN_GPIO=$SLOWDOWN_GPIO"
+fi
+#if [ $MATRIX_SIZE --lt 3 ]; then
+#	USER_DEFINES+=" -DLED_ROWS=${MATRIX_WIDTHS[$MATRIX_SIZE]}"
+#	USER_DEFINES+=" -DLED_COLS=${MATRIX_HEIGHTS[$MATRIX_SIZE]}"
+#fi
+if [ $QUALITY_MOD -eq 0 ]; then
 	# Build then install for Python 2.7...
-	make build-python HARDWARE_DESC=adafruit-hat-pwm
-	make install-python HARDWARE_DESC=adafruit-hat-pwm
+	make build-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES"
+	make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES"
 	# Do over for Python 3...
 	make clean
-	make build-python HARDWARE_DESC=adafruit-hat-pwm PYTHON=$(which python3)
-	make install-python HARDWARE_DESC=adafruit-hat-pwm PYTHON=$(which python3)
+	make build-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
+	make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 else
 	# Build then install for Python 2.7...
-	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES"
-	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES"
+	USER_DEFINES+=" -DDISABLE_HARDWARE_PULSES"
+	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES"
+	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES"
 	# Do over for Python 3...
 	make clean
-	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES" PYTHON=$(which python3)
-	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="-DDISABLE_HARDWARE_PULSES" PYTHON=$(which python3)
+	make build-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
+	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 fi
 # Change ownership to user calling sudo
 chown -R $SUDO_USER:$(id -g $SUDO_USER) `pwd`
@@ -199,7 +259,7 @@ if [ $INSTALL_RTC -ne 0 ]; then
 
 fi
 
-if [ $QUALITY_MOD -eq 1 ]; then
+if [ $QUALITY_MOD -eq 0 ]; then
 	# Disable sound ('easy way' -- kernel module not blacklisted)
 	reconfig /boot/config.txt "^.*dtparam=audio.*$" "dtparam=audio=off"
 else
