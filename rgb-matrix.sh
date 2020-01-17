@@ -47,7 +47,6 @@ QUALITY_MOD=0
 # Given a list of strings representing options, display each option
 # preceded by a number (1 to N), display a prompt, check input until
 # a valid number within the selection range is entered.
-# Can we pass an array?
 selectN() {
 	args=("${@}")
 	if [[ ${args[0]} = "0" ]]; then
@@ -283,4 +282,4 @@ if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
 fi
 echo "Reboot started..."
 reboot
-exit 0
+sleep infinity

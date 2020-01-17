@@ -133,7 +133,6 @@ reconfig2() {
 	else
 		# Not found; append to line (silently)
                 sed -i "s/$/ $3/g" $1 >/dev/null
-
 	fi
 }
 
@@ -226,7 +225,7 @@ if [ $SCREEN_SELECT -ne 4 ]; then
 		sed -i "s/^.*fbx2.*$/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&/g" /etc/rc.local >/dev/null
 	else
 		# Insert fbx2 into rc.local before final 'exit 0'
-	sed -i "s/^exit 0/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&\\nexit 0/g" /etc/rc.local >/dev/null
+		sed -i "s/^exit 0/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&\\nexit 0/g" /etc/rc.local >/dev/null
 	fi
 
 	RADIUS=${RADIUS_VALUES[($SCREEN_SELECT-1)]}
