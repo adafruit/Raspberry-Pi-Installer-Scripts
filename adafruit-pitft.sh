@@ -508,7 +508,7 @@ selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
         "PiTFT 2.2\" no touch (240x320)" \
         "PiTFT 2.8\" capacitive touch (240x320)" \
         "PiTFT 3.5\" resistive touch (320x480)" \
-        "Braincraft 1.54\" display (240x240)" \
+        "PiTFT Mini 1.3\" or 1.54\" display (240x240)" \
         "MiniPiTFT 1.14\" display (240x135) - WARNING! CUTTING EDGE! WILL UPGRADE YOUR KERNEL TO LATEST" \
         "Quit without installing"
 PITFT_SELECT=$?
