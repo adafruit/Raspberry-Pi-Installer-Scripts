@@ -145,9 +145,10 @@ apt-get update
 echo "Installing Python libraries..."
 # WAS: apt-get install -y --force-yes python-pip python-dev python-imaging python-smbus
 apt-get install -y python3-pip python3-dev python3-pil python3-smbus libatlas-base-dev
-pip3 install numpy pi3d svg.path rpi-gpio adafruit-ads1x15
-# smbus and ads1x15 Python libs are installed regardless whether ADC
-# is enabled; simplifies the Python code a little (no "uncomment this")
+# WAS: pip3 install numpy pi3d svg.path rpi-gpio adafruit-ads1x15
+pip3 install numpy pi3d svg.path rpi-gpio adafruit-blinka adafruit-circuitpython-ads1x15
+# smbus and Blinka+ADC libs are installed regardless whether ADC is
+# enabled; simplifies the Python code a little (no "uncomment this")
 
 echo "Installing Adafruit code and data in /boot..."
 cd /tmp
