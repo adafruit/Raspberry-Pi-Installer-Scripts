@@ -47,6 +47,11 @@ TRANSFORM_28c90="0 1 0 -1 0 1 0 0 1"
 TRANSFORM_28c180="1 0 0 0 1 0 0 0 1"
 TRANSFORM_28c270="0 -1 1 1 0 0 0 0 1"
 
+ROTATE_28c0="rotate=0,touch-invx=true,touch-invy=true"
+ROTATE_28c90="rotate=90,touch-swapxy=true,touch-invx=true"
+ROTATE_28c180="rotate=180"
+ROTATE_28c270="rotate=270,touch-swapxy=true,touch-invy=true"
+
 MADCTL_st7789_240x2400="0x36,0x60,-1,0x37,0x00,0x00,-1"
 MADCTL_st7789_240x24090="0x36,0x00,-1,0x37,0x00,0x00,-1"
 MADCTL_st7789_240x240180="0x36,0xA0,-1,0x37,0x00,0x50,-1"
@@ -224,7 +229,8 @@ function update_configtxt() {
     fi
 
     if [ "${pitfttype}" == "28c" ]; then
-        overlay="dtoverlay=pitft28-capacitive,rotate=${pitftrot},speed=64000000,fps=30"
+        rotateparams=$(eval echo "\$ROTATE_$pitfttype$pitftrot")
+        overlay=$(printf "dtoverlay=pitft28-capacitive,speed=64000000,fps=30\ndtoverlay=pitft28-capacitive,${rotateparams}")
     fi
 
     if [ "${pitfttype}" == "35r" ]; then
