@@ -345,7 +345,7 @@ function uninstall_console() {
 
 function install_fbcp() {
     echo "Installing cmake..."
-    apt-get --yes --force-yes install cmake 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+    apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     echo "Downloading rpi-fbcp..."
     cd /tmp
     #curl -sLO https://github.com/tasanakorn/rpi-fbcp/archive/master.zip
