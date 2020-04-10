@@ -472,6 +472,23 @@ function uninstall_fbcp_rclocal() {
     sed -i -e '/^.*fbcp.*$/d' /etc/rc.local
 }
 
+function install_xorg_fb1() {
+    mkdir -p /usr/share/X11/xorg.conf.d
+    cat > /usr/share/X11/xorg.conf.d/05-pitft.conf <<EOF
+Section "Device"
+  Identifier "DeviceTFT"
+  Driver "fbdev"
+  Option "fbdev" "/dev/fb1"
+EndSection
+
+Section "Screen"
+ Identifier "ScreenTFT"
+ Device "DeviceTFT"
+EndSection
+EOF
+
+}
+
 function update_xorg() {
     if [ "${pitfttype}" == "28r" ] || [ "${pitfttype}" == "35r" ]; then
         matrix=$(eval echo "\$TRANSFORM_$pitfttype$pitftrot")
@@ -643,6 +660,12 @@ else
 
         if [ -e /etc/lightdm ]; then
             info PITFT "Updating X11 default calibration..."
+            update_xorg || bail "Unable to update calibration"
+        fi
+    else
+        if ask "Install X11 xorg.conf.d config files?"; then
+            info PITFT "Creating 05-pitft.conf and 20-calibration.conf"
+            install_xorg_fb1 || bail "Unable to create ScreenTFT"
             update_xorg || bail "Unable to update calibration"
         fi
     fi
