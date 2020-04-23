@@ -57,6 +57,11 @@ MADCTL_st7789_240x24090="0x36,0x00,-1,0x37,0x00,0x00,-1"
 MADCTL_st7789_240x240180="0x36,0xA0,-1,0x37,0x00,0x50,-1"
 MADCTL_st7789_240x240270="0x36,0xC0,-1,0x37,0x00,0x50,-1"
 
+MADCTL_st7789_240x32090="0x36,0x60,-1,0x37,0x00,0x00,-1"
+MADCTL_st7789_240x320180="0x36,0x00,-1,0x37,0x00,0x00,-1"
+MADCTL_st7789_240x320270="0x36,0xA0,-1,0x37,0x00,0x00,-1"
+MADCTL_st7789_240x3200="0x36,0xC0,-1,0x37,0x00,0x00,-1"
+
 warning() {
         echo WARNING : $1
 }
@@ -237,6 +242,25 @@ function update_configtxt() {
         overlay="dtoverlay=pitft35-resistive,rotate=${pitftrot},speed=20000000,fps=20"
     fi
 
+    if [ "${pitfttype}" == "st7789_240x320" ]; then
+        madctl=$(eval echo "\$MADCTL_$pitfttype$pitftrot")
+        if [ "${pitftrot}" == "90" ] || [ "${pitftrot}" == "270" ]; then
+            fbtftdevicerotate="rotate=90"
+        else
+            fbtftdevicerotate=""
+        fi
+        cat >> /etc/modprobe.d/fbtft.conf <<EOF
+# --- added by adafruit-pitft-helper $date ---
+options fbtft_device name=flexfb gpios=dc:25,cs:8,led:12 speed=40000000 bgr=1 fps=60 $fbtftdevicerotate
+options flexfb setaddrwin=0 width=240 height=320 init=-1,0x11,-2,120,-1,$madctl,0x3A,0x05,-1,0x26,0x04,-1,0xBA,0x01,-1,0xB2,0x0C,0x0C,0x00,0x33,0x33,-1,0xB7,0x35,-1,0xBB,0x1A,-1,0xC0,0x2C,-1,0xC2,0x01,-1,0xC3,0x0B,-1,0xC4,0x20,-1,0xC6,0x0F,-1,0xD0,0xA4,0xA1,-1,0x21,-1,0xE0,0x00,0x19,0x1E,0x0A,0x09,0x15,0x3D,0x44,0x51,0x12,0x03,0x00,0x3F,0x3F,-1,0xE1,0x00,0x18,0x1E,0x0A,0x09,0x25,0x3F,0x43,0x52,0x33,0x03,0x00,0x3F,0x3F,-1,0x29,-3
+# --- end adafruit-pitft-helper $date ---
+EOF
+        echo "spi-bcm2835" >> /etc/modules
+        echo "flexfb" >> /etc/modules
+        echo "fbtft_device" >> /etc/modules
+        overlay=""
+    fi
+    
     if [ "${pitfttype}" == "st7789_240x240" ]; then
         madctl=$(eval echo "\$MADCTL_$pitfttype$pitftrot")
         cat >> /etc/modprobe.d/fbtft.conf <<EOF
@@ -413,11 +437,19 @@ function install_fbcp() {
         echo "Using native resolution"
         SCALE=1
     fi
-    WIDTH=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-    HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
+    
+    if [[ "${pitfttype}" == "st7789_240x320" && ( "${pitftrot}" == "180" || "${pitftrot}" == "0" ) ]]; then
+        # swap width/height for portrait display rotation when using st7789_240x320
+        WIDTH=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
+        HEIGHT=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
+    else
+        WIDTH=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
+        HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
+    fi
+
     reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=${WIDTH} ${HEIGHT} 60 1 0 0 0"
 
-    if [ "${pitftrot}" == "90" ] || [ "${pitftrot}" == "270" ]; then
+    if [ "${pitftrot}" == "90" ] || [ "${pitftrot}" == "270" ] || [ "${pitfttype}" == "st7789_240x320" ]; then
         # dont rotate HDMI on 90 or 270
         reconfig /boot/config.txt "^.*display_hdmi_rotate.*$" ""
     fi
@@ -517,6 +549,7 @@ echo
 
 echo "Select configuration:"
 selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
+        "PiTFT 2.0\" no touch (240x320)" \
         "PiTFT 2.2\" no touch (240x320)" \
         "PiTFT 2.8\" capacitive touch (240x320)" \
         "PiTFT 3.5\" resistive touch (320x480)" \
@@ -524,7 +557,7 @@ selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
         "MiniPiTFT 1.14\" display (240x135) - WARNING! CUTTING EDGE! WILL UPGRADE YOUR KERNEL TO LATEST" \
         "Quit without installing"
 PITFT_SELECT=$?
-if [ $PITFT_SELECT -gt 6 ]; then
+if [ $PITFT_SELECT -gt 7 ]; then
     exit 1
 fi
 
@@ -539,10 +572,10 @@ if [ $PITFT_ROTATE -gt 4 ]; then
 fi
 
 PITFT_ROTATIONS=("90" "180" "270" "0")
-PITFT_TYPES=("28r" "22" "28c" "35r" "st7789_240x240" "st7789_240x135")
-WIDTH_VALUES=(320 320 320 480 240)
-HEIGHT_VALUES=(240 240 240 320 240)
-HZ_VALUES=(64000000 64000000 64000000 32000000 64000000)
+PITFT_TYPES=("28r" "st7789_240x320" "22" "28c" "35r" "st7789_240x240" "st7789_240x135")
+WIDTH_VALUES=(320 320 320 320 480 240)
+HEIGHT_VALUES=(240 240 240 240 320 240)
+HZ_VALUES=(64000000 64000000 64000000 64000000 32000000 64000000)
 
 
 
@@ -600,13 +633,14 @@ pitfttype=${PITFT_TYPES[$PITFT_SELECT-1]}
 pitftrot=${PITFT_ROTATIONS[$PITFT_ROTATE-1]}
 
 
-if [ "${pitfttype}" != "28r" ] && [ "${pitfttype}" != "28c" ] && [ "${pitfttype}" != "35r" ] && [ "${pitfttype}" != "22" ] && [ "${pitfttype}" != "st7789_240x240" ] && [ "${pitfttype}" != "st7789_240x135" ]; then
+if [ "${pitfttype}" != "28r" ] && [ "${pitfttype}" != "28c" ] && [ "${pitfttype}" != "35r" ] && [ "${pitfttype}" != "22" ] && [ "${pitfttype}" != "st7789_240x240" ] && [ "${pitfttype}" != "st7789_240x320" ] && [ "${pitfttype}" != "st7789_240x135" ]; then
     echo "Type must be one of:"
     echo "  '28r' (2.8\" resistive, PID 1601)"
     echo "  '28c' (2.8\" capacitive, PID 1983)"
     echo "  '35r' (3.5\" Resistive)"
     echo "  '22'  (2.2\" no touch)"
     echo "  'st7789_240x240' (1.54\" or 1.3\" no touch)"
+    echo "  'st7789_320x240' (2.0\" no touch)"
     echo "  'st7789_240x135' 1.14\" no touch)"
     echo
     print_help
