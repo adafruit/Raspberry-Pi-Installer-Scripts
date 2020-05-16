@@ -15,7 +15,7 @@ fi
 
 
 UPDATE_DB=false
-
+UNINSTALL=false
 
 ############################ CALIBRATIONS ############################
 # For TSLib
@@ -210,20 +210,28 @@ function softwareinstall() {
     pip install evdev 1> /dev/null  || { warning "Pip failed to install software!" && exit 1; }
 }
 
-# update /boot/config.txt with appropriate values
-function update_configtxt() {
+# Remove any old flexfb/fbtft stuff
+function uninstall_bootconfigtxt() {
     if grep -q "adafruit-pitft-helper" "/boot/config.txt"; then
         echo "Already have an adafruit-pitft-helper section in /boot/config.txt."
         echo "Removing old section..."
         cp /boot/config.txt /boot/configtxt.bak
         sed -i -e "/^# --- added by adafruit-pitft-helper/,/^# --- end adafruit-pitft-helper/d" /boot/config.txt
     fi
+}
 
-    # remove any old flexfb/fbtft stuff
+# Remove any old flexfb/fbtft stuff
+function uninstall_etc_modules() {
     rm -f /etc/modprobe.d/fbtft.conf
     sed -i 's/spi-bcm2835//g' "/etc/modules"
     sed -i 's/flexfb//g' "/etc/modules"
     sed -i 's/fbtft_device//g' "/etc/modules"
+}
+
+# update /boot/config.txt with appropriate values
+function update_configtxt() {
+    uninstall_bootconfigtxt
+    uninstall_etc_modules
 
     if [ "${pitfttype}" == "22" ]; then
         overlay="dtoverlay=pitft22,rotate=${pitftrot},speed=64000000,fps=30"
@@ -555,20 +563,28 @@ selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
         "PiTFT 3.5\" resistive touch (320x480)" \
         "PiTFT Mini 1.3\" or 1.54\" display (240x240)" \
         "MiniPiTFT 1.14\" display (240x135) - WARNING! CUTTING EDGE! WILL UPGRADE YOUR KERNEL TO LATEST" \
+        "Uninstall PiTFT" \
         "Quit without installing"
 PITFT_SELECT=$?
-if [ $PITFT_SELECT -gt 7 ]; then
+if [ $PITFT_SELECT -gt 8 ]; then
     exit 1
 fi
 
-echo "Select rotation:"
-selectN "90 degrees (landscape)" \
-        "180 degrees (portait)" \
-        "270 degrees (landscape)" \
-        "0 degrees (portait)"
-PITFT_ROTATE=$?
-if [ $PITFT_ROTATE -gt 4 ]; then
-    exit 1
+if [ $PITFT_SELECT -eq 8 ]; then
+    UNINSTALL=true
+fi
+
+
+if ! $UNINSTALL; then
+    echo "Select rotation:"
+    selectN "90 degrees (landscape)" \
+            "180 degrees (portait)" \
+            "270 degrees (landscape)" \
+            "0 degrees (portait)"
+    PITFT_ROTATE=$?
+    if [ $PITFT_ROTATE -gt 4 ]; then
+        exit 1
+    fi
 fi
 
 PITFT_ROTATIONS=("90" "180" "270" "0")
@@ -629,60 +645,69 @@ if [[ ! -e "$target_homedir" || ! -d "$target_homedir" ]]; then
     bail "$target_homedir must be an existing directory (use -u /home/foo to specify)"
 fi
 
-pitfttype=${PITFT_TYPES[$PITFT_SELECT-1]}
-pitftrot=${PITFT_ROTATIONS[$PITFT_ROTATE-1]}
+if ! $UNINSTALL;
+then
+    pitfttype=${PITFT_TYPES[$PITFT_SELECT-1]}
+    pitftrot=${PITFT_ROTATIONS[$PITFT_ROTATE-1]}
 
 
-if [ "${pitfttype}" != "28r" ] && [ "${pitfttype}" != "28c" ] && [ "${pitfttype}" != "35r" ] && [ "${pitfttype}" != "22" ] && [ "${pitfttype}" != "st7789_240x240" ] && [ "${pitfttype}" != "st7789_240x320" ] && [ "${pitfttype}" != "st7789_240x135" ]; then
-    echo "Type must be one of:"
-    echo "  '28r' (2.8\" resistive, PID 1601)"
-    echo "  '28c' (2.8\" capacitive, PID 1983)"
-    echo "  '35r' (3.5\" Resistive)"
-    echo "  '22'  (2.2\" no touch)"
-    echo "  'st7789_240x240' (1.54\" or 1.3\" no touch)"
-    echo "  'st7789_320x240' (2.0\" no touch)"
-    echo "  'st7789_240x135' 1.14\" no touch)"
-    echo
-    print_help
-fi
+    if [ "${pitfttype}" != "28r" ] && [ "${pitfttype}" != "28c" ] && [ "${pitfttype}" != "35r" ] && [ "${pitfttype}" != "22" ] && [ "${pitfttype}" != "st7789_240x240" ] && [ "${pitfttype}" != "st7789_240x320" ] && [ "${pitfttype}" != "st7789_240x135" ]; then
+        echo "Type must be one of:"
+        echo "  '28r' (2.8\" resistive, PID 1601)"
+        echo "  '28c' (2.8\" capacitive, PID 1983)"
+        echo "  '35r' (3.5\" Resistive)"
+        echo "  '22'  (2.2\" no touch)"
+        echo "  'st7789_240x240' (1.54\" or 1.3\" no touch)"
+        echo "  'st7789_320x240' (2.0\" no touch)"
+        echo "  'st7789_240x135' 1.14\" no touch)"
+        echo
+        print_help
+    fi
 
-info PITFT "System update"
-sysupdate || bail "Unable to apt-get update"
+    info PITFT "System update"
+    sysupdate || bail "Unable to apt-get update"
 
-info PITFT "Installing Python libraries & Software..."
-softwareinstall || bail "Unable to install software"
+    info PITFT "Installing Python libraries & Software..."
+    softwareinstall || bail "Unable to install software"
 
-info PITFT "Updating /boot/config.txt..."
-update_configtxt || bail "Unable to update /boot/config.txt"
+    info PITFT "Updating /boot/config.txt..."
+    update_configtxt || bail "Unable to update /boot/config.txt"
 
-if [ "${pitfttype}" == "28r" ] || [ "${pitfttype}" == "35r" ]  || [ "${pitfttype}" == "28c" ] ; then
-   info PITFT "Updating SysFS rules for Touchscreen..."
-   update_udev || bail "Unable to update /etc/udev/rules.d"
+    if [ "${pitfttype}" == "28r" ] || [ "${pitfttype}" == "35r" ]  || [ "${pitfttype}" == "28c" ] ; then
+       info PITFT "Updating SysFS rules for Touchscreen..."
+       update_udev || bail "Unable to update /etc/udev/rules.d"
 
-   info PITFT "Updating TSLib default calibration..."
-   update_pointercal || bail "Unable to update /etc/pointercal"
-fi
+       info PITFT "Updating TSLib default calibration..."
+       update_pointercal || bail "Unable to update /etc/pointercal"
+    fi
 
-# ask for console access
-if ask "Would you like the console to appear on the PiTFT display?"; then
-    info PITFT "Updating console to PiTFT..."
-    uninstall_fbcp  || bail "Unable to uninstall fbcp"
-    install_console || bail "Unable to configure console"
-else
-    info PITFT "Making sure console doesn't use PiTFT"
-    uninstall_console || bail "Unable to configure console"
+    # ask for console access
+    if ask "Would you like the console to appear on the PiTFT display?"; then
+        info PITFT "Updating console to PiTFT..."
+        uninstall_fbcp  || bail "Unable to uninstall fbcp"
+        install_console || bail "Unable to configure console"
+    else
+        info PITFT "Making sure console doesn't use PiTFT"
+        uninstall_console || bail "Unable to configure console"
 
-    if ask "Would you like the HDMI display to mirror to the PiTFT display?"; then
-        info PITFT "Adding FBCP support..."
-        install_fbcp || bail "Unable to configure fbcp"
+        if ask "Would you like the HDMI display to mirror to the PiTFT display?"; then
+            info PITFT "Adding FBCP support..."
+            install_fbcp || bail "Unable to configure fbcp"
 
-        if [ -e /etc/lightdm ]; then
-            info PITFT "Updating X11 default calibration..."
-            update_xorg || bail "Unable to update calibration"
+            if [ -e /etc/lightdm ]; then
+                info PITFT "Updating X11 default calibration..."
+                update_xorg || bail "Unable to update calibration"
+            fi
         fi
     fi
+else
+    info PITFT "Uninstalling PiTFT"
+    uninstall_bootconfigtxt
+    uninstall_console
+    uninstall_fbcp
+    uninstall_fbcp_rclocal
+    uninstall_etc_modules
 fi
-
 
 #info PITFT "Updating X11 setup tweaks..."
 #update_x11profile || bail "Unable to update X11 setup"
