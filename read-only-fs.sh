@@ -281,20 +281,23 @@ replaceAppend /etc/ssh/sshd_config "^.*UsePrivilegeSeparation.*$" "UsePrivilegeS
 replace /usr/lib/tmpfiles.d/var.conf "spool\s*0755" "spool 1777"
 
 # Move dhcpd.resolv.conf to tmpfs
-touch /tmp/dhcpcd.resolv.conf
-rm /etc/resolv.conf
-ln -s /tmp/dhcpcd.resolv.conf /etc/resolv.conf
+#touch /tmp/dhcpcd.resolv.conf
+#rm /etc/resolv.conf
+#ln -s /tmp/dhcpcd.resolv.conf /etc/resolv.conf
 
 # Make edits to fstab
 # make / ro
 # tmpfs /var/log tmpfs nodev,nosuid 0 0
 # tmpfs /var/tmp tmpfs nodev,nosuid 0 0
 # tmpfs /tmp     tmpfs nodev,nosuid 0 0
-replace /etc/fstab "vfat\s*defaults\s" "vfat    defaults,ro "
-replace /etc/fstab "ext4\s*defaults,noatime\s" "ext4    defaults,noatime,ro "
+replace /etc/fstab "vfat\s*defaults\s.*" "vfat    defaults,ro\t0\t0"
+replace /etc/fstab "ext4\s*defaults,noatime\s.*" "ext4    defaults,noatime,ro\t0\t0"
 append1 /etc/fstab "/var/log" "tmpfs /var/log tmpfs nodev,nosuid 0 0"
 append1 /etc/fstab "/var/tmp" "tmpfs /var/tmp tmpfs nodev,nosuid 0 0"
 append1 /etc/fstab "\s/tmp"   "tmpfs /tmp    tmpfs nodev,nosuid 0 0"
+
+# Stop vim creating tmp files in ~/.viminfo (ro)
+echo 'set viminfo=""' >>/etc/vim/vimrc.local
 
 # PROMPT FOR REBOOT --------------------------------------------------------
 
