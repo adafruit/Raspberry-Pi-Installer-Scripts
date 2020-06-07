@@ -281,9 +281,11 @@ replaceAppend /etc/ssh/sshd_config "^.*UsePrivilegeSeparation.*$" "UsePrivilegeS
 replace /usr/lib/tmpfiles.d/var.conf "spool\s*0755" "spool 1777"
 
 # Move dhcpd.resolv.conf to tmpfs
-#touch /tmp/dhcpcd.resolv.conf
-#rm /etc/resolv.conf
-#ln -s /tmp/dhcpcd.resolv.conf /etc/resolv.conf
+touch /tmp/dhcpcd.resolv.conf
+rm /etc/resolv.conf
+ln -s /tmp/dhcpcd.resolv.conf /etc/resolv.conf
+# systemd-ntp must use systemwide /tmp to access /tmp/dhcpcd.resolv.conf
+replace /lib/systemd/system/ntp.service "PrivateTmp=true" "PrivateTmp=false"
 
 # Make edits to fstab
 # make / ro
