@@ -3,6 +3,7 @@
 # Installer script for I2S microphone support on Raspberry Pi
 #
 # 2020/04/15
+# 2020/07/08 remove DKMS
 #-------------------------------------------------------------------------
 
 ############################ Script assisters ############################
@@ -76,20 +77,17 @@ AUTO_LOAD=$?
 echo
 echo "Installing..."
 
-# System update and install
-apt-get -y update
-apt-get -y upgrade
-apt-get -y install git dkms raspberrypi-kernel-headers
+# Get needed packages
+apt-get -y install git raspberrypi-kernel-headers
 
 # Clone the repo
 git clone https://github.com/adafruit/Raspberry-Pi-Installer-Scripts.git
 
-# Install and build module
+# Build and install the module
 cd Raspberry-Pi-Installer-Scripts/i2s_mic_module
-cp -R . /usr/src/snd-i2smic-rpi-0.1.0
-dkms add -m snd-i2smic-rpi -v 0.1.0
-dkms build -m snd-i2smic-rpi -v 0.1.0
-dkms install -m snd-i2smic-rpi -v 0.1.0
+make clean
+make
+make install
 
 # Setup auto load at boot if selected
 if [ $AUTO_LOAD = 0 ]; then
@@ -118,3 +116,4 @@ fi
 echo "Reboot started..."
 reboot
 exit 0
+
