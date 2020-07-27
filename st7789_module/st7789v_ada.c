@@ -40,7 +40,6 @@ static u32 row_offset = 0;
 static u8 col_hack_fix_offset = 0;
 static short x_offset = 0;
 static short y_offset = 0;
-static u16 display_width, display_height;
 
 
 static void mi0283qt_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
@@ -76,12 +75,12 @@ static void mi0283qt_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 		tr = cma_obj->vaddr;
 	}
 
-	x1 = rect->x1; // + x_offset;
-	x2 = rect->x2 - 1; // + x_offset;
-	y1 = rect->y1; // + y_offset;
-	y2 = rect->y2 - 1; // + y_offset;
+	x1 = rect->x1 + x_offset;
+	x2 = rect->x2 - 1 + x_offset;
+	y1 = rect->y1 + y_offset;
+	y2 = rect->y2 - 1 + y_offset;
 
-	printk(KERN_INFO "setaddrwin %d %d %d %d\n", x1, y1, x2, y2);
+	printk(KERN_INFO "setaddrwin (%d, %d) -> (%d, %d) offsets: %d & %d \n", x1, y1, x2, y2, x_offset, y_offset);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS,
 			 (x1 >> 8) & 0xFF, x1 & 0xFF,
@@ -119,90 +118,6 @@ static void mi0283qt_pipe_update(struct drm_simple_display_pipe *pipe,
 	}
 }
 
-static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
-			    struct drm_crtc_state *crtc_state,
-			    struct drm_plane_state *plane_state)
-{
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
-	struct mipi_dbi *dbi = &dbidev->dbi;
-	u8 addr_mode;
-	int ret, idx;
-
-	if (!drm_dev_enter(pipe->crtc.dev, &idx))
-		return;
-
-	DRM_DEBUG_KMS("\n");
-
-	ret = mipi_dbi_poweron_conditional_reset(dbidev);
-	if (ret < 0)
-		goto out_exit;
-	if (ret == 1)
-		goto out_enable;
-
-	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_OFF);
-
-	mipi_dbi_command(dbi, MIPI_DCS_SOFT_RESET);
-	msleep(150);
-	mipi_dbi_command(dbi, MIPI_DCS_EXIT_SLEEP_MODE);
-	msleep(10);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PIXEL_FORMAT, 0x55); // 16 bit color
-	msleep(10);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, 0);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS, 0, 0, 0, display_height);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS, 0, 0, display_width>>8, display_width&0xFF);
-	mipi_dbi_command(dbi, MIPI_DCS_ENTER_INVERT_MODE); // odd hack, displays are inverted
-	mipi_dbi_command(dbi, MIPI_DCS_ENTER_NORMAL_MODE);
-	msleep(10);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
-	msleep(10);
-
-out_enable:
-	/* The PiTFT has a hardware reset circuit that
-	 * resets only on power-on and not on each reboot through
-	 * a gpio like the rpi-display does.
-	 * As a result, we need to always apply the rotation value
-	 * regardless of the display "on/off" state.
-	 */
-	switch (dbidev->rotation) {
-	default:
-		addr_mode = 0;
-		x_offset = col_offset;
-		y_offset = row_offset;
-		break;
-	case 90:
-		addr_mode = ST77XX_MADCTL_MV | ST77XX_MADCTL_MX;
-		x_offset = row_offset;
-		y_offset = col_offset;
-		break;
-	case 180:
-		addr_mode = ST77XX_MADCTL_MX | ST77XX_MADCTL_MY;
-		x_offset = col_offset+col_hack_fix_offset; 
-		// hack tweak to account for extra pixel width to make even
-		y_offset = row_offset; 
-		break;
-	case 270:
-		addr_mode = ST77XX_MADCTL_MV | ST77XX_MADCTL_MY;
-		x_offset = row_offset;
-		y_offset = col_offset;
-		break;
-	}
-	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
-
-	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
-
-	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
-out_exit:
-	drm_dev_exit(idx);
-}
-
-
-
-static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
-	.enable = mi0283qt_enable,
-	.disable = mipi_dbi_pipe_disable,
-	.update = mi0283qt_pipe_update,
-	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
-};
 
 static struct drm_display_mode mi0283qt_mode = {
 	DRM_SIMPLE_MODE(240, 320, 58, 43),
@@ -234,6 +149,102 @@ static const struct spi_device_id mi0283qt_id[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, mi0283qt_id);
+
+
+
+static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
+			    struct drm_crtc_state *crtc_state,
+			    struct drm_plane_state *plane_state)
+{
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
+	struct mipi_dbi *dbi = &dbidev->dbi;
+	u8 addr_mode;
+	u16 width = mi0283qt_mode.htotal;
+    u16 height = mi0283qt_mode.vtotal;
+	int ret, idx;
+
+    printk(KERN_INFO "w/h %d %d\n", width, height);
+    
+
+	if (!drm_dev_enter(pipe->crtc.dev, &idx))
+		return;
+
+	DRM_DEBUG_KMS("\n");
+
+	ret = mipi_dbi_poweron_conditional_reset(dbidev);
+	if (ret < 0)
+		goto out_exit;
+	if (ret == 1)
+		goto out_enable;
+
+	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_OFF);
+
+	mipi_dbi_command(dbi, MIPI_DCS_SOFT_RESET);
+	msleep(150);
+	mipi_dbi_command(dbi, MIPI_DCS_EXIT_SLEEP_MODE);
+	msleep(10);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PIXEL_FORMAT, 0x55); // 16 bit color
+	msleep(10);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, 0);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS, 0, 0, 0, 240);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS, 0, 0, 320>>8, 320&0xFF);
+	mipi_dbi_command(dbi, MIPI_DCS_ENTER_INVERT_MODE); // odd hack, displays are inverted
+	mipi_dbi_command(dbi, MIPI_DCS_ENTER_NORMAL_MODE);
+	msleep(10);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
+	msleep(10);
+
+out_enable:
+	/* The PiTFT has a hardware reset circuit that
+	 * resets only on power-on and not on each reboot through
+	 * a gpio like the rpi-display does.
+	 * As a result, we need to always apply the rotation value
+	 * regardless of the display "on/off" state.
+	 */
+
+
+	switch (dbidev->rotation) {
+	default:
+		addr_mode = 0;
+		x_offset = col_offset;
+		y_offset = row_offset;
+		break;
+	case 90:
+		addr_mode = ST77XX_MADCTL_MV | ST77XX_MADCTL_MX;
+		x_offset = row_offset;
+		y_offset = col_offset;
+		break;
+	case 180:
+		addr_mode = ST77XX_MADCTL_MX | ST77XX_MADCTL_MY;
+        x_offset = (240 - width) + col_offset+col_hack_fix_offset; 
+        // hack tweak to account for extra pixel width to make even
+        y_offset = (320 - height) + row_offset;
+        break;
+	case 270:
+		addr_mode = ST77XX_MADCTL_MV | ST77XX_MADCTL_MY;
+		x_offset = (320 - height) + row_offset;
+		y_offset = (240 - width) + col_offset;
+		break;
+	}
+    printk(KERN_INFO "Rotation offsets %d %d\n", x_offset, y_offset);
+    
+	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
+
+	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
+
+	mipi_dbi_enable_flush(dbidev, crtc_state, plane_state);
+out_exit:
+	drm_dev_exit(idx);
+}
+
+
+
+static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
+	.enable = mi0283qt_enable,
+	.disable = mipi_dbi_pipe_disable,
+	.update = mi0283qt_pipe_update,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
+};
 
 
 
@@ -304,8 +315,6 @@ static int mi0283qt_probe(struct spi_device *spi)
 	if ((height == 0) || (height > 320)) {
 	  height = 320; // default to full framebuff;
 	}
-    display_width = width;
-    display_height = height;
 
 	mi0283qt_mode.hdisplay = mi0283qt_mode.hsync_start = 
 	  mi0283qt_mode.hsync_end = mi0283qt_mode.htotal = width;
