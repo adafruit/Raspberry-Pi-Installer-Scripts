@@ -292,8 +292,8 @@ EOF
         [ -d /lib/modules/$(uname -r)/build ] ||  { warning "Kernel was updated, please reboot now and re-run script!" && exit 1; }
         cd st7789_module
         make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V driver!" && exit 1; }
-        mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.BACK
-        mv st7789v_ada.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tinydrm/mi0283qt.ko
+        mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK
+        mv st7789v_ada.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.ko
         overlay="dtoverlay=drm-minipitft114,rotation=${pitftrot}"
     fi
 
