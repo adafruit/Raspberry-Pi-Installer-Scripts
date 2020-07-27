@@ -22,33 +22,10 @@
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_mipi_dbi.h>
+#include <drm/drm_rect.h>
+#include <drm/drm_vblank.h>
 #include <drm/drm_modeset_helper.h>
 #include <video/mipi_display.h>
-
-#define ILI9341_FRMCTR1		0xb1
-#define ILI9341_DISCTRL		0xb6
-#define ILI9341_ETMOD		0xb7
-
-#define ILI9341_PWCTRL1		0xc0
-#define ILI9341_PWCTRL2		0xc1
-#define ILI9341_VMCTRL1		0xc5
-#define ILI9341_VMCTRL2		0xc7
-#define ILI9341_PWCTRLA		0xcb
-#define ILI9341_PWCTRLB		0xcf
-
-#define ILI9341_PGAMCTRL	0xe0
-#define ILI9341_NGAMCTRL	0xe1
-#define ILI9341_DTCTRLA		0xe8
-#define ILI9341_DTCTRLB		0xea
-#define ILI9341_PWRSEQ		0xed
-
-#define ILI9341_EN3GAM		0xf2
-#define ILI9341_PUMPCTRL	0xf7
-
-#define ILI9341_MADCTL_BGR	BIT(3)
-#define ILI9341_MADCTL_MV	BIT(5)
-#define ILI9341_MADCTL_MX	BIT(6)
-#define ILI9341_MADCTL_MY	BIT(7)
 
 #define ST77XX_MADCTL_MY  0x80
 #define ST77XX_MADCTL_MX  0x40
@@ -63,6 +40,84 @@ static u32 row_offset = 0;
 static u8 col_hack_fix_offset = 0;
 static short x_offset = 0;
 static short y_offset = 0;
+static u16 display_width, display_height;
+
+
+static void mi0283qt_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
+{
+	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
+	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
+	unsigned int height = rect->y2 - rect->y1;
+	unsigned int width = rect->x2 - rect->x1;
+	struct mipi_dbi *dbi = &dbidev->dbi;
+	bool swap = dbi->swap_bytes;
+	u16 x1, x2, y1, y2;
+	int idx, ret = 0;
+	bool full;
+	void *tr;
+
+	if (!dbidev->enabled)
+		return;
+
+	if (!drm_dev_enter(fb->dev, &idx))
+		return;
+
+	full = width == fb->width && height == fb->height;
+
+	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
+
+	if (!dbi->dc || !full || swap ||
+	    fb->format->format == DRM_FORMAT_XRGB8888) {
+		tr = dbidev->tx_buf;
+		ret = mipi_dbi_buf_copy(dbidev->tx_buf, fb, rect, swap);
+		if (ret)
+			goto err_msg;
+	} else {
+		tr = cma_obj->vaddr;
+	}
+
+	x1 = rect->x1; // + x_offset;
+	x2 = rect->x2 - 1; // + x_offset;
+	y1 = rect->y1; // + y_offset;
+	y2 = rect->y2 - 1; // + y_offset;
+
+	printk(KERN_INFO "setaddrwin %d %d %d %d\n", x1, y1, x2, y2);
+
+	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS,
+			 (x1 >> 8) & 0xFF, x1 & 0xFF,
+			 (x2 >> 8) & 0xFF, x2 & 0xFF);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS,
+			 (y1 >> 8) & 0xFF, y1 & 0xFF,
+			 (y2 >> 8) & 0xFF, y2 & 0xFF);
+
+	ret = mipi_dbi_command_buf(dbi, MIPI_DCS_WRITE_MEMORY_START, tr,
+				width*height * 2);
+err_msg:
+	if (ret)
+		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
+
+	drm_dev_exit(idx);
+}
+
+
+
+static void mi0283qt_pipe_update(struct drm_simple_display_pipe *pipe,
+				struct drm_plane_state *old_state)
+{
+	struct drm_plane_state *state = pipe->plane.state;
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_rect rect;
+
+	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
+		mi0283qt_fb_dirty(state->fb, &rect);
+
+	if (crtc->state->event) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+		crtc->state->event = NULL;
+	}
+}
 
 static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 			    struct drm_crtc_state *crtc_state,
@@ -93,8 +148,8 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 	mipi_dbi_command(dbi, MIPI_DCS_SET_PIXEL_FORMAT, 0x55); // 16 bit color
 	msleep(10);
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, 0);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS, 0, 0, 0, 240);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS, 0, 0, 320>>8, 320&0xFF);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS, 0, 0, 0, display_height);
+	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS, 0, 0, display_width>>8, display_width&0xFF);
 	mipi_dbi_command(dbi, MIPI_DCS_ENTER_INVERT_MODE); // odd hack, displays are inverted
 	mipi_dbi_command(dbi, MIPI_DCS_ENTER_NORMAL_MODE);
 	msleep(10);
@@ -140,14 +195,16 @@ out_exit:
 	drm_dev_exit(idx);
 }
 
+
+
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {
 	.enable = mi0283qt_enable,
 	.disable = mipi_dbi_pipe_disable,
-	.update = mipi_dbi_pipe_update,
+	.update = mi0283qt_pipe_update,
 	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
-static const struct drm_display_mode mi0283qt_mode = {
+static struct drm_display_mode mi0283qt_mode = {
 	DRM_SIMPLE_MODE(240, 320, 58, 43),
 };
 
@@ -178,63 +235,6 @@ static const struct spi_device_id mi0283qt_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, mi0283qt_id);
 
-
-static void st7789vada_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
-{
-	struct drm_gem_cma_object *cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
-	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
-	unsigned int height = rect->y2 - rect->y1;
-	unsigned int width = rect->x2 - rect->x1;
-	struct mipi_dbi *dbi = &dbidev->dbi;
-	bool swap = dbi->swap_bytes;
-	u16 x_start, y_start;
-	u16 x1, x2, y1, y2;
-	int idx, ret = 0;
-	bool full;
-	void *tr;
-
-	if (!dbidev->enabled)
-		return;
-
-	if (!drm_dev_enter(fb->dev, &idx))
-		return;
-
-	full = width == fb->width && height == fb->height;
-
-	DRM_DEBUG_KMS("Flushing [FB:%d] " DRM_RECT_FMT "\n", fb->base.id, DRM_RECT_ARG(rect));
-
-	if (!dbi->dc || !full || swap ||
-	    fb->format->format == DRM_FORMAT_XRGB8888) {
-		tr = dbidev->tx_buf;
-		ret = mipi_dbi_buf_copy(dbidev->tx_buf, fb, rect, swap);
-		if (ret)
-			goto err_msg;
-	} else {
-		tr = cma_obj->vaddr;
-	}
-
-	x1 = rect->x1 + x_offset;
-	x2 = rect->x2 - 1 + x_offset;
-	y1 = rect->y1 + y_offset;
-	y2 = rect->y2 - 1 + y_offset;
-
-	printk(KERN_INFO "setaddrwin %d %d %d %d\n", x1, y1, x2, y2);
-
-	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS,
-			 (x1 >> 8) & 0xFF, x1 & 0xFF,
-			 (x2 >> 8) & 0xFF, x2 & 0xFF);
-	mipi_dbi_command(dbi, MIPI_DCS_SET_PAGE_ADDRESS,
-			 (y1 >> 8) & 0xFF, y1 & 0xFF,
-			 (y2 >> 8) & 0xFF, y2 & 0xFF);
-
-	ret = mipi_dbi_command_buf(dbi, MIPI_DCS_WRITE_MEMORY_START, tr,
-				width*height * 2);
-err_msg:
-	if (ret)
-		dev_err_once(fb->dev->dev, "Failed to update display %d\n", ret);
-
-	drm_dev_exit(idx);
-}
 
 
 static int mi0283qt_probe(struct spi_device *spi)
@@ -286,10 +286,7 @@ static int mi0283qt_probe(struct spi_device *spi)
 		return PTR_ERR(dbidev->backlight);
 
 	device_property_read_u32(dev, "rotation", &rotation);
-
-	ret = mipi_dbi_spi_init(spi, dbi, dc);
-	if (ret)
-		return ret;
+    printk(KERN_INFO "Rotation %d\n", rotation);
 
 	device_property_read_u32(dev, "width", &width);
 	if (width % 2) {
@@ -307,12 +304,28 @@ static int mi0283qt_probe(struct spi_device *spi)
 	if ((height == 0) || (height > 320)) {
 	  height = 320; // default to full framebuff;
 	}
+    display_width = width;
+    display_height = height;
+
+	mi0283qt_mode.hdisplay = mi0283qt_mode.hsync_start = 
+	  mi0283qt_mode.hsync_end = mi0283qt_mode.htotal = width;
+	mi0283qt_mode.vdisplay = mi0283qt_mode.vsync_start = 
+	  mi0283qt_mode.vsync_end = mi0283qt_mode.vtotal = height;
+
 
 	device_property_read_u32(dev, "col_offset", &col_offset);
 	printk(KERN_INFO "Column offset %d\n", col_offset);
 
 	device_property_read_u32(dev, "row_offset", &row_offset);
 	printk(KERN_INFO "Row offset %d\n", row_offset);
+
+
+	ret = mipi_dbi_spi_init(spi, dbi, dc);
+	if (ret)
+		return ret;
+
+	/* Cannot read from this controller via SPI */
+    dbi->read_commands = NULL;
 
 	ret = mipi_dbi_dev_init(dbidev, &mi0283qt_pipe_funcs, &mi0283qt_mode, rotation);
 	if (ret)
