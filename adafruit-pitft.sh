@@ -251,8 +251,8 @@ function update_configtxt() {
     fi
 
     if [ "${pitfttype}" == "st7789_240x320" ]; then
-        dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft20.dtbo overlays/minipitft20-overlay.dts
-        overlay="dtoverlay=drm-minipitft20,rotation=${pitftrot}"
+        dtc -@ -I dts -O dtb -o /boot/overlays/drm-st7789v_240x320.dtbo overlays/st7789v_240x320-overlay.dts
+        overlay="dtoverlay=drm-st7789v_240x320,rotation=${pitftrot}"
     fi
     
     if [ "${pitfttype}" == "st7789_240x240" ]; then
