@@ -62,7 +62,7 @@
 		__overlay__ {
 			backlight: backlight {
 				compatible = "gpio-backlight";
-				gpios = <&gpio 22 0>;
+				gpios = <&gpio 12 0>;
 			};
 		};
 	};
