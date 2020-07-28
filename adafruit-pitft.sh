@@ -538,12 +538,12 @@ echo
 
 echo "Select configuration:"
 selectN "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)" \
-        "PiTFT 2.0\" no touch (240x320)" \
         "PiTFT 2.2\" no touch (240x320)" \
         "PiTFT 2.8\" capacitive touch (240x320)" \
         "PiTFT 3.5\" resistive touch (320x480)" \
         "PiTFT Mini 1.3\" or 1.54\" display (240x240) - WARNING! WILL UPGRADE YOUR KERNEL TO LATEST" \
         "MiniPiTFT 1.14\" display (240x135) - WARNING! WILL UPGRADE YOUR KERNEL TO LATEST" \
+        "ST7789V 2.0\" no touch (240x320) - WARNING! WILL UPGRADE YOUR KERNEL TO LATEST" \
         "Uninstall PiTFT" \
         "Quit without installing"
 PITFT_SELECT=$?
@@ -569,7 +569,7 @@ if ! $UNINSTALL; then
 fi
 
 PITFT_ROTATIONS=("90" "180" "270" "0")
-PITFT_TYPES=("28r" "st7789_240x320" "22" "28c" "35r" "st7789_240x240" "st7789_240x135")
+PITFT_TYPES=("28r" "22" "28c" "35r" "st7789_240x240" "st7789_240x135" "st7789_240x320")
 WIDTH_VALUES=(320 320 320 320 480 240)
 HEIGHT_VALUES=(240 240 240 240 320 240)
 HZ_VALUES=(64000000 64000000 64000000 64000000 32000000 64000000)
@@ -640,7 +640,7 @@ then
         echo "  '22'  (2.2\" no touch)"
         echo "  'st7789_240x240' (1.54\" or 1.3\" no touch)"
         echo "  'st7789_320x240' (2.0\" no touch)"
-        echo "  'st7789_240x135' 1.14\" no touch)"
+        echo "  'st7789_240x135' (1.14\" no touch)"
         echo
         print_help
     fi
