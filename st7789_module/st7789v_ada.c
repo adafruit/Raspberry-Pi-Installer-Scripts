@@ -86,7 +86,7 @@ static void st7789vada_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rec
 	y1 = rect->y1 + y_offset;
 	y2 = rect->y2 - 1 + y_offset;
 
-	printk(KERN_INFO "setaddrwin (%d, %d) -> (%d, %d) offsets: %d & %d \n", x1, y1, x2, y2, x_offset, y_offset);
+	//printk(KERN_INFO "setaddrwin (%d, %d) -> (%d, %d) offsets: %d & %d \n", x1, y1, x2, y2, x_offset, y_offset);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_COLUMN_ADDRESS,
 			 (x1 >> 8) & 0xFF, x1 & 0xFF,
@@ -169,8 +169,7 @@ static void st7789vada_enable(struct drm_simple_display_pipe *pipe,
     u16 height = st7789vada_mode.vtotal;
 	int ret, idx;
 
-    printk(KERN_INFO "w/h %d %d\n", width, height);
-    
+    //printk(KERN_INFO "w/h %d %d\n", width, height);
 
 	if (!drm_dev_enter(pipe->crtc.dev, &idx))
 		return;
@@ -232,7 +231,7 @@ out_enable:
 		y_offset = (240 - width) - col_offset;
 		break;
 	}
-    printk(KERN_INFO "Rotation offsets %d %d\n", x_offset, y_offset);
+    //printk(KERN_INFO "Rotation offsets %d %d\n", x_offset, y_offset);
     
 	mipi_dbi_command(dbi, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
 
@@ -270,7 +269,7 @@ static int st7789vada_probe(struct spi_device *spi)
 	if (!dbidev)
 		return -ENOMEM;
 
-    printk(KERN_INFO "ST7789 fake driver\n");
+    //printk(KERN_INFO "ST7789 fake driver\n");
 
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
@@ -303,7 +302,7 @@ static int st7789vada_probe(struct spi_device *spi)
 		return PTR_ERR(dbidev->backlight);
 
 	device_property_read_u32(dev, "rotation", &rotation);
-    printk(KERN_INFO "Rotation %d\n", rotation);
+    //printk(KERN_INFO "Rotation %d\n", rotation);
 
 	device_property_read_u32(dev, "width", &width);
 	if (width % 2) {
@@ -312,12 +311,12 @@ static int st7789vada_probe(struct spi_device *spi)
 	} else {
 	  col_hack_fix_offset = 0;
 	}
-	printk(KERN_INFO "Width %d\n", width);
+	//printk(KERN_INFO "Width %d\n", width);
 	if ((width == 0) || (width > 240)) {
 	  width = 240; // default to full framebuff;
 	}
 	device_property_read_u32(dev, "height", &height);
-	printk(KERN_INFO "Height %d\n", height);
+	//printk(KERN_INFO "Height %d\n", height);
 	if ((height == 0) || (height > 320)) {
 	  height = 320; // default to full framebuff;
 	}
@@ -329,10 +328,10 @@ static int st7789vada_probe(struct spi_device *spi)
 
 
 	device_property_read_u32(dev, "col_offset", &col_offset);
-	printk(KERN_INFO "Column offset %d\n", col_offset);
+	//printk(KERN_INFO "Column offset %d\n", col_offset);
 
 	device_property_read_u32(dev, "row_offset", &row_offset);
-	printk(KERN_INFO "Row offset %d\n", row_offset);
+	//printk(KERN_INFO "Row offset %d\n", row_offset);
 
 
 	ret = mipi_dbi_spi_init(spi, dbi, dc);
