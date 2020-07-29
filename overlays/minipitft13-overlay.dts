@@ -25,9 +25,9 @@
 		target = <&gpio>;
 		__overlay__ {
 			pitft_pins: pitft_pins {
-				brcm,pins = <25>; /* dc pin */
-				brcm,function = <1>; /* out */
-				brcm,pull = <0>; /* no pull */
+				brcm,pins = <25 26>; /* dc pin */
+				brcm,function = <1 1>; /* out */
+				brcm,pull = <0 1>; /* no pull */
 			};
 		};
 	};
@@ -63,6 +63,7 @@
 			backlight: backlight {
 				compatible = "gpio-backlight";
 				gpios = <&gpio 26 0>;
+                default-on;
 			};
 		};
 	};
