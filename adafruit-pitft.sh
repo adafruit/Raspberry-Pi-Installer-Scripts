@@ -671,6 +671,9 @@ then
                 info PITFT "Updating X11 default calibration..."
                 update_xorg || bail "Unable to update calibration"
             fi
+        else
+            # remove fbcp
+            uninstall_fbcp  || bail "Unable to uninstall fbcp"
         fi
     fi
 else
