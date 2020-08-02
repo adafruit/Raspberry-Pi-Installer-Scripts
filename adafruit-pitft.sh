@@ -272,6 +272,7 @@ function update_configtxt() {
 
     cat >> /boot/config.txt <<EOF
 # --- added by adafruit-pitft-helper $date ---
+hdmi_force_hotplug=1  # required for cases when HDMI is not plugged in!
 dtparam=spi=on
 dtparam=i2c1=on
 dtparam=i2c_arm=on
@@ -351,7 +352,7 @@ function install_fbcp() {
     echo "Installing cmake..."
     apt-get --yes --force-yes install cmake 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     echo "Downloading rpi-fbcp..."
-    cd /tmp
+    pushd /tmp
     #curl -sLO https://github.com/tasanakorn/rpi-fbcp/archive/master.zip
     curl -sLO https://github.com/adafruit/rpi-fbcp/archive/master.zip
     echo "Uncompressing rpi-fbcp..."
@@ -366,7 +367,7 @@ function install_fbcp() {
     make  1> /dev/null  || { warning "Failed to make fbcp!" && exit 1; }
     echo "Installing rpi-fbcp..."
     install fbcp /usr/local/bin/fbcp
-    cd ~
+    popd
     rm -rf /tmp/rpi-fbcp-master
 
     # Start fbcp in the appropriate place, depending on init system:
