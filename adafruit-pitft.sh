@@ -469,6 +469,7 @@ EOF
 
 function uninstall_fbcp() {
     uninstall_fbcp_rclocal
+    sudo systemctl disable fbcp.service
     # Enable overscan compensation
     raspi-config nonint do_overscan 0
     # Set up HDMI parameters:
