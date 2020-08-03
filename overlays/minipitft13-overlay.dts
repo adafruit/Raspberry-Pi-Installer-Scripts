@@ -47,13 +47,10 @@
                                 reg = <0>;
                                 pinctrl-names = "default";
                                 pinctrl-0 = <&pitft_pins>;
-
                                 spi-max-frequency = <32000000>;
                                 rotate = <0>;
                                 width = <240>;
                                 height = <240>;
-                				col_offset = <0>;
-				                row_offset = <0>;
                                 buswidth = <8>;
                                 dc-gpios = <&gpio 25 0>;
                                 backlight = <&backlight>;
@@ -78,8 +75,6 @@
                 rotate =  <&pitft>,"rotate:0";
                 width =   <&pitft>,"width:0";
                 height =  <&pitft>,"height:0";
-                col_offset =  <&pitft>,"col_offset:0";
-                row_offset =  <&pitft>,"row_offset:0";
                 fps =     <&pitft>,"fps:0";
                 debug =   <&pitft>,"debug:0";
         };
