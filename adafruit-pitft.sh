@@ -353,7 +353,7 @@ function uninstall_console() {
 
 function install_fbcp() {
     echo "Installing cmake..."
-    apt-get --yes --force-yes install cmake 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+    apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     echo "Downloading rpi-fbcp..."
     pushd /tmp
     #curl -sLO https://github.com/tasanakorn/rpi-fbcp/archive/master.zip
@@ -420,15 +420,10 @@ function install_fbcp() {
         echo "Using native resolution"
         SCALE=1
     fi
-    
-    if [[ "${pitfttype}" == "st7789_240x320" && ( "${pitftrot}" == "180" || "${pitftrot}" == "0" ) ]]; then
-        # swap width/height for portrait display rotation when using st7789_240x320
-        WIDTH=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-        HEIGHT=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-    else
-        WIDTH=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-        HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-    fi
+
+
+    WIDTH=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
+    HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
 
     reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=${WIDTH} ${HEIGHT} 60 1 0 0 0"
 
