@@ -242,12 +242,12 @@ function update_configtxt() {
 
     if [ "${pitfttype}" == "st7789_240x320" ]; then
         dtc -@ -I dts -O dtb -o /boot/overlays/drm-st7789v_240x320.dtbo overlays/st7789v_240x320-overlay.dts
-        overlay="dtoverlay=drm-st7789v_240x320,rotation=${pitftrot}"
+        overlay="dtoverlay=drm-st7789v_240x320,rotate=${pitftrot}"
     fi
     
     if [ "${pitfttype}" == "st7789_240x240" ]; then
         dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft13.dtbo overlays/minipitft13-overlay.dts
-        overlay="dtoverlay=drm-minipitft13,rotation=${pitftrot}"
+        overlay="dtoverlay=drm-minipitft13,rotate=${pitftrot}"
     fi
 
     if  [ "${pitfttype}" == "st7789_240x135" ]; then
@@ -262,16 +262,20 @@ function update_configtxt() {
         sudo apt-get upgrade || { warning "Apt failed to install software!" && exit 1; }
         apt-get install -y raspberrypi-kernel-headers 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
         [ -d /lib/modules/$(uname -r)/build ] ||  { warning "Kernel was updated, please reboot now and re-run script!" && exit 1; }
-        cd st7789_module
-        make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V driver!" && exit 1; }
+        pushd st7789_module
+        make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V drivers!" && exit 1; }
         mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK
+        mv /lib/modules/$(uname -r)/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/$(uname -r)/kernel/drivers/staging/fbtft/fb_st7789v.BACK
         mv st7789v_ada.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.ko
+        mv fb_st7789v.ko /lib/modules/$(uname -r)/kernel/drivers/staging/fbtft/fb_st7789v.ko
+        popd
     fi
 
     date=`date`
 
     cat >> /boot/config.txt <<EOF
 # --- added by adafruit-pitft-helper $date ---
+hdmi_force_hotplug=1  # required for cases when HDMI is not plugged in!
 dtparam=spi=on
 dtparam=i2c1=on
 dtparam=i2c_arm=on
@@ -349,9 +353,9 @@ function uninstall_console() {
 
 function install_fbcp() {
     echo "Installing cmake..."
-    apt-get --yes --force-yes install cmake 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
+    apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
     echo "Downloading rpi-fbcp..."
-    cd /tmp
+    pushd /tmp
     #curl -sLO https://github.com/tasanakorn/rpi-fbcp/archive/master.zip
     curl -sLO https://github.com/adafruit/rpi-fbcp/archive/master.zip
     echo "Uncompressing rpi-fbcp..."
@@ -366,7 +370,7 @@ function install_fbcp() {
     make  1> /dev/null  || { warning "Failed to make fbcp!" && exit 1; }
     echo "Installing rpi-fbcp..."
     install fbcp /usr/local/bin/fbcp
-    cd ~
+    popd
     rm -rf /tmp/rpi-fbcp-master
 
     # Start fbcp in the appropriate place, depending on init system:
@@ -416,15 +420,10 @@ function install_fbcp() {
         echo "Using native resolution"
         SCALE=1
     fi
-    
-    if [[ "${pitfttype}" == "st7789_240x320" && ( "${pitftrot}" == "180" || "${pitftrot}" == "0" ) ]]; then
-        # swap width/height for portrait display rotation when using st7789_240x320
-        WIDTH=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-        HEIGHT=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-    else
-        WIDTH=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-        HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
-    fi
+
+
+    WIDTH=`python -c "print(int(${WIDTH_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
+    HEIGHT=`python -c "print(int(${HEIGHT_VALUES[PITFT_SELECT-1]} * ${SCALE}))"`
 
     reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=${WIDTH} ${HEIGHT} 60 1 0 0 0"
 
@@ -468,6 +467,7 @@ EOF
 
 function uninstall_fbcp() {
     uninstall_fbcp_rclocal
+    sudo systemctl disable fbcp.service
     # Enable overscan compensation
     raspi-config nonint do_overscan 0
     # Set up HDMI parameters:
@@ -669,6 +669,9 @@ then
                 info PITFT "Updating X11 default calibration..."
                 update_xorg || bail "Unable to update calibration"
             fi
+        else
+            # remove fbcp
+            uninstall_fbcp  || bail "Unable to uninstall fbcp"
         fi
     fi
 else

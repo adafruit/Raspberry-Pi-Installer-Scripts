@@ -1,4 +1,5 @@
-obj-m+=st7789v_ada.o
+obj-m += st7789v_ada.o
+obj-m += fb_st7789v.o
 
 KDIR ?= /lib/modules/`uname -r`/build
 
