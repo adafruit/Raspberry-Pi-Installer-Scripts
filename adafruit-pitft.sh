@@ -242,12 +242,12 @@ function update_configtxt() {
 
     if [ "${pitfttype}" == "st7789_240x320" ]; then
         dtc -@ -I dts -O dtb -o /boot/overlays/drm-st7789v_240x320.dtbo overlays/st7789v_240x320-overlay.dts
-        overlay="dtoverlay=drm-st7789v_240x320,rotation=${pitftrot}"
+        overlay="dtoverlay=drm-st7789v_240x320,rotate=${pitftrot}"
     fi
     
     if [ "${pitfttype}" == "st7789_240x240" ]; then
         dtc -@ -I dts -O dtb -o /boot/overlays/drm-minipitft13.dtbo overlays/minipitft13-overlay.dts
-        overlay="dtoverlay=drm-minipitft13,rotation=${pitftrot}"
+        overlay="dtoverlay=drm-minipitft13,rotate=${pitftrot}"
     fi
 
     if  [ "${pitfttype}" == "st7789_240x135" ]; then
@@ -262,10 +262,13 @@ function update_configtxt() {
         sudo apt-get upgrade || { warning "Apt failed to install software!" && exit 1; }
         apt-get install -y raspberrypi-kernel-headers 1> /dev/null  || { warning "Apt failed to install software!" && exit 1; }
         [ -d /lib/modules/$(uname -r)/build ] ||  { warning "Kernel was updated, please reboot now and re-run script!" && exit 1; }
-        cd st7789_module
-        make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V driver!" && exit 1; }
+        pushd st7789_module
+        make -C /lib/modules/$(uname -r)/build M=$(pwd) modules  || { warning "Apt failed to compile ST7789V drivers!" && exit 1; }
         mv /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK
+        mv /lib/modules/$(uname -r)/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/$(uname -r)/kernel/drivers/staging/fbtft/fb_st7789v.BACK
         mv st7789v_ada.ko /lib/modules/$(uname -r)/kernel/drivers/gpu/drm/tiny/mi0283qt.ko
+        mv fb_st7789v.ko /lib/modules/$(uname -r)/kernel/drivers/staging/fbtft/fb_st7789v.ko
+        popd
     fi
 
     date=`date`
