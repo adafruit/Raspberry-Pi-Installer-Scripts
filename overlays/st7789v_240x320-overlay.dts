@@ -53,21 +53,10 @@
                                 height = <320>;
                                 buswidth = <8>;
                                 dc-gpios = <&gpio 25 0>;
-                                backlight = <&backlight>;
+                                led-gpios = <&gpio 12 0>;
                                 debug = <0>;
                         };
                 };
-        };
-
-        fragment@3 {
-            target-path = "/soc";
-            __overlay__ {
-                backlight: backlight {
-                    compatible = "gpio-backlight";
-                    gpios = <&gpio 12 0>;
-                    default-on;
-                };
-            };
         };
 
         __overrides__ {
