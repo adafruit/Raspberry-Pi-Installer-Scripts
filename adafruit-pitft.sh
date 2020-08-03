@@ -406,6 +406,7 @@ function install_fbcp() {
     reconfig /boot/config.txt "^.*hdmi_force_hotplug.*$" "hdmi_force_hotplug=1"
     reconfig /boot/config.txt "^.*hdmi_group.*$" "hdmi_group=2"
     reconfig /boot/config.txt "^.*hdmi_mode.*$" "hdmi_mode=87"
+    reconfig /boot/config.txt "^[^#]*dtoverlay=vc4-fkms-v3d.*$" "#dtoverlay=vc4-fkms-v3d"
 
     # if there's X11 installed...
     if [ -e /etc/lightdm ]; then
@@ -473,6 +474,7 @@ function uninstall_fbcp() {
     # Set up HDMI parameters:
     echo "Configuring boot/config.txt for default HDMI"
     reconfig /boot/config.txt "^.*hdmi_force_hotplug.*$" "hdmi_force_hotplug=0"
+    reconfig /boot/config.txt "^.*#.*dtoverlay=vc4-fkms-v3d.*$" "dtoverlay=vc4-fkms-v3d"
     sed -i -e '/^hdmi_group=2.*$/d' /boot/config.txt
     sed -i -e '/^hdmi_mode=87.*$/d' /boot/config.txt
     sed -i -e '/^hdmi_cvt=.*$/d' /boot/config.txt
