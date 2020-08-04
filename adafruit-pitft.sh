@@ -551,9 +551,9 @@ fi
 if ! $UNINSTALL; then
     echo "Select rotation:"
     selectN "90 degrees (landscape)" \
-            "180 degrees (portait)" \
+            "180 degrees (portrait)" \
             "270 degrees (landscape)" \
-            "0 degrees (portait)"
+            "0 degrees (portrait)"
     PITFT_ROTATE=$?
     if [ $PITFT_ROTATE -gt 4 ]; then
         exit 1
