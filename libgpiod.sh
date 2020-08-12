@@ -6,6 +6,21 @@
 # chmod +x libgpiod.sh
 # ./libgpiod.sh
 
+is_legacy=0
+
+# Loop through arguments and process them
+for arg in "$@"
+do
+    case $arg in
+        -l|--legacy)
+        is_legacy=1
+        shift
+        ;;
+        *)
+        shift
+        ;;
+    esac
+done
 
 echo "Installing build requirements - this may take a few minutes!"
 echo
@@ -34,6 +49,11 @@ echo
 
 cd "$build_dir"
 git clone git://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git .
+
+if test $is_legacy = 1; then
+    git checkout v1.4.2 -b v1.4.2
+fi
+
 
 echo "Building libgpiod"
 echo
