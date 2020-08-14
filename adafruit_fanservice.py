@@ -1,49 +1,19 @@
+from clint.textui import colored
 import sys
 import os
 import subprocess
 
 group = 'ADAFRUIT'
 
-class ColorPrint:
-    @staticmethod
-    def print_fail(message, system=None, end = '\n'):
-        if system is None:
-            system = group
-        sys.stdout.write('\x1b[1;31m\x1b[40m' + system.strip() + '\x1b[0m ' + message.strip() + end)
-
-    @staticmethod
-    def print_pass(message, system=None, end = '\n'):
-        if system is None:
-            system = group
-        sys.stdout.write('\x1b[1;32m\x1b[40m' + group.strip() + '\x1b[0m ' + message.strip() + end)
-
-    @staticmethod
-    def print_warn(message, system=None, end = '\n'):
-        if system is None:
-            system = group
-        sys.stdout.write('\x1b[1;33m\x1b[40m' + group.strip() + '\x1b[0m ' + message.strip() + end)
-
-    @staticmethod
-    def print_info(message, system=None, end = '\n'):
-        if system is None:
-            system = group
-        sys.stdout.write('\x1b[1;34m\x1b[40m' + group.strip() + '\x1b[0m ' + message.strip() + end)
-
-    @staticmethod
-    def print_bold(message, system=None, end = '\n'):
-        if system is None:
-            system = group
-        sys.stdout.write('\x1b[1;37m\x1b[40m' + group.strip() + '\x1b[0m ' + message.strip() + end)
-
 def info(system, message):
     group = system
-    ColorPrint.print_pass(message)
+    print(colored.green(system) + " " + message)
 
 def bail(message = None):
     if message is None:
-        ColorPrint.print_fail("Exiting due to error")
+        print(colored.red(system) + " Exiting due to error")
     else:
-        ColorPrint.print_fail("Exiting due to error: {message}".format(message=message))
+        print(colored.red(system) + " Exiting due to error: {}".format(message))
     sys.exit(1)
 
 def run_command(cmd, suppress_message = False):
@@ -56,27 +26,28 @@ def run_command(cmd, suppress_message = False):
         return True
     else:
         if not suppress_message:
-            ColorPrint.print_fail(err.decode("utf-8"))
+            print(colored.red(system) + " " + err.decode("utf-8"))
         return False
 
 def main():
     os.system('clear')
-    print("This script will install Adafruit")
-    print("fan service, which will turn on an")
-    print("external fan controlled by a given pin")
-    print("")
-    print("Operations performed include:")
-    print("- In /boot/config.txt, enable camera")
-    print("- apt-get update")
-    print("- Install Python libraries:")
-    print("  picamera, pygame, PIL")
-    print("- Downgrade SDL library for pygame")
-    print("  touch compatibility")
-    print("- Download Dropbox Updater and")
-    print("  Adafruit Pi Cam software")
-    print("")
-    print("Run time 1+ minutes. Reboot not required.")
-    print("")
+    print("""This script will install Adafruit
+fan service, which will turn on an
+external fan controlled by a given pin
+
+Operations performed include:
+- In /boot/config.txt, enable camera
+- apt-get update
+- Install Python libraries:
+  picamera, pygame, PIL
+- Downgrade SDL library for pygame
+  touch compatibility
+- Download Dropbox Updater and
+  Adafruit Pi Cam software
+
+Run time 1+ minutes. Reboot not required.
+
+""")
 
     if '-y' not in sys.argv:
         reply = input("CONTINUE? [y/N]")
