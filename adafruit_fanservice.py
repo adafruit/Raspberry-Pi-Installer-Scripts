@@ -1,4 +1,7 @@
-from clint.textui import colored
+try:
+    from clint.textui import colored
+except ImportError:
+    raise RuntimeError("The library 'clint' was not found. To install, try typing: sudo pip3 install clint")
 import sys
 import os
 import subprocess
