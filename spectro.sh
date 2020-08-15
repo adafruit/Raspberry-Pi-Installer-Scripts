@@ -204,8 +204,8 @@ echo "Starting installation..."
 # Although Spectro is all Python3-ready, user additions might rely on
 # Python2, so we'll install the prerequisite libraries for both 2 and 3...
 echo "Downloading prerequisites..."
-pip3 install psutil
-pip install psutil
+pip3 install psutil RPi.GPIO
+pip install psutil RPi.GPIO
 apt-get install -y --force-yes python3-dev python3-pillow python2.7-dev python-pillow 
 if [ $ENABLE_MIC -ne 0 ]; then
 	apt-get install -y --force-yes python3-pyaudio python3-numpy python-pyaudio python-numpy
