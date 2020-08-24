@@ -206,9 +206,9 @@ echo "Starting installation..."
 echo "Downloading prerequisites..."
 pip3 install psutil RPi.GPIO
 pip install psutil RPi.GPIO
-apt-get install -y --force-yes python3-dev python3-pillow python2.7-dev python-pillow 
+apt-get install -y --allow-unauthenticated python3-dev python3-pillow python2.7-dev python-pillow 
 if [ $ENABLE_MIC -ne 0 ]; then
-	apt-get install -y --force-yes python3-pyaudio python3-numpy python-pyaudio python-numpy
+	apt-get install -y --allow-unauthenticated python3-pyaudio python3-numpy python-pyaudio python-numpy
 fi
 if [ $ENABLE_ACCEL -ne 0 ]; then
 	pip3 install adafruit-circuitpython-busdevice adafruit-circuitpython-lis3dh
