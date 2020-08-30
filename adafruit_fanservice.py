@@ -1,39 +1,13 @@
 try:
-    from clint.textui import colored
+    from adafruit_shell import Shell
 except ImportError:
-    raise RuntimeError("The library 'clint' was not found. To install, try typing: sudo pip3 install clint")
-import sys
-import os
-import subprocess
+    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
 
-group = 'ADAFRUIT'
-
-def info(system, message):
-    group = system
-    print(colored.green(system) + " " + message)
-
-def bail(message = None):
-    if message is None:
-        print(colored.red(system) + " Exiting due to error")
-    else:
-        print(colored.red(system) + " Exiting due to error: {}".format(message))
-    sys.exit(1)
-
-def run_command(cmd, suppress_message = False):
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE)
-    r = proc.wait()
-    out = proc.stdout.read()
-    err = proc.stderr.read()
-    if r == 0:
-        return True
-    else:
-        if not suppress_message:
-            print(colored.red(system) + " " + err.decode("utf-8"))
-        return False
+shell = Shell()
+shell.group = 'ADAFRUIT'
 
 def main():
-    os.system('clear')
+    shell.clear()
     print("""This script will install Adafruit
 fan service, which will turn on an
 external fan controlled by a given pin
@@ -52,25 +26,23 @@ Run time 1+ minutes. Reboot not required.
 
 """)
 
-    if '-y' not in sys.argv:
-        reply = input("CONTINUE? [y/N]")
-        if reply not in ('y', 'Y', 'yes'):
+    if not shell.argument_exists('y'):
+        if not shell.prompt("CONTINUE?", default='n'):
             print("Canceled.")
-            sys.exit(0)
+            shell.exit()
     print("Continuing...")
     # check init system (technique borrowed from raspi-config):
-    info('FAN', 'Checking init system...')
-    if run_command("which systemctl", True) and run_command("systemctl | grep '\-\.mount'", True):
+    shell.group = 'FAN'
+    shell.info('Checking init system...')
+    if shell.run_command("which systemctl", True) and shell.run_command("systemctl | grep '\-\.mount'", True):
       print("Found systemd, OK!")
     elif os.path.isfile("/etc/init.d/cron") and not os.path.islink("/etc/init.d/cron"):
-      bail("Found sysvinit, but we require systemd")
+      shell.bail("Found sysvinit, but we require systemd")
     else:
-      bail("Unrecognised init system")
+      shell.bail("Unrecognised init system")
 
-    info('FAN', 'Adding adafruit_fan.service')
-    service_file = open("/etc/systemd/system/adafruit_fan.service", "wt")
-
-    service_file.write("""[Unit]
+    shell.info('Adding adafruit_fan.service')
+    contents = """[Unit]
 Description=Fan service for some Adafruit boards
 After=network.target
 
@@ -85,21 +57,18 @@ ExecStop=/bin/bash -c 'echo 0 >/sys/class/gpio/gpio4/value'
 StandardOutput=journal
 
 [Install]
-WantedBy=multi-user.target""")
-    service_file.close()
+WantedBy=multi-user.target"""
+    shell.write_text_file("/etc/systemd/system/adafruit_fan.service", contents, append=False)
     
-    info('FAN', 'Enabling adafruit_fan.service')
-    run_command("sudo systemctl enable adafruit_fan.service")
-    run_command("sudo systemctl start adafruit_fan.service")
-    info('FAN', 'Done!')
+    shell.info('Enabling adafruit_fan.service')
+    shell.run_command("sudo systemctl enable adafruit_fan.service")
+    shell.run_command("sudo systemctl start adafruit_fan.service")
+    shell.info('Done!')
     print("You can stop the fan service with 'sudo systemctl stop adafruit_fan.service'")
     print("You can start the fan service with 'sudo systemctl start adafruit_fan.service'")
 
 
 # Main function
 if __name__ == "__main__":
-    if os.geteuid() != 0:
-        print("Installer must be run as root.")
-        print("Try 'sudo python3 {}'".format(sys.argv[0]))
-        sys.exit(1)
+    shell.require_root()
     main()
