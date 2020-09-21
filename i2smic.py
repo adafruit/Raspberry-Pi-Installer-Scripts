@@ -10,7 +10,18 @@ def main():
     print("""This script downloads and installs
 I2S microphone support.
 """)
-    pimodel_select = shell.select_n("Select Pi Model:", ["Pi 0 or 0W", "Pi 2 or 3", "Pi 4"]) - 1
+    if not shell.is_raspberry_pi():
+        shell.bail("Non-Raspberry Pi board detected.")
+    pi_model = shell.get_board_model()
+    print("{} detected.\n".format(pi_model))
+    if pi_model in ("RASPBERRY_PI_ZERO", "RASPBERRY_PI_ZERO_W"):
+        pimodel_select = 0
+    elif pi_model in ("RASPBERRY_PI_2B", "RASPBERRY_PI_3B", "RASPBERRY_PI_3B_PLUS", "RASPBERRY_PI_3A_PLUS"):
+        pimodel_select = 1
+    elif pi_model in ("RASPBERRY_PI_4B", ):
+        pimodel_select = 2
+    else:
+        shell.bail("Unsupported Pi board detected.")
 
     auto_load = shell.prompt("Auto load module at boot?")
 
