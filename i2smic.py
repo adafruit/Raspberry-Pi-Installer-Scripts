@@ -59,7 +59,7 @@ Installing...""")
 
 Settings take effect on next boot.
 """)
-    if not shell.prompt("REBOOT NOW?", "n"):
+    if not shell.prompt("REBOOT NOW?", default="n"):
         print("Exiting without reboot.")
         shell.exit()
     print("Reboot started...")
