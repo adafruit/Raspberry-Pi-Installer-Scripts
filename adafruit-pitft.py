@@ -615,7 +615,7 @@ Run time of up to 5 minutes. Reboot required!
             shell.bail("Unable to update /etc/pointercal")
 
     # ask for console access
-    if install_type == "console" or shell.prompt("Would you like the console to appear on the PiTFT display?"):
+    if install_type == "console" or (install_type is None and shell.prompt("Would you like the console to appear on the PiTFT display?")):
         shell.info("Updating console to PiTFT...")
         if not uninstall_fbcp():
             shell.bail("Unable to uninstall fbcp")
@@ -626,7 +626,7 @@ Run time of up to 5 minutes. Reboot required!
         if not uninstall_console():
             shell.bail("Unable to configure console")
 
-        if install_type == "fbcp" or shell.prompt("Would you like the HDMI display to mirror to the PiTFT display?"):
+        if install_type == "fbcp" or (install_type is None and shell.prompt("Would you like the HDMI display to mirror to the PiTFT display?")):
             shell.info("Adding FBCP support...")
             if not install_fbcp():
                 shell.bail("Unable to configure fbcp")
