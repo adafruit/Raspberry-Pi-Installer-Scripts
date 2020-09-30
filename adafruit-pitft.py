@@ -485,6 +485,7 @@ def uninstall():
     success()
 
 def success():
+    global auto_reboot
     shell.info("Success!")
     print("""
 Settings take effect on next boot.
