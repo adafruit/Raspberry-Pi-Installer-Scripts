@@ -4,11 +4,6 @@ Adafruit Raspberry Pi Blinka Setup Script
 """
 
 try:
-    import click
-except ImportError:
-    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install Click==7.0")
-
-try:
     from adafruit_shell import Shell
 except ImportError:
     raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
