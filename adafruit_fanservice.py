@@ -13,18 +13,12 @@ fan service, which will turn on an
 external fan controlled by a given pin
 
 Operations performed include:
-- In /boot/config.txt, enable camera
-- apt-get update
-- Install Python libraries:
-  picamera, pygame, PIL
-- Downgrade SDL library for pygame
-  touch compatibility
-- Download Dropbox Updater and
-  Adafruit Pi Cam software
+- Create a Fan Service File
+- Enable Fan Service
+- Automatically Start Fan Service
+  on System startup
 
-Run time 1+ minutes. Reboot not required.
-
-""")
+Run time < 1 minute. Reboot not required.""")
 
     if not shell.argument_exists('y'):
         if not shell.prompt("CONTINUE?", default='n'):
