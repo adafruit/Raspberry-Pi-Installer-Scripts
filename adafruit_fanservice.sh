@@ -12,16 +12,12 @@ echo "fan service, which will turn on an"
 echo "external fan controlled by a given pin"
 echo
 echo "Operations performed include:"
-echo "- In /boot/config.txt, enable camera"
-echo "- apt-get update"
-echo "- Install Python libraries:"
-echo "  picamera, pygame, PIL"
-echo "- Downgrade SDL library for pygame"
-echo "  touch compatibility"
-echo "- Download Dropbox Updater and"
-echo "  Adafruit Pi Cam software"
+echo "- Create a Fan Service File"
+echo "- Enable Fan Service"
+echo "- Automatically Start Fan Service"
+echo "  on System startup"
 echo
-echo "Run time 1+ minutes. Reboot not required."
+echo "Run time < 1 minute. Reboot not required."
 echo
 
 group=ADAFRUIT
