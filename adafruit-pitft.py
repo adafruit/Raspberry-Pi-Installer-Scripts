@@ -555,7 +555,7 @@ Run time of up to 5 minutes. Reboot required!
             uninstall()
         pitft_config = config[PITFT_SELECT - 1]
 
-    if 1 <= rotation <= 4:
+    if rotation is not None and 1 <= rotation <= 4:
         pitftrot = PITFT_ROTATIONS[rotation - 1]
         print("Rotation: {}".format(pitftrot))
     elif str(rotation) in PITFT_ROTATIONS:
