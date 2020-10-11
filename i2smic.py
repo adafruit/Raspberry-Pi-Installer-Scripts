@@ -47,7 +47,7 @@ Installing...""")
             "snd-i2smic-rpi"
         )
         shell.write_text_file(
-            "/etc/modules-load.d/snd-i2smic-rpi.conf",
+            "/etc/modprobe.d/snd-i2smic-rpi.conf",
             "options snd-i2smic-rpi rpi_platform_generation={}".format(pimodel_select)
         )
 
