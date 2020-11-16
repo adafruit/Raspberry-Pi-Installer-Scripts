@@ -7,65 +7,72 @@
 /plugin/;
 
 / {
-        compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+	compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
 
-        fragment@0 {
-                target = <&spi0>;
-                __overlay__ {
-                        status = "okay";
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
 
-                        spidev@0{
-                                status = "disabled";
-                        };
+			spidev@0{
+				status = "disabled";
+			};
 
-                        spidev@1{
-                                status = "disabled";
-                        };
-                };
-        };
+		};
+	};
 
-        fragment@1 {
-                target = <&gpio>;
-                __overlay__ {
-                        pitft_pins: pitft_pins {
-                                brcm,pins = <25>;
-                                brcm,function = <1>; /* out */
-                                brcm,pull = <0>; /* none */
-                        };
-                };
-        };
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			pitft_pins: pitft_pins {
+				brcm,pins = <25>; /* dc pin */
+				brcm,function = <1>; /* out */
+				brcm,pull = <0>; /* no pull */
+			};
+		};
+	};
 
-        fragment@2 {
-                target = <&spi0>;
-                __overlay__ {
-                        /* needed to avoid dtc warning */
-                        #address-cells = <1>;
-                        #size-cells = <0>;
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
 
-                        pitft: pitft@0{
-                				compatible = "sitronix,st7789v";
-                                reg = <0>;
-                                pinctrl-names = "default";
-                                pinctrl-0 = <&pitft_pins>;
-                                spi-max-frequency = <32000000>;
-                                rotate = <0>;
-                                width = <240>;
-                                height = <240>;
-                                buswidth = <8>;
-                                dc-gpios = <&gpio 25 0>;
-                                led-gpios = <&gpio 26 0>;
-                                debug = <0>;
-                        };
-                };
-        };
+			pitft: pitft@0{
+				compatible = "multi-inno,mi0283qt";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pitft_pins>;
 
+				spi-max-frequency = <32000000>;
+				rotation = <0>;
+				width = <240>;
+				height = <240>;
+				col_offset = <0>;
+				row_offset = <0>;
+				dc-gpios = <&gpio 25 0>;
+				backlight = <&backlight>;
+			};
+		};
+	};
 
-        __overrides__ {
-                speed =   <&pitft>,"spi-max-frequency:0";
-                rotate =  <&pitft>,"rotate:0";
-                width =   <&pitft>,"width:0";
-                height =  <&pitft>,"height:0";
-                fps =     <&pitft>,"fps:0";
-                debug =   <&pitft>,"debug:0";
-        };
+	fragment@3 {
+		target-path = "/soc";
+		__overlay__ {
+			backlight: backlight {
+				compatible = "gpio-backlight";
+				gpios = <&gpio 26 0>;
+			};
+		};
+	};
+
+	__overrides__ {
+		speed =       <&pitft>,"spi-max-frequency:0";
+		rotation =    <&pitft>,"rotation:0";
+		width =       <&pitft>,"width:0";
+		height =      <&pitft>,"height:0";
+		col_offset =  <&pitft>,"col_offset:0";
+		row_offset =  <&pitft>,"row_offset:0";
+	};
 };
