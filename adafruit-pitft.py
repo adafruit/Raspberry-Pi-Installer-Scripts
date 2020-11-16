@@ -118,7 +118,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "kernel_upgrade": True,
         "overlay_src": "overlays/minipitft13-overlay.dts",
         "overlay_dest": "/boot/overlays/drm-minipitft13.dtbo",
-        "overlay": "dtoverlay=drm-minipitft13,rotate={pitftrot}",
+        "overlay": "dtoverlay=drm-minipitft13,rotation={pitftrot}",
         "width": 240,
         "height": 240,
     },
@@ -237,7 +237,7 @@ def update_configtxt(rotation_override=None):
         if not shell.run_command("sudo apt-get update", True):
             warn_exit("Apt failed to update itself!")
         print("Upgrading packages...")
-        if not shell.run_command("sudo apt-get upgrade", True):
+        if not shell.run_command("sudo apt-get upgrade", False):
             warn_exit("Apt failed to install software!")
         print("Installing Kernel Headers...")
         if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", True):
@@ -400,7 +400,7 @@ def install_fbcp():
         shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "")
 
     if pitftrot in ("0", "180"):
-        display_rotate = "3" if pitftrot == "180" else "0"
+        display_rotate = "3" if pitftrot == "180" else "1"
         shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "display_hdmi_rotate={}".format(display_rotate))
         # Because we rotate HDMI we have to 'unrotate' the TFT by overriding pitftrot!
         if not update_configtxt(90):
