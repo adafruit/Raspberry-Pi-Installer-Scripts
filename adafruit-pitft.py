@@ -237,7 +237,7 @@ def update_configtxt(rotation_override=None):
         if not shell.run_command("sudo apt-get update", True):
             warn_exit("Apt failed to update itself!")
         print("Upgrading packages...")
-        if not shell.run_command("sudo apt-get upgrade", False):
+        if not shell.run_command("sudo apt-get -y upgrade", False):
             warn_exit("Apt failed to install software!")
         print("Installing Kernel Headers...")
         if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", True):
@@ -381,7 +381,7 @@ def install_fbcp():
     shell.reconfig("/boot/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
     shell.reconfig("/boot/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig("/boot/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
-    shell.reconfig("/boot/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
+    shell.pattern_replace("/boot/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
     # if there's X11 installed...
     scale = 1
@@ -431,7 +431,7 @@ def uninstall_fbcp():
     shell.run_command("raspi-config nonint do_overscan 0")
     print("Configuring boot/config.txt for default HDMI")
     shell.reconfig("/boot/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=0")
-    shell.reconfig("/boot/config.txt", "^.*#.*dtoverlay=vc4-fkms-v3d.*$", "dtoverlay=vc4-fkms-v3d")
+    shell.pattern_replace("/boot/config.txt", "^.*#.*dtoverlay=vc4-fkms-v3d.*$", "dtoverlay=vc4-fkms-v3d")
     shell.pattern_replace("/boot/config.txt", '^hdmi_group=2.*$')
     shell.pattern_replace("/boot/config.txt", '^hdmi_mode=87.*$')
     shell.pattern_replace("/boot/config.txt", '^hdmi_cvt=.*$')
