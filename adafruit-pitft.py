@@ -53,7 +53,6 @@ config = [
         "menulabel": "PiTFT 2.2\" no touch",
         "product": "2.2\" no touch",
         "kernel_upgrade": False,
-        "touchscreen": False,
         "overlay" : "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
         "width": 320,
         "height": 240,
