@@ -394,12 +394,17 @@ def install_fbcp():
 
     shell.reconfig("/boot/config.txt", "^.*hdmi_cvt.*$", "hdmi_cvt={} {} 60 1 0 0 0".format(WIDTH, HEIGHT))
 
-    if pitftrot == "90" or pitftrot == "270" or ("rotate" in pitft_config and not pitft_config['rotate']):
-        # dont rotate HDMI on 90 or 270
+    if pitftrot == "90" or ("rotate" in pitft_config and not pitft_config['rotate']):
+        # dont rotate HDMI on 90
         shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "")
 
-    if pitftrot in ("0", "180"):
-        display_rotate = "3" if pitftrot == "180" else "1"
+    if pitftrot in ("0", "180", "270"):
+        if pitftrot == "180":
+            display_rotate = "3"
+        elif pitftrot == "270":
+            display_rotate = "2"
+        else:
+            display_rotate = "1"
         shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "display_hdmi_rotate={}".format(display_rotate))
         # Because we rotate HDMI we have to 'unrotate' the TFT by overriding pitftrot!
         if not update_configtxt(90):
