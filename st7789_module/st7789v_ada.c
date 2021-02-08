@@ -2,6 +2,7 @@
 /*
  * DRM driver for ST7789V panels with flexible config
  *
+ * Copyright 2021 Melissa LeBlanc-Williams
  * Copyright 2019 Limor Fried
  * Copyright 2016 Noralf Trønnes
  *
@@ -18,6 +19,7 @@
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
+#include <linux/version.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
@@ -61,8 +63,10 @@ static void st7789vada_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rec
 	bool full;
 	void *tr;
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5,8,0)
 	if (!dbidev->enabled)
 		return;
+#endif
 
 	if (!drm_dev_enter(fb->dev, &idx))
 		return;
@@ -131,11 +135,24 @@ static struct drm_display_mode st7789vada_mode = {
 
 DEFINE_DRM_GEM_CMA_FOPS(st7789vada_fops);
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5,8,0)
+static struct drm_driver st7789vada_driver = {
+        .driver_features        = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
+        .fops                   = &st7789vada_fops,
+        .release                = mipi_dbi_release,
+        DRM_GEM_CMA_VMAP_DRIVER_OPS,
+        .debugfs_init           = mipi_dbi_debugfs_init,
+        .name                   = "st7789vada",
+        .desc                   = "ST7789V Adafruit",
+        .date                   = "20200727",
+        .major                  = 1,
+        .minor                  = 0,
+};
+#else
 static struct drm_driver st7789vada_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &st7789vada_fops,
-	.release		= mipi_dbi_release,
-	DRM_GEM_CMA_VMAP_DRIVER_OPS,
+	DRM_GEM_CMA_DRIVER_OPS_VMAP,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7789vada",
 	.desc			= "ST7789V Adafruit",
@@ -143,6 +160,7 @@ static struct drm_driver st7789vada_driver = {
 	.major			= 1,
 	.minor			= 0,
 };
+#endif
 
 static const struct of_device_id st7789vada_of_match[] = {
 	{ .compatible = "multi-inno,mi0283qt" },
@@ -272,9 +290,15 @@ static int st7789vada_probe(struct spi_device *spi)
     //printk(KERN_INFO "ST7789 fake driver\n");
 
 	dbi = &dbidev->dbi;
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5,8,0)
 	drm = &dbidev->drm;
 	ret = devm_drm_dev_init(dev, drm, &st7789vada_driver);
-	if (ret) {
+#else
+	drm = drm_dev_alloc(&st7789vada_driver, dev);
+    ret = drm_dev_register(drm, 0);
+#endif
+
+    if (ret) {
 		kfree(dbidev);
 		return ret;
 	}
@@ -404,5 +428,5 @@ static struct spi_driver st7789vada_spi_driver = {
 module_spi_driver(st7789vada_spi_driver);
 
 MODULE_DESCRIPTION("Sitronix ST7789V Flexible DRM driver");
-MODULE_AUTHOR("Noralf Trønnes + Limor Fried");
+MODULE_AUTHOR("Noralf Trønnes + Limor Fried + Melissa LeBlanc-Williams");
 MODULE_LICENSE("GPL");
