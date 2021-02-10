@@ -241,8 +241,8 @@ def update_configtxt(rotation_override=None):
         if not shell.run_command("sudo apt-get -y upgrade", False):
             warn_exit("Apt failed to install software!")
         if force_kernel and force_kernel + '.' not in shell.release():
-            print("Pinning kernel to version {}".format(force_kernel))
-            if not shell.run_command("sudo sh rpi-pin-kernel-firmware.sh {}".format(force_kernel_release), True):
+            print("Pinning kernel to version {}. This may take a while...".format(force_kernel))
+            if not shell.run_command("sudo sh rpi-pin-kernel-firmware.sh {}".format(force_kernel_release), False):
                 warn_exit("Failed to pin all kernel files!")
         print("Installing Kernel Headers...")
         if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", True):
