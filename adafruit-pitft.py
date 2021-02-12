@@ -152,7 +152,7 @@ SYSTEMD = None
 pitft_config = None
 pitftrot = None
 auto_reboot = None
-force_kernel = "5.4"
+force_kernel = None
 force_kernel_release = "1.20201126-1"
 
 def warn_exit(message):
