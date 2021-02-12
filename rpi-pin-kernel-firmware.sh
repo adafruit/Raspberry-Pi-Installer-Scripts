@@ -35,5 +35,5 @@ done
 dpkg -i "$@"
 
 for package in $packagelist; do
-    /bin/printf "Package: $package\nPin: version 1.20201126-1\nPin-Priority:999\n\n"
+    /usr/bin/printf "Package: $package\nPin: version 1.20201126-1\nPin-Priority:999\n\n"
 done > /etc/apt/preferences.d/99-adafruit-pin-kernel
