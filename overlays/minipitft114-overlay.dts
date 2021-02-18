@@ -51,6 +51,7 @@
 				height = <240>;
 				col_offset = <53>;
 				row_offset = <40>;
+				txbuflen = <32768>;
 				dc-gpios = <&gpio 25 0>;
 				backlight = <&backlight>;
 			};
