@@ -121,7 +121,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "width": 240,
         "height": 240,
         "fbcp_rotations": {
-            "0": None,
+            "0": "0",
             "90": "1",
             "180": "2",
             "270": "3",
@@ -150,9 +150,9 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "height": 135,
         "fbcp_rotations": {
             "0": "3",
-            "90": "1",
-            "180": "2",
-            "270": None,
+            "90": "2",
+            "180": "1",
+            "270": "0",
         },
    },
 ]
@@ -160,7 +160,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
 # default rotations
 fbcp_rotations = {
     "0": "1",
-    "90": None,
+    "90": "0",
     "180": "3",
     "270": "2",
 }
@@ -424,11 +424,11 @@ def install_fbcp():
     shell.reconfig("/boot/config.txt", "^.*hdmi_cvt.*$", "hdmi_cvt={} {} 60 1 0 0 0".format(WIDTH, HEIGHT))
 
     try:
-        default_orientation = int(list(fbcp_rotations.keys())[list(fbcp_rotations.values()).index(None)])
+        default_orientation = int(list(fbcp_rotations.keys())[list(fbcp_rotations.values()).index("0")])
     except ValueError:
         default_orientation = 90
 
-    if fbcp_rotations[pitftrot] is None:
+    if fbcp_rotations[pitftrot] == "0":
         # dont rotate HDMI on default orientation
         shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "")
     else:
