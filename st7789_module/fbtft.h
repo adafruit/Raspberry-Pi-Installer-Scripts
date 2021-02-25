@@ -251,7 +251,8 @@ void fbtft_register_backlight(struct fbtft_par *par);
 void fbtft_unregister_backlight(struct fbtft_par *par);
 int fbtft_init_display(struct fbtft_par *par);
 int fbtft_probe_common(struct fbtft_display *display, struct spi_device *sdev,
-		       struct platform_device *pdev);
+		       struct platform_device *pdev,
+		       const struct of_device_id *dt_ids);
 int fbtft_remove_common(struct device *dev, struct fb_info *info);
 
 /* fbtft-io.c */
@@ -272,11 +273,13 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus8(struct fbtft_par *par, int len, ...);
 void fbtft_write_reg16_bus16(struct fbtft_par *par, int len, ...);
 
-#define FBTFT_REGISTER_DRIVER(_name, _compatible, _display)                \
+#define FBTFT_REGISTER_DRIVER_START(_display)                              \
+									   \
+static const struct of_device_id dt_ids[];                                 \
 									   \
 static int fbtft_driver_probe_spi(struct spi_device *spi)                  \
 {                                                                          \
-	return fbtft_probe_common(_display, spi, NULL);                    \
+	return fbtft_probe_common(_display, spi, NULL, dt_ids);	           \
 }                                                                          \
 									   \
 static int fbtft_driver_remove_spi(struct spi_device *spi)                 \
@@ -288,7 +291,7 @@ static int fbtft_driver_remove_spi(struct spi_device *spi)                 \
 									   \
 static int fbtft_driver_probe_pdev(struct platform_device *pdev)           \
 {                                                                          \
-	return fbtft_probe_common(_display, NULL, pdev);                   \
+	return fbtft_probe_common(_display, NULL, pdev, dt_ids);           \
 }                                                                          \
 									   \
 static int fbtft_driver_remove_pdev(struct platform_device *pdev)          \
@@ -298,8 +301,16 @@ static int fbtft_driver_remove_pdev(struct platform_device *pdev)          \
 	return fbtft_remove_common(&pdev->dev, info);                      \
 }                                                                          \
 									   \
-static const struct of_device_id dt_ids[] = {                              \
-	{ .compatible = _compatible },                                     \
+static const struct of_device_id dt_ids[] = {
+
+#define FBTFT_COMPATIBLE(_compatible)                                      \
+	{ .compatible = _compatible },
+
+#define FBTFT_VARIANT_COMPATIBLE(_compatible, _variant)                    \
+	{ .compatible = _compatible, .data = _variant },
+
+#define FBTFT_REGISTER_DRIVER_END(_name, _display)                         \
+									   \
 	{},                                                                \
 };                                                                         \
 									   \
@@ -309,7 +320,7 @@ MODULE_DEVICE_TABLE(of, dt_ids);                                           \
 static struct spi_driver fbtft_driver_spi_driver = {                       \
 	.driver = {                                                        \
 		.name   = _name,                                           \
-		.of_match_table = of_match_ptr(dt_ids),                    \
+		.of_match_table = dt_ids,                                  \
 	},                                                                 \
 	.probe  = fbtft_driver_probe_spi,                                  \
 	.remove = fbtft_driver_remove_spi,                                 \
@@ -319,7 +330,7 @@ static struct platform_driver fbtft_driver_platform_driver = {             \
 	.driver = {                                                        \
 		.name   = _name,                                           \
 		.owner  = THIS_MODULE,                                     \
-		.of_match_table = of_match_ptr(dt_ids),                    \
+		.of_match_table = dt_ids,                                  \
 	},                                                                 \
 	.probe  = fbtft_driver_probe_pdev,                                 \
 	.remove = fbtft_driver_remove_pdev,                                \
@@ -344,13 +355,26 @@ static void __exit fbtft_driver_module_exit(void)                          \
 module_init(fbtft_driver_module_init);                                     \
 module_exit(fbtft_driver_module_exit);
 
+#define FBTFT_REGISTER_DRIVER(_name, _compatible, _display)                \
+	FBTFT_REGISTER_DRIVER_START(_display)                              \
+	FBTFT_COMPATIBLE(_compatible)                                      \
+	FBTFT_REGISTER_DRIVER_END(_name, _display)
+
 /* Debug macros */
 
 /* shorthand debug levels */
 #define DEBUG_LEVEL_1	DEBUG_REQUEST_GPIOS
-#define DEBUG_LEVEL_2	(DEBUG_LEVEL_1 | DEBUG_DRIVER_INIT_FUNCTIONS | DEBUG_TIME_FIRST_UPDATE)
-#define DEBUG_LEVEL_3	(DEBUG_LEVEL_2 | DEBUG_RESET | DEBUG_INIT_DISPLAY | DEBUG_BLANK | DEBUG_REQUEST_GPIOS | DEBUG_FREE_GPIOS | DEBUG_VERIFY_GPIOS | DEBUG_BACKLIGHT | DEBUG_SYSFS)
-#define DEBUG_LEVEL_4	(DEBUG_LEVEL_2 | DEBUG_FB_READ | DEBUG_FB_WRITE | DEBUG_FB_FILLRECT | DEBUG_FB_COPYAREA | DEBUG_FB_IMAGEBLIT | DEBUG_FB_BLANK)
+#define DEBUG_LEVEL_2	(DEBUG_LEVEL_1 | DEBUG_DRIVER_INIT_FUNCTIONS        \
+				       | DEBUG_TIME_FIRST_UPDATE)
+#define DEBUG_LEVEL_3	(DEBUG_LEVEL_2 | DEBUG_RESET | DEBUG_INIT_DISPLAY   \
+				       | DEBUG_BLANK | DEBUG_REQUEST_GPIOS  \
+				       | DEBUG_FREE_GPIOS                   \
+				       | DEBUG_VERIFY_GPIOS                 \
+				       | DEBUG_BACKLIGHT | DEBUG_SYSFS)
+#define DEBUG_LEVEL_4	(DEBUG_LEVEL_2 | DEBUG_FB_READ | DEBUG_FB_WRITE     \
+				       | DEBUG_FB_FILLRECT                  \
+				       | DEBUG_FB_COPYAREA                  \
+				       | DEBUG_FB_IMAGEBLIT | DEBUG_FB_BLANK)
 #define DEBUG_LEVEL_5	(DEBUG_LEVEL_3 | DEBUG_UPDATE_DISPLAY)
 #define DEBUG_LEVEL_6	(DEBUG_LEVEL_4 | DEBUG_LEVEL_5)
 #define DEBUG_LEVEL_7	0xFFFFFFFF
@@ -398,8 +422,8 @@ do {                                                         \
 
 #define fbtft_par_dbg(level, par, format, arg...)            \
 do {                                                         \
-	if (unlikely(par->debug & level))                    \
-		dev_info(par->info->device, format, ##arg);  \
+	if (unlikely((par)->debug & (level)))                    \
+		dev_info((par)->info->device, format, ##arg);  \
 } while (0)
 
 #define fbtft_par_dbg_hex(level, par, dev, type, buf, num, format, arg...) \

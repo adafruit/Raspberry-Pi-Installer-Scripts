@@ -197,7 +197,7 @@ def softwareinstall():
     if not shell.run_command("apt-get install -y libts0", True):
         if not shell.run_command("apt-get install -y tslib"):
             warn_exit("Apt failed to install TSLIB!")
-    if not shell.run_command("apt-get install -y bc fbi git python-dev python-pip python-smbus python-spidev evtest libts-bin device-tree-compiler"):
+    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler"):
         warn_exit("Apt failed to install software!")
     if not shell.run_command("pip3 install evdev"):
         warn_exit("Pip failed to install software!")
@@ -250,11 +250,11 @@ def update_configtxt(rotation_override=None):
         if not shell.isdir("/lib/modules/{}/build".format(shell.release())):
             warn_exit("Kernel was updated, please reboot now and re-run script!")
         shell.pushd("st7789_module")
-        if not shell.run_command("make -C /lib/modules/$(uname -r)/build M=$(pwd) modules"):
+        if not shell.run_command("make"):
             warn_exit("Apt failed to compile ST7789V drivers!")
-        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK".format(rel=shell.release()))
-        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK".format(rel=shell.release()))
-        shell.run_command("mv st7789v_ada.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko".format(rel=shell.release()))
+        # Only back up if a copy doesn't already exist, so if script is ran more than once we don't lose the original
+        if not shell.exists("/lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release())):
+            shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release()))
         shell.run_command("mv fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko".format(rel=shell.release()))
         shell.popd()
 
