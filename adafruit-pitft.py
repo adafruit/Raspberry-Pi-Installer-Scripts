@@ -149,7 +149,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "width": 240,
         "height": 135,
         "fbcp_rotations": {
-            "0", "3"
+            "0", "3",
             "90": "1",
             "180": "2",
             "270": None,
