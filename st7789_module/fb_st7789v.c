@@ -189,9 +189,9 @@ static int set_var(struct fbtft_par *par)
 		row1_offset = row2_offset = (int)((320 - height + 1) / 2);
 		col1_offset = (int)((240 - width) / 2);
 		col2_offset = (int)((240 - width + 1) / 2);
-        } else {
-	        row1_offset = 0;
-        	row2_offset = (320 - height);
+    } else {
+        row1_offset = 0;
+        row2_offset = (320 - height);
 		col1_offset = col2_offset = (240 - width);
 	}
 
