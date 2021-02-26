@@ -146,6 +146,12 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "overlay_src": "overlays/minipitft114-overlay.dts",
         "overlay_dest": "/boot/overlays/drm-minipitft114.dtbo",
         "overlay": "dtoverlay=drm-minipitft114,rotate={pitftrot}",
+        "rotations": {
+            "0": None,
+            "90": "90",
+            "180": None,
+            "270": "270",
+        },
         "width": 240,
         "height": 135,
         "fbcp_rotations": {
@@ -273,7 +279,7 @@ def update_configtxt(rotation_override=None):
     if "{pitftrot}" in overlay:
         rotation = str(rotation_override) if rotation_override is not None else pitftrot
         overlay = overlay.format(pitftrot=rotation)
-    if "{rotation}" in overlay and isinstance(pitft_config['rotations'], dict):
+    if "{rotation}" in overlay and isinstance(pitft_config['rotations'], dict) and pitft_config['rotations'][pitftrot] is not None:
         overlay = overlay.format(rotation=pitft_config['rotations'][pitftrot])
 
     shell.write_text_file("/boot/config.txt", """
@@ -600,6 +606,17 @@ Run time of up to 5 minutes. Reboot required!
             "0 degrees (portrait)"
         ))
         pitftrot = PITFT_ROTATIONS[PITFT_ROTATE - 1]
+
+    if 'rotations' in pitft_config and isinstance(pitft_config['rotations'], dict) and pitftrot in pitft_config['rotations'] and pitft_config['rotations'][pitftrot] is None:
+        shell.bail("""Unfortunately {rotation} degrees for the {display} is not working at this time. Please
+restart the script and choose a different orientation.""".format(rotation=pitftrot, display=pitft_config["menulabel"]))
+
+    # Checking if kernel is pinned
+    if shell.exists('/etc/apt/preferences.d/99-adafruit-pin-kernel'):
+        shell.warn("WARNING! Script detected your system is currently pinned to an older kernel. The pin will be removed and your system will be updated.")
+        if not shell.prompt("Continue?"):
+            shell.exit()
+        shell.remove('/etc/apt/preferences.d/99-adafruit-pin-kernel')
 
     # check init system (technique borrowed from raspi-config):
     shell.info('Checking init system...')
