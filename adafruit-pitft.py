@@ -260,9 +260,7 @@ def install_drivers():
         shell.pushd("st7789_module")
         if not shell.run_command("make"):
             warn_exit("Apt failed to compile ST7789V drivers!")
-        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK".format(rel=shell.release()))
         shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release()))
-        shell.run_command("mv st7789v_ada.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko".format(rel=shell.release()))
         shell.run_command("mv fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko".format(rel=shell.release()))
         shell.popd()
     return True
