@@ -16,30 +16,15 @@
 
 #define DRVNAME "fb_st7789v"
 
-static unsigned int width;
-module_param(width, uint, 0000);
-MODULE_PARM_DESC(width, "Display width");
-
-static unsigned int height;
-module_param(height, uint, 0000);
-MODULE_PARM_DESC(height, "Display height");
-
-static u32 col_offset = 0;
-static u32 row_offset = 0;
-static u8 col_hack_fix_offset = 0;
-static short x_offset = 0;
-static short y_offset = 0;
-
-#define ST77XX_MADCTL_MY  0x80
-#define ST77XX_MADCTL_MX  0x40
-#define ST77XX_MADCTL_MV  0x20
-#define ST77XX_MADCTL_ML  0x10
-#define ST77XX_MADCTL_BGR 0x08
-#define ST77XX_MADCTL_RGB 0x00
-
 #define DEFAULT_GAMMA \
 	"70 2C 2E 15 10 09 48 33 53 0B 19 18 20 25\n" \
 	"70 2C 2E 15 10 09 48 33 53 0B 19 18 20 25"
+
+#define HSD20_IPS_GAMMA \
+	"D0 05 0A 09 08 05 2E 44 45 0F 17 16 2B 33\n" \
+	"D0 05 0A 09 08 05 2E 43 45 0F 16 16 2B 33"
+
+#define HSD20_IPS 1
 
 /**
  * enum st7789v_command - ST7789V display controller commands
@@ -76,6 +61,18 @@ enum st7789v_command {
 	NVGAMCTRL = 0xE1,
 };
 
+#define MADCTL_BGR BIT(3) /* bitmask for RGB/BGR order */
+#define MADCTL_MV BIT(5) /* bitmask for page/column order */
+#define MADCTL_MX BIT(6) /* bitmask for column address order */
+#define MADCTL_MY BIT(7) /* bitmask for page address order */
+
+static u32 col1_offset = 0;
+static u32 col2_offset = 0;
+static u32 row1_offset = 0;
+static u32 row2_offset = 0;
+static short x_offset = 0;
+static short y_offset = 0;
+
 /**
  * init_display() - initialize the display controller
  *
@@ -92,42 +89,83 @@ enum st7789v_command {
  */
 static int init_display(struct fbtft_par *par)
 {
-    printk(KERN_INFO "ST7789 adafruit fbtft driver\n");
-
-    width = par->info->var.xres;
-    height = par->info->var.yres;
-
-    if ((width == 0) || (width > 240)) {
-      width = 240;
-    }
-    if ((height == 0) || (height > 320)) {
-      height = 320;
-    }
-    printk(KERN_INFO "Size: (%d, %d)\n", width, height);
-  
-    // Go to sleep
-    write_reg(par, MIPI_DCS_SET_DISPLAY_OFF);
-    // Soft reset
-	write_reg(par, MIPI_DCS_SOFT_RESET);
-	mdelay(150);
-
 	/* turn off sleep mode */
 	write_reg(par, MIPI_DCS_EXIT_SLEEP_MODE);
-	mdelay(10);
+	mdelay(120);
 
 	/* set pixel format to RGB-565 */
 	write_reg(par, MIPI_DCS_SET_PIXEL_FORMAT, MIPI_DCS_PIXEL_FMT_16BIT);
+	if (HSD20_IPS)
+		write_reg(par, PORCTRL, 0x05, 0x05, 0x00, 0x33, 0x33);
 
-	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, 0);
-	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS, 0, 0, 0, 240);
-	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS, 0, 0, 320>>8, 320&0xFF);
-	write_reg(par, MIPI_DCS_ENTER_INVERT_MODE); // odd hack, displays are inverted
-	write_reg(par, MIPI_DCS_ENTER_NORMAL_MODE);
-	mdelay(10);
+	else
+		write_reg(par, PORCTRL, 0x08, 0x08, 0x00, 0x22, 0x22);
 
+	/*
+	 * VGH = 13.26V
+	 * VGL = -10.43V
+	 */
+	if (HSD20_IPS)
+		write_reg(par, GCTRL, 0x75);
+	else
+		write_reg(par, GCTRL, 0x35);
+
+	/*
+	 * VDV and VRH register values come from command write
+	 * (instead of NVM)
+	 */
+	write_reg(par, VDVVRHEN, 0x01, 0xFF);
+
+	/*
+	 * VAP =  4.1V + (VCOM + VCOM offset + 0.5 * VDV)
+	 * VAN = -4.1V + (VCOM + VCOM offset + 0.5 * VDV)
+	 */
+	if (HSD20_IPS)
+		write_reg(par, VRHS, 0x13);
+	else
+		write_reg(par, VRHS, 0x0B);
+
+	/* VDV = 0V */
+	write_reg(par, VDVS, 0x20);
+
+	/* VCOM = 0.9V */
+	if (HSD20_IPS)
+		write_reg(par, VCOMS, 0x22);
+	else
+		write_reg(par, VCOMS, 0x20);
+
+	/* VCOM offset = 0V */
+	write_reg(par, VCMOFSET, 0x20);
+
+	/*
+	 * AVDD = 6.8V
+	 * AVCL = -4.8V
+	 * VDS = 2.3V
+	 */
+	write_reg(par, PWCTRL1, 0xA4, 0xA1);
 
 	write_reg(par, MIPI_DCS_SET_DISPLAY_ON);
+
+	if (HSD20_IPS)
+		write_reg(par, MIPI_DCS_ENTER_INVERT_MODE);
+
 	return 0;
+}
+
+static void minipitft_set_addr_win(struct fbtft_par *par, int xs, int ys,
+				     int xe, int ye)
+{
+	xs += x_offset;
+	xe += x_offset;
+	ys += y_offset;
+	ye += y_offset;
+	write_reg(par, MIPI_DCS_SET_COLUMN_ADDRESS,
+		  xs >> 8, xs & 0xFF, xe >> 8, xe & 0xFF);
+
+	write_reg(par, MIPI_DCS_SET_PAGE_ADDRESS,
+		  ys >> 8, ys & 0xFF, ye >> 8, ye & 0xFF);
+
+	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 }
 
 /**
@@ -139,36 +177,104 @@ static int init_display(struct fbtft_par *par)
  */
 static int set_var(struct fbtft_par *par)
 {
-	u8 addr_mode = 0;
+	u8 madctl_par = 0;
+	struct fbtft_display *display = &par->pdata->display;
+	u32 width = display->width;
+	u32 height = display->height;
+	if (par->bgr)
+		madctl_par |= MADCTL_BGR;
+
+	if (width < 240) {
+		// Display is centered
+		row1_offset = row2_offset = (int)((320 - height + 1) / 2);
+		col1_offset = (int)((240 - width) / 2);
+		col2_offset = (int)((240 - width + 1) / 2);
+    } else {
+        row1_offset = 0;
+        row2_offset = (320 - height);
+		col1_offset = col2_offset = (240 - width);
+	}
 
 	switch (par->info->var.rotate) {
 	case 0:
-		addr_mode = 0;
-		x_offset = col_offset;
-		y_offset = row_offset;        
+		x_offset = col1_offset;
+		y_offset = row1_offset;
 		break;
 	case 90:
-		addr_mode = ST77XX_MADCTL_MV | ST77XX_MADCTL_MX;
-		x_offset = row_offset;
-		y_offset = col_offset;
-        break;
+		madctl_par |= (MADCTL_MV | MADCTL_MY);
+		x_offset =  row1_offset;
+		y_offset =  col1_offset;
+		break;
 	case 180:
-		addr_mode = ST77XX_MADCTL_MX | ST77XX_MADCTL_MY;
-        x_offset = (240 - width) - col_offset + col_hack_fix_offset;
-        // hack tweak to account for extra pixel width to make even
-        y_offset = (320 - height) - row_offset;
+		madctl_par |= (MADCTL_MX | MADCTL_MY);
+		x_offset = col2_offset;
+		y_offset = row2_offset;
 		break;
 	case 270:
-		addr_mode = ST77XX_MADCTL_MV | ST77XX_MADCTL_MY;
-		x_offset = (320 - height) - row_offset;
-		y_offset = (240 - width) - col_offset;
+		madctl_par |= (MADCTL_MV | MADCTL_MX);
+		x_offset = row2_offset;
+		y_offset = col2_offset;
 		break;
 	default:
 		return -EINVAL;
 	}
-    printk(KERN_INFO "Rotation %d offsets %d %d\n", par->info->var.rotate, x_offset, y_offset);
+	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, madctl_par);
+	return 0;
+}
 
-	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, addr_mode);
+/**
+ * set_gamma() - set gamma curves
+ *
+ * @par: FBTFT parameter object
+ * @curves: gamma curves
+ *
+ * Before the gamma curves are applied, they are preprocessed with a bitmask
+ * to ensure syntactically correct input for the display controller.
+ * This implies that the curves input parameter might be changed by this
+ * function and that illegal gamma values are auto-corrected and not
+ * reported as errors.
+ *
+ * Return: 0 on success, < 0 if error occurred.
+ */
+static int set_gamma(struct fbtft_par *par, u32 *curves)
+{
+	int i;
+	int j;
+	int c; /* curve index offset */
+
+	/*
+	 * Bitmasks for gamma curve command parameters.
+	 * The masks are the same for both positive and negative voltage
+	 * gamma curves.
+	 */
+	static const u8 gamma_par_mask[] = {
+		0xFF, /* V63[3:0], V0[3:0]*/
+		0x3F, /* V1[5:0] */
+		0x3F, /* V2[5:0] */
+		0x1F, /* V4[4:0] */
+		0x1F, /* V6[4:0] */
+		0x3F, /* J0[1:0], V13[3:0] */
+		0x7F, /* V20[6:0] */
+		0x77, /* V36[2:0], V27[2:0] */
+		0x7F, /* V43[6:0] */
+		0x3F, /* J1[1:0], V50[3:0] */
+		0x1F, /* V57[4:0] */
+		0x1F, /* V59[4:0] */
+		0x3F, /* V61[5:0] */
+		0x3F, /* V62[5:0] */
+	};
+
+	for (i = 0; i < par->gamma.num_curves; i++) {
+		c = i * par->gamma.num_values;
+		for (j = 0; j < par->gamma.num_values; j++)
+			curves[c + j] &= gamma_par_mask[j];
+		write_reg(par, PVGAMCTRL + i,
+			  curves[c + 0],  curves[c + 1],  curves[c + 2],
+			  curves[c + 3],  curves[c + 4],  curves[c + 5],
+			  curves[c + 6],  curves[c + 7],  curves[c + 8],
+			  curves[c + 9],  curves[c + 10], curves[c + 11],
+			  curves[c + 12], curves[c + 13]);
+	}
 	return 0;
 }
 
@@ -195,11 +301,13 @@ static struct fbtft_display display = {
 	.height = 320,
 	.gamma_num = 2,
 	.gamma_len = 14,
-	.gamma = DEFAULT_GAMMA,
+	.gamma = HSD20_IPS_GAMMA,
 	.fbtftops = {
 		.init_display = init_display,
 		.set_var = set_var,
+		.set_gamma = set_gamma,
 		.blank = blank,
+		.set_addr_win = minipitft_set_addr_win,
 	},
 };
 

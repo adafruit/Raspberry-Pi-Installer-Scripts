@@ -16,7 +16,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.0.0"
+__version__ = "3.1.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -117,9 +117,15 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "kernel_upgrade": True,
         "overlay_src": "overlays/minipitft13-overlay.dts",
         "overlay_dest": "/boot/overlays/drm-minipitft13.dtbo",
-        "overlay": "dtoverlay=drm-minipitft13,rotation={pitftrot}",
+        "overlay": "dtoverlay=drm-minipitft13,rotate={pitftrot}",
         "width": 240,
         "height": 240,
+        "fbcp_rotations": {
+            "0": "0",
+            "90": "1",
+            "180": "2",
+            "270": "3",
+        },
     },
     {
         "type": "st7789_240x320",
@@ -131,7 +137,6 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "overlay": "dtoverlay=drm-st7789v_240x320,rotate={pitftrot}",
         "width": 320,
         "height": 240,
-        "rotate": False,
     },
     {
         "type": "st7789_240x135",
@@ -140,11 +145,31 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "kernel_upgrade": True,
         "overlay_src": "overlays/minipitft114-overlay.dts",
         "overlay_dest": "/boot/overlays/drm-minipitft114.dtbo",
-        "overlay": "dtoverlay=drm-minipitft114,rotation={pitftrot}",
+        "overlay": "dtoverlay=drm-minipitft114,rotate={pitftrot}",
+        "rotations": {
+            "0": None,
+            "90": "90",
+            "180": None,
+            "270": "270",
+        },
         "width": 240,
         "height": 135,
-    },
+        "fbcp_rotations": {
+            "0": "3",
+            "90": "2",
+            "180": "1",
+            "270": "0",
+        },
+   },
 ]
+
+# default rotations
+fbcp_rotations = {
+    "0": "1",
+    "90": "0",
+    "180": "3",
+    "270": "2",
+}
 
 PITFT_ROTATIONS = ("90", "180", "270", "0")
 UPDATE_DB = False
@@ -152,8 +177,6 @@ SYSTEMD = None
 pitft_config = None
 pitftrot = None
 auto_reboot = None
-force_kernel = None
-force_kernel_release = "1.20201126-1"
 
 def warn_exit(message):
     shell.warn(message)
@@ -197,7 +220,7 @@ def softwareinstall():
     if not shell.run_command("apt-get install -y libts0", True):
         if not shell.run_command("apt-get install -y tslib"):
             warn_exit("Apt failed to install TSLIB!")
-    if not shell.run_command("apt-get install -y bc fbi git python-dev python-pip python-smbus python-spidev evtest libts-bin device-tree-compiler"):
+    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler"):
         warn_exit("Apt failed to install software!")
     if not shell.run_command("pip3 install evdev"):
         warn_exit("Pip failed to install software!")
@@ -220,6 +243,34 @@ def uninstall_etc_modules():
     shell.pattern_replace("/etc/modules", 'fbtft_device')
     return True
 
+def install_drivers():
+    """Compile display driver and overlay if required"""
+    if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
+        print("Compiling Device Tree Overlay")
+        shell.run_command("dtc -@ -I dts -O dtb -o {dest} {src}".format(dest=pitft_config['overlay_dest'], src=pitft_config['overlay_src']))
+
+    if pitft_config['kernel_upgrade']:
+        print("############# UPGRADING KERNEL ###############")
+        print("Updating packages...")
+        if not shell.run_command("sudo apt-get update", True):
+            warn_exit("Apt failed to update itself!")
+        print("Upgrading packages...")
+        if not shell.run_command("sudo apt-get -y upgrade", False):
+            warn_exit("Apt failed to install software!")
+        print("Installing Kernel Headers. This may take a few minutes...")
+        if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", True):
+            warn_exit("Apt failed to install software!")
+        if not shell.isdir("/lib/modules/{}/build".format(shell.release())):
+            warn_exit("Kernel was updated, but needs to be loaded. Please reboot now and re-run script!")
+        print("Compiling and installing display driver...")
+        shell.pushd("st7789_module")
+        if not shell.run_command("make"):
+            warn_exit("Apt failed to compile ST7789V drivers!")
+        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release()))
+        shell.run_command("mv fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko".format(rel=shell.release()))
+        shell.popd()
+    return True
+
 def update_configtxt(rotation_override=None):
     """update /boot/config.txt with appropriate values"""
     uninstall_bootconfigtxt()
@@ -228,35 +279,8 @@ def update_configtxt(rotation_override=None):
     if "{pitftrot}" in overlay:
         rotation = str(rotation_override) if rotation_override is not None else pitftrot
         overlay = overlay.format(pitftrot=rotation)
-    if "{rotation}" in overlay and isinstance(pitft_config['rotations'], dict):
+    if "{rotation}" in overlay and isinstance(pitft_config['rotations'], dict) and pitft_config['rotations'][pitftrot] is not None:
         overlay = overlay.format(rotation=pitft_config['rotations'][pitftrot])
-    if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
-        shell.run_command("dtc -@ -I dts -O dtb -o {dest} {src}".format(dest=pitft_config['overlay_dest'], src=pitft_config['overlay_src']))
-
-        print("############# UPGRADING KERNEL ###############")
-        print("Updating packages...")
-        if not shell.run_command("sudo apt-get update", True):
-            warn_exit("Apt failed to update itself!")
-        print("Upgrading packages...")
-        if not shell.run_command("sudo apt-get -y upgrade", False):
-            warn_exit("Apt failed to install software!")
-        if force_kernel and force_kernel + '.' not in shell.release():
-            print("Pinning kernel to version {}. This may take a while...".format(force_kernel))
-            if not shell.run_command("sudo sh rpi-pin-kernel-firmware.sh {}".format(force_kernel_release), False):
-                warn_exit("Failed to pin all kernel files!")
-        print("Installing Kernel Headers...")
-        if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", True):
-            warn_exit("Apt failed to install software!")
-        if not shell.isdir("/lib/modules/{}/build".format(shell.release())):
-            warn_exit("Kernel was updated, please reboot now and re-run script!")
-        shell.pushd("st7789_module")
-        if not shell.run_command("make -C /lib/modules/$(uname -r)/build M=$(pwd) modules"):
-            warn_exit("Apt failed to compile ST7789V drivers!")
-        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK".format(rel=shell.release()))
-        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK".format(rel=shell.release()))
-        shell.run_command("mv st7789v_ada.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko".format(rel=shell.release()))
-        shell.run_command("mv fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko".format(rel=shell.release()))
-        shell.popd()
 
     shell.write_text_file("/boot/config.txt", """
 # --- added by adafruit-pitft-helper {date} ---
@@ -356,6 +380,9 @@ def install_fbcp():
     shell.popd()
     shell.run_command("rm -rf /tmp/rpi-fbcp-master")
 
+    if "fbcp_rotations" in pitft_config:
+        fbcp_rotations = pitft_config['fbcp_rotations']
+
     # Start fbcp in the appropriate place, depending on init system:
     if SYSTEMD:
         # Add fbcp to /etc/rc.local:
@@ -400,20 +427,19 @@ def install_fbcp():
 
     shell.reconfig("/boot/config.txt", "^.*hdmi_cvt.*$", "hdmi_cvt={} {} 60 1 0 0 0".format(WIDTH, HEIGHT))
 
-    if pitftrot == "90" or ("rotate" in pitft_config and not pitft_config['rotate']):
-        # dont rotate HDMI on 90
-        shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "")
+    try:
+        default_orientation = int(list(fbcp_rotations.keys())[list(fbcp_rotations.values()).index("0")])
+    except ValueError:
+        default_orientation = 90
 
-    if pitftrot in ("0", "180", "270"):
-        if pitftrot == "180":
-            display_rotate = "3"
-        elif pitftrot == "270":
-            display_rotate = "2"
-        else:
-            display_rotate = "1"
+    if fbcp_rotations[pitftrot] == "0":
+        # dont rotate HDMI on default orientation
+        shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "")
+    else:
+        display_rotate = fbcp_rotations[pitftrot]
         shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "display_hdmi_rotate={}".format(display_rotate))
         # Because we rotate HDMI we have to 'unrotate' the TFT by overriding pitftrot!
-        if not update_configtxt(90):
+        if not update_configtxt(default_orientation):
             shell.bail("Unable to update /boot/config.txt")
     return True
 
@@ -581,6 +607,17 @@ Run time of up to 5 minutes. Reboot required!
         ))
         pitftrot = PITFT_ROTATIONS[PITFT_ROTATE - 1]
 
+    if 'rotations' in pitft_config and isinstance(pitft_config['rotations'], dict) and pitftrot in pitft_config['rotations'] and pitft_config['rotations'][pitftrot] is None:
+        shell.bail("""Unfortunately {rotation} degrees for the {display} is not working at this time. Please
+restart the script and choose a different orientation.""".format(rotation=pitftrot, display=pitft_config["menulabel"]))
+
+    # Checking if kernel is pinned
+    if shell.exists('/etc/apt/preferences.d/99-adafruit-pin-kernel'):
+        shell.warn("WARNING! Script detected your system is currently pinned to an older kernel. The pin will be removed and your system will be updated.")
+        if not shell.prompt("Continue?"):
+            shell.exit()
+        shell.remove('/etc/apt/preferences.d/99-adafruit-pin-kernel')
+
     # check init system (technique borrowed from raspi-config):
     shell.info('Checking init system...')
     if shell.run_command("which systemctl", True) and shell.run_command("systemctl | grep '\-\.mount'", True):
@@ -611,6 +648,11 @@ Run time of up to 5 minutes. Reboot required!
     shell.info("Installing Python libraries & Software...")
     if not softwareinstall():
         shell.bail("Unable to install software")
+
+    if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
+        shell.info("Installing display drivers and device tree overlay...")
+        if not install_drivers():
+            shell.bail("Unable to install display drivers")
 
     shell.info("Updating /boot/config.txt...")
     if not update_configtxt():

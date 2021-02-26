@@ -43,7 +43,7 @@
                         #size-cells = <0>;
 
                         pitft: pitft@0{
-                				compatible = "sitronix,st7789v";
+				compatible = "sitronix,st7789v";
                                 reg = <0>;
                                 pinctrl-names = "default";
                                 pinctrl-0 = <&pitft_pins>;
