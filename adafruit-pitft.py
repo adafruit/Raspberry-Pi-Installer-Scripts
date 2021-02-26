@@ -237,7 +237,7 @@ def uninstall_etc_modules():
     shell.pattern_replace("/etc/modules", 'fbtft_device')
     return True
 
-def compile_driver():
+def install_drivers():
     """Compile display driver and overlay if required"""
     if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
         print("Compiling Device Tree Overlay")
@@ -260,9 +260,9 @@ def compile_driver():
         shell.pushd("st7789_module")
         if not shell.run_command("make"):
             warn_exit("Apt failed to compile ST7789V drivers!")
-        # Only back up if a copy doesn't already exist, so if script is ran more than once we don't lose the original
-        if not shell.exists("/lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release())):
-            shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release()))
+        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.BACK".format(rel=shell.release()))
+        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release()))
+        shell.run_command("mv st7789v_ada.ko /lib/modules/{rel}/kernel/drivers/gpu/drm/tiny/mi0283qt.ko".format(rel=shell.release()))
         shell.run_command("mv fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko".format(rel=shell.release()))
         shell.popd()
     return True
@@ -635,9 +635,9 @@ Run time of up to 5 minutes. Reboot required!
         shell.bail("Unable to install software")
 
     if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
-        shell.info("Compiling display driver and device tree overlay...")
-        if not compile_driver():
-            shell.bail("Unable to compile display driver or device tree overlay")
+        shell.info("Installing display drivers and device tree overlay...")
+        if not install_drivers():
+            shell.bail("Unable to install display drivers")
 
     shell.info("Updating /boot/config.txt...")
     if not update_configtxt():
