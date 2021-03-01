@@ -8,7 +8,17 @@ shell.group = 'ADAFRUIT'
 
 def main():
     shell.clear()
-    print("""This script will install Adafruit
+    if shell.is_raspberry_pi():
+        print("""This script will enable the Raspberry Pi
+fan service, which will turn on an
+external fan controlled by a given pin
+
+Operations performed include:
+- Enable Fan Service
+
+Run time < 1 minute. Reboot required.""")
+    else:
+        print("""This script will install Adafruit
 fan service, which will turn on an
 external fan controlled by a given pin
 
@@ -29,14 +39,26 @@ Run time < 1 minute. Reboot not required.""")
     shell.group = 'FAN'
     shell.info('Checking init system...')
     if shell.run_command("which systemctl", True) and shell.run_command("systemctl | grep '\-\.mount'", True):
-      print("Found systemd, OK!")
+        print("Found systemd, OK!")
     elif os.path.isfile("/etc/init.d/cron") and not os.path.islink("/etc/init.d/cron"):
-      shell.bail("Found sysvinit, but we require systemd")
+        shell.bail("Found sysvinit, but we require systemd")
     else:
-      shell.bail("Unrecognised init system")
+        shell.bail("Unrecognised init system")
 
-    shell.info('Adding adafruit_fan.service')
-    contents = """[Unit]
+    if shell.is_raspberry_pi():
+        shell.info('Enabling Raspberry Pi Fan Service on GPIO 4')
+        shell.run_command("sudo raspi-config nonint do_fan 0 4")
+        shell.info('Done!')
+        if not shell.prompt("REBOOT NOW?", default="y"):
+            print("Exiting without reboot.")
+            shell.exit()
+        print("Reboot started...")
+        os.sync()
+        shell.reboot()
+        shell.exit()
+    else:
+        shell.info('Adding adafruit_fan.service')
+        contents = """[Unit]
 Description=Fan service for some Adafruit boards
 After=network.target
 
@@ -52,14 +74,14 @@ StandardOutput=journal
 
 [Install]
 WantedBy=multi-user.target"""
-    shell.write_text_file("/etc/systemd/system/adafruit_fan.service", contents, append=False)
-    
-    shell.info('Enabling adafruit_fan.service')
-    shell.run_command("sudo systemctl enable adafruit_fan.service")
-    shell.run_command("sudo systemctl start adafruit_fan.service")
-    shell.info('Done!')
-    print("You can stop the fan service with 'sudo systemctl stop adafruit_fan.service'")
-    print("You can start the fan service with 'sudo systemctl start adafruit_fan.service'")
+        shell.write_text_file("/etc/systemd/system/adafruit_fan.service", contents, append=False)
+
+        shell.info('Enabling adafruit_fan.service')
+        shell.run_command("sudo systemctl enable adafruit_fan.service")
+        shell.run_command("sudo systemctl start adafruit_fan.service")
+        shell.info('Done!')
+        print("You can stop the fan service with 'sudo systemctl stop adafruit_fan.service'")
+        print("You can start the fan service with 'sudo systemctl start adafruit_fan.service'")
 
 
 # Main function
