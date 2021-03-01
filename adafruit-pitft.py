@@ -247,7 +247,7 @@ def install_drivers():
     """Compile display driver and overlay if required"""
     if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
         print("Compiling Device Tree Overlay")
-        shell.run_command("dtc -@ -I dts -O dtb -o {dest} {src}".format(dest=pitft_config['overlay_dest'], src=pitft_config['overlay_src']))
+        shell.run_command("dtc --warning no-unit_address_vs_reg -I dts -O dtb -o {dest} {src}".format(dest=pitft_config['overlay_dest'], src=pitft_config['overlay_src']))
 
     if pitft_config['kernel_upgrade']:
         print("############# UPGRADING KERNEL ###############")
@@ -356,6 +356,7 @@ def uninstall_console():
     return True
 
 def install_fbcp():
+    global fbcp_rotations
     print("Installing cmake...")
     if not shell.run_command("apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake", True):
         warn_exit("Apt failed to install software!")
