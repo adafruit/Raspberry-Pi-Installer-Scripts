@@ -106,12 +106,7 @@ Updating package index files...""")
 
 Settings take effect on next boot.
 """)
-    if not shell.prompt("REBOOT NOW?", default="n"):
-        print("Exiting without reboot.")
-        shell.exit()
-    print("Reboot started...")
-    shell.reboot()
-    shell.exit()
+    shell.prompt_reboot()
     
 # Main function
 if __name__ == "__main__":
