@@ -51,13 +51,7 @@ Run time < 1 minute. Reboot not required.""")
         shell.info('Enabling Raspberry Pi Fan Service on GPIO 4')
         shell.run_command("sudo raspi-config nonint do_fan 0 4")
         shell.info('Done!')
-        if not shell.prompt("REBOOT NOW?", default="y"):
-            print("Exiting without reboot.")
-            shell.exit()
-        print("Reboot started...")
-        os.sync()
-        shell.reboot()
-        shell.exit()
+        shell.prompt_reboot()
     else:
         shell.info('Adding adafruit_fan.service')
         contents = """[Unit]

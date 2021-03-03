@@ -52,6 +52,7 @@ Pin: version {}
 Pin-Priority:999
 
 """.format(package, version))
+    shell.prompt_reboot()
 
 # Main function
 if __name__ == "__main__":

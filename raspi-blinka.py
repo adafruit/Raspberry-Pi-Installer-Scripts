@@ -78,6 +78,7 @@ Raspberry Pi and installs Blinka
         shell.bail("Sorry. This script currently only runs on Raspberry Pi OS.")
     if not shell.is_python3():
         shell.bail("You must be running Python 3. Older versions have now been deprecated.")
+    shell.check_kernel_update_reboot_required()
     if default_python_version() < 3:
         shell.warn("WARNING Default System python version is {}. It will be updated to Version 3.".format(default_python_version(False)))
         default_python = 2
@@ -94,13 +95,7 @@ Raspberry Pi and installs Blinka
 
 Settings take effect on next boot.
 """)
-    if not shell.prompt("REBOOT NOW?", default="y"):
-        print("Exiting without reboot.")
-        shell.exit()
-    print("Reboot started...")
-    os.sync()
-    shell.reboot()
-    shell.exit()
+    shell.prompt_reboot()
 
 # Main function
 if __name__ == "__main__":
