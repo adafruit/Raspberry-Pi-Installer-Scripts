@@ -16,7 +16,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.1.0"
+__version__ = "3.1.1"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -174,6 +174,7 @@ fbcp_rotations = {
 PITFT_ROTATIONS = ("90", "180", "270", "0")
 UPDATE_DB = False
 SYSTEMD = None
+REMOVE_KERNEL_PINNING = False
 pitft_config = None
 pitftrot = None
 auto_reboot = None
@@ -612,12 +613,13 @@ Run time of up to 5 minutes. Reboot required!
         shell.bail("""Unfortunately {rotation} degrees for the {display} is not working at this time. Please
 restart the script and choose a different orientation.""".format(rotation=pitftrot, display=pitft_config["menulabel"]))
 
-    # Checking if kernel is pinned
-    if shell.exists('/etc/apt/preferences.d/99-adafruit-pin-kernel'):
-        shell.warn("WARNING! Script detected your system is currently pinned to an older kernel. The pin will be removed and your system will be updated.")
-        if not shell.prompt("Continue?"):
-            shell.exit()
-        shell.remove('/etc/apt/preferences.d/99-adafruit-pin-kernel')
+    if REMOVE_KERNEL_PINNING:
+        # Checking if kernel is pinned
+        if shell.exists('/etc/apt/preferences.d/99-adafruit-pin-kernel'):
+            shell.warn("WARNING! Script detected your system is currently pinned to an older kernel. The pin will be removed and your system will be updated.")
+            if not shell.prompt("Continue?"):
+                shell.exit()
+            shell.remove('/etc/apt/preferences.d/99-adafruit-pin-kernel')
 
     # check init system (technique borrowed from raspi-config):
     shell.info('Checking init system...')
