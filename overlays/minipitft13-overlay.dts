@@ -58,51 +58,7 @@
                         };
                 };
         };
-	
-        fragment@3 {
-                target-path = "/";
-                __overlay__ {
-                        keypad: tft_bonnet_keys {
-                                compatible = "gpio-keys";
 
-                                button@17 {
-                                        label = "Controller Up";
-                                        linux,code = <103>;
-                                        gpios = <&gpio 17 1>;
-                                };
-                                button@22 {
-                                        label = "Controller Down";
-                                        linux,code = <108>;
-                                        gpios = <&gpio 22 1>;
-                                };
-                                button@27 {
-                                        label = "Controller Left";
-                                        linux,code = <105>;
-                                        gpios = <&gpio 27 1>;
-                                };
-                                button@23 {
-                                        label = "Controller Right";
-                                        linux,code = <106>;
-                                        gpios = <&gpio 23 1>;
-                                };
-                                button@4 {
-                                        label = "Controller Center";
-                                        linux,code = <28>;
-                                        gpios = <&gpio 4 1>;
-                                };
-                                button@5 {
-                                        label = "Controller B";
-                                        linux,code = <48>;
-                                        gpios = <&gpio 5 1>;
-                                };
-                                button@6 {
-                                        label = "Controller A";
-                                        linux,code = <30>;
-                                        gpios = <&gpio 6 1>;
-                                };
-                        };
-                };
-        };
 
         __overrides__ {
                 speed =   <&pitft>,"spi-max-frequency:0";
