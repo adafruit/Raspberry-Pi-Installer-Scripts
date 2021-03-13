@@ -160,7 +160,24 @@ dtoverlay=pitft28-capacitive,{rotation}""",
             "180": "1",
             "270": "0",
         },
-   },
+    },
+    {
+        "type": "st7789v_bonnet_240x240",
+        "menulabel": "TFT 1.3\" Bonnet + Joystick",
+        "product": "1.3\" Joystick",
+        "kernel_upgrade": True,
+        "overlay_src": "overlays/tftbonnet13-overlay.dts",
+        "overlay_dest": "/boot/overlays/drm-tftbonnet13.dtbo",
+        "overlay": "dtoverlay=drm-tftbonnet13,rotate={pitftrot},fps=60",
+        "width": 240,
+        "height": 240,
+        "fbcp_rotations": {
+            "0": "0",
+            "90": "1",
+            "180": "2",
+            "270": "3",
+        },
+    },
 ]
 
 # default rotations
