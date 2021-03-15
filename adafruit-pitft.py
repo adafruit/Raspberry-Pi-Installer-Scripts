@@ -221,7 +221,7 @@ def softwareinstall():
     if not shell.run_command("apt-get install -y libts0", True):
         if not shell.run_command("apt-get install -y tslib"):
             warn_exit("Apt failed to install TSLIB!")
-    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler"):
+    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential"):
         warn_exit("Apt failed to install software!")
     if not shell.run_command("pip3 install evdev"):
         warn_exit("Pip failed to install software!")
