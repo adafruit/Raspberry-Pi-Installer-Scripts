@@ -12,6 +12,7 @@ import os
 shell = Shell()
 shell.group="Blinka"
 default_python = 3
+blinka_minimum_python_version = 3.6
 
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
@@ -19,6 +20,20 @@ def default_python_version(numeric=True):
         return float(version[0:version.rfind(".")])
     return version
 
+def get_python3_version(numeric=True):
+    version = shell.run_command("python3 -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
+    if numeric:
+        return float(version[0:version.rfind(".")])
+    return version
+
+def check_blinka_python_version():
+    """
+    Check the Python 3 version for Blinka (which may be a later version than we're running this script with)
+    """
+    print("Making sure the required version of Python is installed")
+    if get_python3_version() < blinka_minimum_python_version:
+        shell.bail("Blinka requires a minimum of Python version {} to install. Please update your OS!".format(blinka_minimum_python_version))
+    
 def sys_update():
     print("Updating System Packages")
     if not shell.run_command("sudo apt-get update"):
@@ -85,6 +100,7 @@ Raspberry Pi and installs Blinka
         if not shell.prompt("Continue?"):
             shell.exit()
     sys_update()
+    check_blinka_python_version()
     set_raspiconfig()
     update_python()
     update_pip()
