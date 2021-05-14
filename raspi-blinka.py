@@ -38,9 +38,6 @@ def sys_update():
     print("Updating System Packages")
     if not shell.run_command("sudo apt-get update"):
         shell.bail("Apt failed to update indexes!")
-    print("Upgrading packages...")
-    if not shell.run_command("sudo apt-get -y upgrade"):
-        shell.bail("Apt failed to install software!")
 
 def set_raspiconfig():
     """
