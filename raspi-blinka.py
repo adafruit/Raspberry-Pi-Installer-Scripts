@@ -34,10 +34,14 @@ def check_blinka_python_version():
     if get_python3_version() < blinka_minimum_python_version:
         shell.bail("Blinka requires a minimum of Python version {} to install. Please update your OS!".format(blinka_minimum_python_version))
     
-def sys_update():
+def sys_update():   
     print("Updating System Packages")
     if not shell.run_command("sudo apt-get update"):
         shell.bail("Apt failed to update indexes!")
+    if shell.prompt("Would you like to upgrade system packages now?", default="y"):
+        print("Upgrading packages...")
+        if not shell.run_command("sudo apt-get -y upgrade"):
+            shell.bail("Apt failed to install software!")        
 
 def set_raspiconfig():
     """
