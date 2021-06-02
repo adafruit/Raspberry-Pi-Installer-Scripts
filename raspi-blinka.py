@@ -33,7 +33,7 @@ def check_blinka_python_version():
     print("Making sure the required version of Python is installed")
     if get_python3_version() < blinka_minimum_python_version:
         shell.bail("Blinka requires a minimum of Python version {} to install. Please update your OS!".format(blinka_minimum_python_version))
-    
+
 def sys_update():
     print("Updating System Packages")
     if not shell.run_command("sudo apt-get update"):
@@ -89,8 +89,9 @@ Raspberry Pi and installs Blinka
     print("{} detected.\n".format(pi_model))
     if not shell.is_raspberry_pi():
         shell.bail("Non-Raspberry Pi board detected. This must be run on a Raspberry Pi")
-    if shell.get_os() != "Raspbian":
-        shell.bail("Sorry. This script currently only runs on Raspberry Pi OS.")
+    os_identifier = shell.get_os()
+    if os_identifier != "Raspbian":
+        shell.bail("Sorry, the OS detected was {}. This script currently only runs on Raspberry Pi OS.".format(os_identifier))
     if not shell.is_python3():
         shell.bail("You must be running Python 3. Older versions have now been deprecated.")
     shell.check_kernel_update_reboot_required()
