@@ -1,3 +1,4 @@
+import os
 try:
     from adafruit_shell import Shell
 except ImportError:
@@ -23,7 +24,9 @@ I2S microphone support.
     else:
         shell.bail("Unsupported Pi board detected.")
 
-    auto_load = shell.prompt("Auto load module at boot?")
+    auto_load = (
+        not shell.argument_exists('noautoload') and 
+        shell.prompt("Auto load module at boot?", force_arg="autoload"))
 
     print("""
 Installing...""")
@@ -59,7 +62,19 @@ Installing...""")
 
 Settings take effect on next boot.
 """)
-    shell.prompt_reboot()
+
+    # NOTE: shell.prompt_reboot() doesn't support force_arg or noreboot
+    should_reboot = (
+        not shell.argument_exists('noreboot') and 
+        shell.prompt("REBOOT NOW?", default="y", force_arg="reboot"))
+
+    if should_reboot:
+        print("Reboot started...")
+        os.sync()  # from Shell.prompt_reboot
+        shell.reboot()
+    else:
+        print("Exiting without reboot.")    
+    shell.exit()
 
 # Main function
 if __name__ == "__main__":
