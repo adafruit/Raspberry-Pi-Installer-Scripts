@@ -22,12 +22,13 @@ if [ `id -u` -ne 0 ]; then
 fi
 
 version=$1
+fileversion=$(echo $version | cut -d':' -f 2)
 base=http://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-firmware/
 packagelist="libraspberrypi0 libraspberrypi-bin libraspberrypi-dev libraspberrypi-doc raspberrypi-bootloader raspberrypi-kernel raspberrypi-kernel-headers"
 
 set --
 for package in $packagelist; do
-    filename="${package}_${version}_armhf.deb"
+    filename="${package}_${fileversion}_armhf.deb"
     set -- "$@" "$filename"
     wget --continue -O "$filename" "$base/$filename"
 done
@@ -35,5 +36,5 @@ done
 dpkg -i "$@"
 
 for package in $packagelist; do
-    /usr/bin/printf "Package: $package\nPin: version 1.20201126-1\nPin-Priority:999\n\n"
+    /usr/bin/printf "Package: $package\nPin: version ${version}\nPin-Priority:999\n\n"
 done > /etc/apt/preferences.d/99-adafruit-pin-kernel
