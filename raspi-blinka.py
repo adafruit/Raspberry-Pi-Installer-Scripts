@@ -12,6 +12,7 @@ import os
 shell = Shell()
 shell.group="Blinka"
 default_python = 3
+blinka_minimum_python_version = 3.6
 
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
@@ -19,14 +20,26 @@ def default_python_version(numeric=True):
         return float(version[0:version.rfind(".")])
     return version
 
+def get_python3_version(numeric=True):
+    version = shell.run_command("python3 -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
+    if numeric:
+        return float(version[0:version.rfind(".")])
+    return version
+
+def check_blinka_python_version():
+    """
+    Check the Python 3 version for Blinka (which may be a later version than we're running this script with)
+    """
+    print("Making sure the required version of Python is installed")
+    if get_python3_version() < blinka_minimum_python_version:
+        shell.bail("Blinka requires a minimum of Python version {} to install. Please update your OS!".format(blinka_minimum_python_version))
+
 def sys_update():
     print("Updating System Packages")
-    if not shell.run_command('sudo apt update', True):
-        shell.bail("Apt failed to update indexes!")
-    if not shell.run_command('sudo apt-get update', True):
+    if not shell.run_command("sudo apt-get update"):
         shell.bail("Apt failed to update indexes!")
     print("Upgrading packages...")
-    if not shell.run_command("sudo apt-get upgrade"):
+    if not shell.run_command("sudo apt-get -y upgrade"):
         shell.bail("Apt failed to install software!")
 
 def set_raspiconfig():
@@ -61,8 +74,10 @@ def update_pip():
 
 def install_blinka():
     print("Installing latest version of Blinka locally")
+    shell.run_command("sudo apt-get install -y i2c-tools")
+    shell.run_command("pip3 install --upgrade RPi.GPIO")
     shell.run_command("pip3 install --upgrade adafruit-blinka")
-    
+
 def main():
     global default_python
     shell.clear()
@@ -74,16 +89,19 @@ Raspberry Pi and installs Blinka
     print("{} detected.\n".format(pi_model))
     if not shell.is_raspberry_pi():
         shell.bail("Non-Raspberry Pi board detected. This must be run on a Raspberry Pi")
-    if shell.get_os() != "Raspbian":
-        shell.bail("Sorry. This script currently only runs on Raspberry Pi OS.")
+    os_identifier = shell.get_os()
+    if os_identifier != "Raspbian":
+        shell.bail("Sorry, the OS detected was {}. This script currently only runs on Raspberry Pi OS.".format(os_identifier))
     if not shell.is_python3():
         shell.bail("You must be running Python 3. Older versions have now been deprecated.")
+    shell.check_kernel_update_reboot_required()
     if default_python_version() < 3:
         shell.warn("WARNING Default System python version is {}. It will be updated to Version 3.".format(default_python_version(False)))
         default_python = 2
         if not shell.prompt("Continue?"):
             shell.exit()
     sys_update()
+    check_blinka_python_version()
     set_raspiconfig()
     update_python()
     update_pip()
@@ -94,13 +112,7 @@ Raspberry Pi and installs Blinka
 
 Settings take effect on next boot.
 """)
-    if not shell.prompt("REBOOT NOW?", default="y"):
-        print("Exiting without reboot.")
-        shell.exit()
-    print("Reboot started...")
-    os.sync()
-    shell.reboot()
-    shell.exit()
+    shell.prompt_reboot()
 
 # Main function
 if __name__ == "__main__":

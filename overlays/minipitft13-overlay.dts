@@ -43,7 +43,7 @@
                         #size-cells = <0>;
 
                         pitft: pitft@0{
-                				compatible = "sitronix,st7789v";
+				compatible = "sitronix,st7789v";
                                 reg = <0>;
                                 pinctrl-names = "default";
                                 pinctrl-0 = <&pitft_pins>;
@@ -54,7 +54,7 @@
                                 txbuflen = <32768>;
                                 buswidth = <8>;
                                 dc-gpios = <&gpio 25 0>;
-                                led-gpios = <&gpio 26 0>;
+                                led-gpios = <&gpio 26 1>;
                                 debug = <0>;
                         };
                 };

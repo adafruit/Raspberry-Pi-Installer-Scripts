@@ -18,7 +18,7 @@ I2S microphone support.
         pimodel_select = 0
     elif pi_model in ("RASPBERRY_PI_2B", "RASPBERRY_PI_3B", "RASPBERRY_PI_3B_PLUS", "RASPBERRY_PI_3A_PLUS"):
         pimodel_select = 1
-    elif pi_model in ("RASPBERRY_PI_4B", ):
+    elif pi_model in ("RASPBERRY_PI_4B", "RASPBERRY_PI_CM4"):
         pimodel_select = 2
     else:
         shell.bail("Unsupported Pi board detected.")
@@ -59,12 +59,7 @@ Installing...""")
 
 Settings take effect on next boot.
 """)
-    if not shell.prompt("REBOOT NOW?", default="n"):
-        print("Exiting without reboot.")
-        shell.exit()
-    print("Reboot started...")
-    shell.reboot()
-    shell.exit()
+    shell.prompt_reboot()
 
 # Main function
 if __name__ == "__main__":

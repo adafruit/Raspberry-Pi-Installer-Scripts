@@ -1,0 +1,115 @@
+/*
+ * Device Tree overlay for Adafruit TFT Bonnet 1.3" 240x240 Display + Joystick
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+        compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+        fragment@0 {
+                target = <&spi0>;
+                __overlay__ {
+                        status = "okay";
+
+                        spidev@0{
+                                status = "disabled";
+                        };
+
+                        spidev@1{
+                                status = "disabled";
+                        };
+                };
+        };
+
+        fragment@1 {
+                target = <&gpio>;
+                __overlay__ {
+                        pitft_pins: pitft_pins {
+                                brcm,pins = <25>;
+                                brcm,function = <1>; /* out */
+                                brcm,pull = <0>; /* none */
+                        };
+                };
+        };
+
+        fragment@2 {
+                target = <&spi0>;
+                __overlay__ {
+                        /* needed to avoid dtc warning */
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        pitft: pitft@0{
+                                compatible = "sitronix,st7789v";
+                                reg = <0>;
+                                pinctrl-names = "default";
+                                pinctrl-0 = <&pitft_pins>;
+                                spi-max-frequency = <32000000>;
+                                rotate = <0>;
+                                width = <240>;
+                                height = <240>;
+                                buswidth = <8>;
+                                dc-gpios = <&gpio 25 0>;
+                                led-gpios = <&gpio 26 1>;
+                                debug = <0>;
+                        };
+                };
+        };
+	
+        fragment@3 {
+                target-path = "/";
+                __overlay__ {
+                        keypad: tft_bonnet_keys {
+                                compatible = "gpio-keys";
+
+                                button@17 {
+                                        label = "Controller Up";
+                                        linux,code = <103>;
+                                        gpios = <&gpio 17 1>;
+                                };
+                                button@22 {
+                                        label = "Controller Down";
+                                        linux,code = <108>;
+                                        gpios = <&gpio 22 1>;
+                                };
+                                button@27 {
+                                        label = "Controller Left";
+                                        linux,code = <105>;
+                                        gpios = <&gpio 27 1>;
+                                };
+                                button@23 {
+                                        label = "Controller Right";
+                                        linux,code = <106>;
+                                        gpios = <&gpio 23 1>;
+                                };
+                                button@4 {
+                                        label = "Controller Center";
+                                        linux,code = <28>;
+                                        gpios = <&gpio 4 1>;
+                                };
+                                button@5 {
+                                        label = "Controller B";
+                                        linux,code = <48>;
+                                        gpios = <&gpio 5 1>;
+                                };
+                                button@6 {
+                                        label = "Controller A";
+                                        linux,code = <30>;
+                                        gpios = <&gpio 6 1>;
+                                };
+                        };
+                };
+        };
+
+        __overrides__ {
+                speed =   <&pitft>,"spi-max-frequency:0";
+                rotate =  <&pitft>,"rotate:0";
+                width =   <&pitft>,"width:0";
+                height =  <&pitft>,"height:0";
+                fps =     <&pitft>,"fps:0";
+                debug =   <&pitft>,"debug:0";
+        };
+};
