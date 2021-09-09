@@ -51,6 +51,7 @@
                                 rotate = <0>;
                                 width = <240>;
                                 height = <240>;
+                                txbuflen = <32768>;
                                 buswidth = <8>;
                                 dc-gpios = <&gpio 25 0>;
                                 led-gpios = <&gpio 26 1>;
