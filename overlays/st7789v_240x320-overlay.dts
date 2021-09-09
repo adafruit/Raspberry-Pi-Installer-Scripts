@@ -53,7 +53,7 @@
                                 height = <320>;
                                 buswidth = <8>;
                                 dc-gpios = <&gpio 25 0>;
-                                led-gpios = <&gpio 12 0>;
+                                led-gpios = <&gpio 12 1>;
                                 debug = <0>;
                         };
                 };
