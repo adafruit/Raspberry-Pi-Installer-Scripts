@@ -4,6 +4,7 @@ Adafruit PiTFT Installer Script
 """
 
 import time
+import os
 try:
     import click
 except ImportError:
@@ -432,6 +433,7 @@ def install_fbcp():
     shell.reconfig("/boot/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
     shell.reconfig("/boot/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig("/boot/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
+    shell.pattern_replace("/boot/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
     shell.pattern_replace("/boot/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
     # if there's X11 installed...
@@ -486,6 +488,7 @@ def uninstall_fbcp():
     shell.run_command("raspi-config nonint do_overscan 0")
     print("Configuring boot/config.txt for default HDMI")
     shell.reconfig("/boot/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=0")
+    shell.pattern_replace("/boot/config.txt", "^.*#.*dtoverlay=vc4-kms-v3d.*$", "dtoverlay=vc4-kms-v3d")
     shell.pattern_replace("/boot/config.txt", "^.*#.*dtoverlay=vc4-fkms-v3d.*$", "dtoverlay=vc4-fkms-v3d")
     shell.pattern_replace("/boot/config.txt", '^hdmi_group=2.*$')
     shell.pattern_replace("/boot/config.txt", '^hdmi_mode=87.*$')
