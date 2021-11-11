@@ -14,9 +14,9 @@ I2S microphone support.
         shell.bail("Non-Raspberry Pi board detected.")
     pi_model = shell.get_board_model()
     print("{} detected.\n".format(pi_model))
-    if pi_model in ("RASPBERRY_PI_ZERO", "RASPBERRY_PI_ZERO_W", "RASPBERRY_PI_ZERO_2_W"):
+    if pi_model in ("RASPBERRY_PI_ZERO", "RASPBERRY_PI_ZERO_W"):
         pimodel_select = 0
-    elif pi_model in ("RASPBERRY_PI_2B", "RASPBERRY_PI_3B", "RASPBERRY_PI_3B_PLUS", "RASPBERRY_PI_3A_PLUS"):
+    elif pi_model in ("RASPBERRY_PI_2B", "RASPBERRY_PI_3B", "RASPBERRY_PI_3B_PLUS", "RASPBERRY_PI_3A_PLUS", "RASPBERRY_PI_ZERO_2_W"):
         pimodel_select = 1
     elif pi_model in ("RASPBERRY_PI_4B", "RASPBERRY_PI_CM4"):
         pimodel_select = 2
