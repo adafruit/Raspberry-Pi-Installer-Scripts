@@ -36,7 +36,7 @@ def check_blinka_python_version():
 
 def sys_update():
     print("Updating System Packages")
-    if not shell.run_command("sudo apt-get update"):
+    if not shell.run_command("sudo apt-get update --allow-releaseinfo-change"):
         shell.bail("Apt failed to update indexes!")
     print("Upgrading packages...")
     if not shell.run_command("sudo apt-get -y upgrade"):
