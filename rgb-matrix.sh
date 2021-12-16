@@ -7,7 +7,8 @@
 # we reference a specific commit (update this as needed):
 GITUSER=https://github.com/hzeller
 REPO=rpi-rgb-led-matrix
-COMMIT=21410d2b0bac006b4a1661594926af347b3ce334
+COMMIT=45d3ab5d6cff6e0c14da58930d662822627471fc
+# Previously: COMMIT=21410d2b0bac006b4a1661594926af347b3ce334
 # Previously: COMMIT=e3dd56dcc0408862f39cccc47c1d9dea1b0fb2d2 
 
 if [ $(id -u) -ne 0 ]; then
