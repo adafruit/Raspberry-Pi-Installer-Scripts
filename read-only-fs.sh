@@ -1,5 +1,11 @@
 #!/bin/bash
 
+echo "NEWS: see https://learn.adafruit.com/read-only-raspberry-pi"
+echo "This script is deprecated, with better functionality now in"
+echo "the OS without hacks. It's being kept temporarily for reference."
+echo "You can edit this part out if you really need to run it."
+exit 0
+
 # CREDIT TO THESE TUTORIALS:
 # petr.io/en/blog/2015/11/09/read-only-raspberry-pi-with-jessie
 # hallard.me/raspberry-pi-read-only
