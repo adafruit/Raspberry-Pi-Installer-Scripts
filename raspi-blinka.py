@@ -17,7 +17,10 @@ blinka_minimum_python_version = 3.6
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
     if numeric:
-        return float(version[0:version.rfind(".")])
+        try:
+            return float(version[0:version.rfind(".")])
+        except ValueError:
+            return None
     return version
 
 def get_python3_version(numeric=True):
@@ -95,7 +98,13 @@ Raspberry Pi and installs Blinka
     if not shell.is_python3():
         shell.bail("You must be running Python 3. Older versions have now been deprecated.")
     shell.check_kernel_update_reboot_required()
-    if default_python_version() < 3:
+    python_version = default_python_version()
+    if not python_version:
+        shell.warn("WARNING No Default System python tied to the `python` command. It will be set to Version 3.")
+        default_python = 0
+        if not shell.prompt("Continue?"):
+            shell.exit()
+    elif default_python_version() < 3:
         shell.warn("WARNING Default System python version is {}. It will be updated to Version 3.".format(default_python_version(False)))
         default_python = 2
         if not shell.prompt("Continue?"):
