@@ -74,7 +74,7 @@ def update_pip():
 
 def install_blinka():
     print("Installing latest version of Blinka locally")
-    shell.run_command("sudo apt-get install -y i2c-tools")
+    shell.run_command("sudo apt-get install -y i2c-tools libgpiod-dev")
     shell.run_command("pip3 install --upgrade RPi.GPIO")
     shell.run_command("pip3 install --upgrade adafruit-blinka")
 
