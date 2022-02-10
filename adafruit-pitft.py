@@ -303,6 +303,7 @@ def update_configtxt(rotation_override=None):
 
     shell.write_text_file("/boot/config.txt", """
 # --- added by adafruit-pitft-helper {date} ---
+[all]
 hdmi_force_hotplug=1  # required for cases when HDMI is not plugged in!
 dtparam=spi=on
 dtparam=i2c1=on
