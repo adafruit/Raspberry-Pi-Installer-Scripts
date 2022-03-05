@@ -17,6 +17,9 @@ if [ $(id -u) -ne 0 ]; then
 	exit 1
 fi
 
+HAS_PYTHON2=$( [ ! $(which python2) ] ; echo $?)
+HAS_PYTHON3=$( [ ! $(which python3) ] ; echo $?)
+
 clear
 
 echo "This script installs software for the Adafruit"
@@ -205,7 +208,12 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Downloading prerequisites..."
-apt-get install -y --force-yes python2.7-dev python-pillow python3-dev python3-pillow
+if [ $HAS_PYTHON2 ]; then
+	apt-get install -y --force-yes python2.7-dev python-pillow
+fi
+if [ $HAS_PYTHON3 ]; then
+	apt-get install -y --force-yes python3-dev python3-pillow
+fi
 
 echo "Downloading RGB matrix software..."
 curl -L $GITUSER/$REPO/archive/$COMMIT.zip -o $REPO-$COMMIT.zip
@@ -223,20 +231,28 @@ USER_DEFINES=""
 #	USER_DEFINES+=" -DLED_ROWS=${MATRIX_HEIGHTS[$MATRIX_SIZE]}"
 #fi
 if [ $QUALITY_MOD -eq 0 ]; then
-	# Build and install for Python 2.7...
-	make clean
-	make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
-	# Do over for Python 3...
-	make clean
-	make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
+	if [ $HAS_PYTHON2 ]; then
+		# Build and install for Python 2.7...
+		make clean
+		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
+	fi
+	if [ $HAS_PYTHON3 ]; then
+		# Do over for Python 3...
+		make clean
+		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
+	fi
 else
-	# Build then install for Python 2.7...
 	USER_DEFINES+=" -DDISABLE_HARDWARE_PULSES"
-	make clean
-	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
-	# Do over for Python 3...
-	make clean
-	make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
+	if [ $HAS_PYTHON2 ]; then
+		# Build then install for Python 2.7...
+		make clean
+		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
+	fi
+	if [ $HAS_PYTHON3 ]; then
+		# Do over for Python 3...
+		make clean
+		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
+	fi
 fi
 # Change ownership to user calling sudo
 chown -R $SUDO_USER:$(id -g $SUDO_USER) `pwd`
