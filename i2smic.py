@@ -18,7 +18,7 @@ I2S microphone support.
         pimodel_select = 0
     elif pi_model in ("RASPBERRY_PI_2B", "RASPBERRY_PI_3B", "RASPBERRY_PI_3B_PLUS", "RASPBERRY_PI_3A_PLUS", "RASPBERRY_PI_ZERO_2_W"):
         pimodel_select = 1
-    elif pi_model in ("RASPBERRY_PI_4B", "RASPBERRY_PI_CM4"):
+    elif pi_model in ("RASPBERRY_PI_4B", "RASPBERRY_PI_CM4", "RASPBERRY_PI_400"):
         pimodel_select = 2
     else:
         shell.bail("Unsupported Pi board detected.")
