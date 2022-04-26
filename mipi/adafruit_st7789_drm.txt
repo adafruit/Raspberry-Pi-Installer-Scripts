@@ -1,0 +1,29 @@
+# Adafruit ST7789 MiniPiTFT LCD and TFT Bonnet
+# width=240,height=240
+
+command 0x01  # _SWRESET and Delay 150ms
+delay 150
+
+command 0x11  # _SLPOUT and Delay 10ms
+delay 10
+
+command 0x3A 0x55  # _COLMOD and Delay 10ms
+delay 10
+
+command 0x36 0x08  # _MADCTL Botton->Top Refresh
+command 0x21  # _INVON Hack and Delay 10ms
+delay 10
+
+command 0x13  # _NORON and Delay 10ms
+delay 10
+
+# Command 36h sets the read order from frame memory to the display panel
+# Remember to swap width/height on 90/270 rotations if required
+command 0x36 0x00 # rotation 0
+#command 0x36 0xA0 # rotation 90
+#command 0x36 0xC0 # rotation 180
+#command 0x36 0x60 # rotation 270
+
+command 0x29  # _DISPON and Delay 500ms
+delay 250
+delay 250

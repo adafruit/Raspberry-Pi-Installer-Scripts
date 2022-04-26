@@ -1,0 +1,53 @@
+/*
+ * Device Tree overlay for the Focaltech FT6236 capacitive 
+ * touch screen controller on the Adafruit PiTFT
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2835", "brcm,bcm2708", "brcm,bcm2709";
+
+    fragment@0 {
+        target = <&gpio>;
+        __overlay__ {
+            pitft_pins: pitft_pins {
+                brcm,pins = <24>;
+                brcm,function = <0>; /* in out */
+                brcm,pull = <2>; /* pullup none */
+            };
+        };
+    };
+
+    fragment@1 {
+        target = <&i2c1>;
+        __overlay__ {
+            /* needed to avoid dtc warning */
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            ft6236: ft6236@38 {
+                compatible = "focaltech,ft6236";
+                reg = <0x38>;
+
+                pinctrl-names = "default";
+                pinctrl-0 = <&pitft_pins>;
+
+                interrupt-parent = <&gpio>;
+                interrupts = <24 2>;
+                touchscreen-size-x = <240>;
+                touchscreen-size-y = <320>;
+            };
+        };
+    };
+
+    __overrides__ {
+        touch-sizex = <&ft6236>,"touchscreen-size-x?";
+        touch-sizey = <&ft6236>,"touchscreen-size-y?";
+        touch-invx  = <&ft6236>,"touchscreen-inverted-x?";
+        touch-invy  = <&ft6236>,"touchscreen-inverted-y?";
+        touch-swapxy = <&ft6236>,"touchscreen-swapped-x-y?";
+    };
+};
