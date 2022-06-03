@@ -17,7 +17,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -562,10 +562,15 @@ Settings take effect on next boot.
 
 ####################################################### MAIN
 target_homedir = "/home/pi"
+username = os.environ["SUDO_USER"]
+user_homedir = os.path.expanduser(f"~{username}")
+if shell.isdir(user_homedir):
+    target_homedir = user_homedir
+
 boot_dir = "/boot"
 @click.command()
 @click.option('-v', '--version', is_flag=True, callback=print_version, expose_value=False, is_eager=True, help="Print version information")
-@click.option('-u', '--user', nargs=1, default="/home/pi", type=str, help="Specify path of primary user's home directory", show_default=True)
+@click.option('-u', '--user', nargs=1, default=target_homedir, type=str, help="Specify path of primary user's home directory", show_default=True)
 @click.option('--display', nargs=1, default=None, help="Specify a display option (1-{}) or type {}".format(len(config), get_config_types()))
 @click.option('--rotation', nargs=1, default=None, type=int, help="Specify a rotation option (1-4) or degrees {}".format(tuple(sorted([int(x) for x in PITFT_ROTATIONS]))))
 @click.option('--install-type', nargs=1, default=None, type=click.Choice(['fbcp', 'console', 'uninstall']), help="Installation Type")
