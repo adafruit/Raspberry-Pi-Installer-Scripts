@@ -17,7 +17,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.1.1"
+__version__ = "3.2.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -117,7 +117,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "product": "1.54\" or 1.3\" no touch",
         "kernel_upgrade": True,
         "overlay_src": "overlays/minipitft13-overlay.dts",
-        "overlay_dest": "/boot/overlays/drm-minipitft13.dtbo",
+        "overlay_dest": "{boot_dir}/overlays/drm-minipitft13.dtbo",
         "overlay": "dtoverlay=drm-minipitft13,rotate={pitftrot},fps=60",
         "width": 240,
         "height": 240,
@@ -134,7 +134,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "product": "2.0\" no touch",
         "kernel_upgrade": True,
         "overlay_src": "overlays/st7789v_240x320-overlay.dts",
-        "overlay_dest": "/boot/overlays/drm-st7789v_240x320.dtbo",
+        "overlay_dest": "{boot_dir}/overlays/drm-st7789v_240x320.dtbo",
         "overlay": "dtoverlay=drm-st7789v_240x320,rotate={pitftrot},fps=30",
         "width": 320,
         "height": 240,
@@ -145,7 +145,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "product": "1.14\" no touch",
         "kernel_upgrade": True,
         "overlay_src": "overlays/minipitft114-overlay.dts",
-        "overlay_dest": "/boot/overlays/drm-minipitft114.dtbo",
+        "overlay_dest": "{boot_dir}/overlays/drm-minipitft114.dtbo",
         "overlay": "dtoverlay=drm-minipitft114,rotate={pitftrot},fps=60",
         "rotations": {
             "0": None,
@@ -168,7 +168,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "product": "1.3\" Joystick",
         "kernel_upgrade": True,
         "overlay_src": "overlays/tftbonnet13-overlay.dts",
-        "overlay_dest": "/boot/overlays/drm-tftbonnet13.dtbo",
+        "overlay_dest": "{boot_dir}/overlays/drm-tftbonnet13.dtbo",
         "overlay": "dtoverlay=drm-tftbonnet13,rotate={pitftrot},fps=60",
         "width": 240,
         "height": 240,
@@ -224,9 +224,9 @@ def sysupdate():
         print("Updating apt indexes...", end='')
         progress(3)
         if not shell.run_command('sudo apt update', True):
-            warn_exit("Apt failed to update indexes!")
+            warn_exit("Apt failed to update indexes! Try running 'sudo apt update' manually.")
         if not shell.run_command('sudo apt-get update', True):
-            warn_exit("Apt failed to update indexes!")
+            warn_exit("Apt failed to update indexes! Try running 'sudo apt-get update' manually.")
         print("Reading package lists...")
         progress(3)
         UPDATE_DB = True
@@ -248,11 +248,11 @@ def softwareinstall():
 
 def uninstall_bootconfigtxt():
     """Remove any old flexfb/fbtft stuff"""
-    if shell.pattern_search("/boot/config.txt", "adafruit-pitft-helper"):
-        print("Already have an adafruit-pitft-helper section in /boot/config.txt.")
+    if shell.pattern_search(f"{boot_dir}/config.txt", "adafruit-pitft-helper"):
+        print(f"Already have an adafruit-pitft-helper section in {boot_dir}/config.txt.")
         print("Removing old section...")
-        shell.run_command("cp /boot/config.txt /boot/configtxt.bak")
-        shell.pattern_replace("/boot/config.txt", '\n# --- added by adafruit-pitft-helper.*?\n# --- end adafruit-pitft-helper.*?\n', multi_line=True)
+        shell.run_command(f"cp {boot_dir}/config.txt {boot_dir}/configtxt.bak")
+        shell.pattern_replace(f"{boot_dir}/config.txt", '\n# --- added by adafruit-pitft-helper.*?\n# --- end adafruit-pitft-helper.*?\n', multi_line=True)
     return True
 
 def uninstall_etc_modules():
@@ -267,7 +267,8 @@ def install_drivers():
     """Compile display driver and overlay if required"""
     if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
         print("Compiling Device Tree Overlay")
-        shell.run_command("dtc --warning no-unit_address_vs_reg -I dts -O dtb -o {dest} {src}".format(dest=pitft_config['overlay_dest'], src=pitft_config['overlay_src']))
+        destination = pitft_config['overlay_dest'].format(boot_dir=boot_dir)
+        shell.run_command("dtc --warning no-unit_address_vs_reg -I dts -O dtb -o {dest} {src}".format(dest=destination, src=pitft_config['overlay_src']))
 
     if pitft_config['kernel_upgrade']:
         print("############# UPGRADING KERNEL ###############")
@@ -292,7 +293,7 @@ def install_drivers():
     return True
 
 def update_configtxt(rotation_override=None):
-    """update /boot/config.txt with appropriate values"""
+    """update /boot/config.txt (or equivalent folder) with appropriate values"""
     uninstall_bootconfigtxt()
     uninstall_etc_modules()
     overlay = pitft_config['overlay']
@@ -302,7 +303,7 @@ def update_configtxt(rotation_override=None):
     if "{rotation}" in overlay and isinstance(pitft_config['rotations'], dict) and pitft_config['rotations'][pitftrot] is not None:
         overlay = overlay.format(rotation=pitft_config['rotations'][pitftrot])
 
-    shell.write_text_file("/boot/config.txt", """
+    shell.write_text_file(f"{boot_dir}/config.txt", """
 # --- added by adafruit-pitft-helper {date} ---
 [all]
 hdmi_force_hotplug=1  # required for cases when HDMI is not plugged in!
@@ -337,11 +338,11 @@ def update_pointercal():
 
 def install_console():
     print("Set up main console turn on")
-    if not shell.pattern_search("/boot/cmdline.txt", 'fbcon=map:10 fbcon=font:VGA8x8'):
-        print("Updating /boot/cmdline.txt")
-        shell.pattern_replace("/boot/cmdline.txt", "rootwait", "rootwait fbcon=map:10 fbcon=font:VGA8x8")
+    if not shell.pattern_search(f"{boot_dir}/cmdline.txt", 'fbcon=map:10 fbcon=font:VGA8x8'):
+        print(f"Updating {boot_dir}/cmdline.txt")
+        shell.pattern_replace(f"{boot_dir}/cmdline.txt", "rootwait", "rootwait fbcon=map:10 fbcon=font:VGA8x8")
     else:
-        print("/boot/cmdline.txt already updated")
+        print(f"{boot_dir}/cmdline.txt already updated")
 
     print("Turning off console blanking")
 
@@ -367,11 +368,11 @@ def install_console():
     return True
 
 def uninstall_console():
-    print("Removing console fbcon map from /boot/cmdline.txt")
-    shell.pattern_replace("/boot/cmdline.txt", 'rootwait fbcon=map:10 fbcon=font:VGA8x8', 'rootwait')
+    print(f"Removing console fbcon map from {boot_dir}/cmdline.txt")
+    shell.pattern_replace(f"{boot_dir}/cmdline.txt", 'rootwait fbcon=map:10 fbcon=font:VGA8x8', 'rootwait')
     print("Screen blanking time reset to 10 minutes")
     if shell.exists("/etc/kbd/config"):
-        shell.pattern_replace("/boot/cmdline.txt", 'BLANK_TIME=0', 'BLANK_TIME=10')
+        shell.pattern_replace(f"{boot_dir}/cmdline.txt", 'BLANK_TIME=0', 'BLANK_TIME=10')
     shell.pattern_replace("/etc/rc.local", '^# disable console blanking.*')
     shell.pattern_replace("/etc/rc.local", '^sudo sh -c "TERM=linux.*')
     return True
@@ -432,11 +433,11 @@ def install_fbcp():
     shell.run_command("raspi-config nonint do_overscan 1")
     # Set up HDMI parameters:
     print("Configuring boot/config.txt for forced HDMI")
-    shell.reconfig("/boot/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
-    shell.reconfig("/boot/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
-    shell.reconfig("/boot/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
-    shell.pattern_replace("/boot/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
-    shell.pattern_replace("/boot/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
+    shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
+    shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
+    shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
+    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
+    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
     # if there's X11 installed...
     scale = 1
@@ -448,7 +449,7 @@ def install_fbcp():
     WIDTH = int(pitft_config['width'] * scale)
     HEIGHT = int(pitft_config['height'] * scale)
 
-    shell.reconfig("/boot/config.txt", "^.*hdmi_cvt.*$", "hdmi_cvt={} {} 60 1 0 0 0".format(WIDTH, HEIGHT))
+    shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_cvt.*$", "hdmi_cvt={} {} 60 1 0 0 0".format(WIDTH, HEIGHT))
 
     try:
         default_orientation = int(list(fbcp_rotations.keys())[list(fbcp_rotations.values()).index("0")])
@@ -457,13 +458,13 @@ def install_fbcp():
 
     if fbcp_rotations[pitftrot] == "0":
         # dont rotate HDMI on default orientation
-        shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "")
+        shell.reconfig(f"{boot_dir}/config.txt", "^.*display_hdmi_rotate.*$", "")
     else:
         display_rotate = fbcp_rotations[pitftrot]
-        shell.reconfig("/boot/config.txt", "^.*display_hdmi_rotate.*$", "display_hdmi_rotate={}".format(display_rotate))
+        shell.reconfig(f"{boot_dir}/config.txt", "^.*display_hdmi_rotate.*$", "display_hdmi_rotate={}".format(display_rotate))
         # Because we rotate HDMI we have to 'unrotate' the TFT by overriding pitftrot!
         if not update_configtxt(default_orientation):
-            shell.bail("Unable to update /boot/config.txt")
+            shell.bail(f"Unable to update {boot_dir}/config.txt")
     return True
 
 def install_fbcp_unit():
@@ -489,12 +490,12 @@ def uninstall_fbcp():
     # Set up HDMI parameters:
     shell.run_command("raspi-config nonint do_overscan 0")
     print("Configuring boot/config.txt for default HDMI")
-    shell.reconfig("/boot/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=0")
-    shell.pattern_replace("/boot/config.txt", "^.*#.*dtoverlay=vc4-kms-v3d.*$", "dtoverlay=vc4-kms-v3d")
-    shell.pattern_replace("/boot/config.txt", "^.*#.*dtoverlay=vc4-fkms-v3d.*$", "dtoverlay=vc4-fkms-v3d")
-    shell.pattern_replace("/boot/config.txt", '^hdmi_group=2.*$')
-    shell.pattern_replace("/boot/config.txt", '^hdmi_mode=87.*$')
-    shell.pattern_replace("/boot/config.txt", '^hdmi_cvt=.*$')
+    shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=0")
+    shell.pattern_replace(f"{boot_dir}/config.txt", "^.*#.*dtoverlay=vc4-kms-v3d.*$", "dtoverlay=vc4-kms-v3d")
+    shell.pattern_replace(f"{boot_dir}/config.txt", "^.*#.*dtoverlay=vc4-fkms-v3d.*$", "dtoverlay=vc4-fkms-v3d")
+    shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_group=2.*$')
+    shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_mode=87.*$')
+    shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_cvt=.*$')
     return True
 
 def uninstall_fbcp_rclocal():
@@ -561,6 +562,7 @@ Settings take effect on next boot.
 
 ####################################################### MAIN
 target_homedir = "/home/pi"
+boot_dir = "/boot"
 @click.command()
 @click.option('-v', '--version', is_flag=True, callback=print_version, expose_value=False, is_eager=True, help="Print version information")
 @click.option('-u', '--user', nargs=1, default="/home/pi", type=str, help="Specify path of primary user's home directory", show_default=True)
@@ -568,12 +570,19 @@ target_homedir = "/home/pi"
 @click.option('--rotation', nargs=1, default=None, type=int, help="Specify a rotation option (1-4) or degrees {}".format(tuple(sorted([int(x) for x in PITFT_ROTATIONS]))))
 @click.option('--install-type', nargs=1, default=None, type=click.Choice(['fbcp', 'console', 'uninstall']), help="Installation Type")
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
-def main(user, display, rotation, install_type, reboot):
-    global target_homedir, pitft_config, pitftrot, auto_reboot
+@click.option('--boot', nargs=1, default="/boot", type=str, help="Specify the boot directory", show_default=True)
+def main(user, display, rotation, install_type, reboot, boot):
+    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir
     shell.clear()
     if user != target_homedir:
         target_homedir = user
-        print("Homedir = {}".format(target_homedir))
+        print(f"Homedir = {target_homedir}")
+    if boot != boot_dir:
+        if shell.isdir(boot):
+            boot_dir = boot
+            print(f"Boot dir = {boot_dir}")
+        else:
+            print(f"{boot} not found or not a directory. Using {boot_dir} instead.")
 
     print("""This script downloads and installs
 PiTFT Support using userspace touch
@@ -679,9 +688,9 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
         if not install_drivers():
             shell.bail("Unable to install display drivers")
 
-    shell.info("Updating /boot/config.txt...")
+    shell.info(f"Updating {boot_dir}/config.txt...")
     if not update_configtxt():
-        shell.bail("Unable to update /boot/config.txt")
+        shell.bail(f"Unable to update {boot_dir}/config.txt")
 
     if "touchscreen" in pitft_config:
         shell.info("Updating SysFS rules for Touchscreen...")
