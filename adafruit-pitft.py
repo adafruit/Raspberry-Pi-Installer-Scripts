@@ -118,7 +118,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "kernel_upgrade": True,
         "overlay_src": "overlays/minipitft13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft13.dtbo",
-        "overlay": "dtoverlay=drm-minipitft13,rotate={pitftrot},fps=60",
+        "overlay": "dtoverlay=drm-minipitft13,rotation={pitftrot},fps=60",
         "width": 240,
         "height": 240,
         "fbcp_rotations": {
@@ -146,7 +146,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "kernel_upgrade": True,
         "overlay_src": "overlays/minipitft114-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft114.dtbo",
-        "overlay": "dtoverlay=drm-minipitft114,rotate={pitftrot},fps=60",
+        "overlay": "dtoverlay=drm-minipitft114,rotation={pitftrot},fps=60",
         "rotations": {
             "0": None,
             "90": "90",
@@ -169,7 +169,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "kernel_upgrade": True,
         "overlay_src": "overlays/tftbonnet13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-tftbonnet13.dtbo",
-        "overlay": "dtoverlay=drm-tftbonnet13,rotate={pitftrot},fps=60",
+        "overlay": "dtoverlay=drm-tftbonnet13,rotation={pitftrot},fps=60",
         "width": 240,
         "height": 240,
         "fbcp_rotations": {
@@ -600,7 +600,7 @@ Run time of up to 5 minutes. Reboot required!
 
     if install_type == "uninstall":
         uninstall()
-        
+
     if display in [str(x) for x in range(1, len(config) + 1)]:
         pitft_config = config[int(display) - 1]
         print("Display Type: {}".format(pitft_config["menulabel"]))
