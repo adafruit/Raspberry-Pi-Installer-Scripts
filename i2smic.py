@@ -1,4 +1,3 @@
-import os
 try:
     from adafruit_shell import Shell
 except ImportError:
