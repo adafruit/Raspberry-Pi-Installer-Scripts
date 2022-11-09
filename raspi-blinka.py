@@ -17,7 +17,10 @@ blinka_minimum_python_version = 3.6
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
     if numeric:
-        return float(version[0:version.rfind(".")])
+        try:
+            return float(version[0:version.rfind(".")])
+        except ValueError:
+            return None
     return version
 
 def get_python3_version(numeric=True):
@@ -33,10 +36,10 @@ def check_blinka_python_version():
     print("Making sure the required version of Python is installed")
     if get_python3_version() < blinka_minimum_python_version:
         shell.bail("Blinka requires a minimum of Python version {} to install. Please update your OS!".format(blinka_minimum_python_version))
-    
+
 def sys_update():
     print("Updating System Packages")
-    if not shell.run_command("sudo apt-get update"):
+    if not shell.run_command("sudo apt-get update --allow-releaseinfo-change"):
         shell.bail("Apt failed to update indexes!")
     print("Upgrading packages...")
     if not shell.run_command("sudo apt-get -y upgrade"):
@@ -74,7 +77,7 @@ def update_pip():
 
 def install_blinka():
     print("Installing latest version of Blinka locally")
-    shell.run_command("sudo apt-get install -y i2c-tools")
+    shell.run_command("sudo apt-get install -y i2c-tools libgpiod-dev")
     shell.run_command("pip3 install --upgrade RPi.GPIO")
     shell.run_command("pip3 install --upgrade adafruit-blinka")
 
@@ -89,12 +92,19 @@ Raspberry Pi and installs Blinka
     print("{} detected.\n".format(pi_model))
     if not shell.is_raspberry_pi():
         shell.bail("Non-Raspberry Pi board detected. This must be run on a Raspberry Pi")
-    if shell.get_os() != "Raspbian":
-        shell.bail("Sorry. This script currently only runs on Raspberry Pi OS.")
+    os_identifier = shell.get_os()
+    if os_identifier != "Raspbian":
+        shell.bail("Sorry, the OS detected was {}. This script currently only runs on Raspberry Pi OS.".format(os_identifier))
     if not shell.is_python3():
         shell.bail("You must be running Python 3. Older versions have now been deprecated.")
     shell.check_kernel_update_reboot_required()
-    if default_python_version() < 3:
+    python_version = default_python_version()
+    if not python_version:
+        shell.warn("WARNING No Default System python tied to the `python` command. It will be set to Version 3.")
+        default_python = 0
+        if not shell.prompt("Continue?"):
+            shell.exit()
+    elif default_python_version() < 3:
         shell.warn("WARNING Default System python version is {}. It will be updated to Version 3.".format(default_python_version(False)))
         default_python = 2
         if not shell.prompt("Continue?"):

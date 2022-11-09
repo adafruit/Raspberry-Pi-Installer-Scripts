@@ -31,10 +31,10 @@ forcesudo="no" # whether the script requires to be ran with root privileges
 promptreboot="no" # whether the script should always prompt user to reboot
 mininstall="no" # whether the script enforces minimum install routine
 customcmd="yes" # whether to execute commands specified before exit
-armhfonly="yes" # whether the script is allowed to run on other arch
 armv6="yes" # whether armv6 processors are supported
 armv7="yes" # whether armv7 processors are supported
 armv8="yes" # whether armv8 processors are supported
+arm64="yes" # whether arm64 processors are supported
 raspbianonly="no" # whether the script is allowed to run on other OSes
 osreleases=( "Raspbian" ) # list os-releases supported
 oswarning=( "Debian" "Kano" "Mate" "PiTop" "Ubuntu" ) # list experimental os-releases
@@ -139,9 +139,13 @@ sysreboot() {
 }
 
 arch_check() {
+    IS_ARM64=false
     IS_ARMHF=false
     IS_ARMv6=false
 
+    if uname -m | grep "aarch64" > /dev/null; then
+        IS_ARM64=true
+    fi
     if uname -m | grep "armv.l" > /dev/null; then
         IS_ARMHF=true
         if uname -m | grep "armv6l" > /dev/null; then
@@ -228,10 +232,12 @@ raspbian_check() {
     if [ -f /etc/os-release ]; then
         if cat /etc/os-release | grep "/sid" > /dev/null; then
             IS_SUPPORTED=false && IS_EXPERIMENTAL=true
+        elif cat /etc/os-release | grep "bullseye" > /dev/null; then
+            IS_SUPPORTED=false && IS_EXPERIMENTAL=true
         elif cat /etc/os-release | grep "buster" > /dev/null; then
-            IS_SUPPORTED=false && IS_EXPERIMENTAL=true
+            IS_SUPPORTED=false && IS_EXPERIMENTAL=false
         elif cat /etc/os-release | grep "stretch" > /dev/null; then
-            IS_SUPPORTED=false && IS_EXPERIMENTAL=true
+            IS_SUPPORTED=false && IS_EXPERIMENTAL=false
         elif cat /etc/os-release | grep "jessie" > /dev/null; then
             IS_SUPPORTED=true && IS_EXPERIMENTAL=false
         elif cat /etc/os-release | grep "wheezy" > /dev/null; then
@@ -263,13 +269,16 @@ if [ $debugmode != "no" ]; then
     newline
 fi
 
-if ! $IS_ARMHF; then
+if ! $IS_ARMHF && ! $IS_ARM64; then
     warning "This hardware is not supported, sorry!"
     warning "Config files have been left untouched"
     newline && exit 1
 fi
 
-if $IS_ARMv8 && [ $armv8 == "no" ]; then
+if $IS_ARM64 && [ $arm64 == "no" ]; then
+    warning "Sorry, your CPU is not supported by this installer"
+    newline && exit 1
+elif $IS_ARMv8 && [ $armv8 == "no" ]; then
     warning "Sorry, your CPU is not supported by this installer"
     newline && exit 1
 elif $IS_ARMv7 && [ $armv7 == "no" ]; then

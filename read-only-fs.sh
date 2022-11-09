@@ -1,5 +1,11 @@
 #!/bin/bash
 
+echo "NEWS: see https://learn.adafruit.com/read-only-raspberry-pi"
+echo "This script is deprecated, with better functionality now in"
+echo "the OS without hacks. It's being kept temporarily for reference."
+echo "You can edit this part out if you really need to run it."
+exit 0
+
 # CREDIT TO THESE TUTORIALS:
 # petr.io/en/blog/2015/11/09/read-only-raspberry-pi-with-jessie
 # hallard.me/raspberry-pi-read-only
@@ -284,17 +290,22 @@ replace /usr/lib/tmpfiles.d/var.conf "spool\s*0755" "spool 1777"
 touch /tmp/dhcpcd.resolv.conf
 rm /etc/resolv.conf
 ln -s /tmp/dhcpcd.resolv.conf /etc/resolv.conf
+# systemd-ntp must use systemwide /tmp to access /tmp/dhcpcd.resolv.conf
+replace /lib/systemd/system/ntp.service "PrivateTmp=true" "PrivateTmp=false"
 
 # Make edits to fstab
 # make / ro
 # tmpfs /var/log tmpfs nodev,nosuid 0 0
 # tmpfs /var/tmp tmpfs nodev,nosuid 0 0
 # tmpfs /tmp     tmpfs nodev,nosuid 0 0
-replace /etc/fstab "vfat\s*defaults\s" "vfat    defaults,ro "
-replace /etc/fstab "ext4\s*defaults,noatime\s" "ext4    defaults,noatime,ro "
+replace /etc/fstab "vfat\s*defaults\s.*" "vfat    defaults,ro\t0\t0"
+replace /etc/fstab "ext4\s*defaults,noatime\s.*" "ext4    defaults,noatime,ro\t0\t0"
 append1 /etc/fstab "/var/log" "tmpfs /var/log tmpfs nodev,nosuid 0 0"
 append1 /etc/fstab "/var/tmp" "tmpfs /var/tmp tmpfs nodev,nosuid 0 0"
 append1 /etc/fstab "\s/tmp"   "tmpfs /tmp    tmpfs nodev,nosuid 0 0"
+
+# Stop vim creating tmp files in ~/.viminfo (ro)
+echo 'set viminfo=""' >>/etc/vim/vimrc.local
 
 # PROMPT FOR REBOOT --------------------------------------------------------
 
