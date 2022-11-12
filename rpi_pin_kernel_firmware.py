@@ -7,7 +7,6 @@ try:
     from adafruit_shell import Shell
 except ImportError:
     raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
-import os
 
 shell = Shell()
 shell.group = 'PINNING'
@@ -39,19 +38,18 @@ def main():
     ]
     new_packages = []
     for package in packagelist:
-        filename = "{}_{}_armhf.deb".format(package, version)
+        filename = f"{package}_{version}_armhf.deb"
         new_packages.append(filename)
         shell.run_command("wget --continue -O {} {}".format(filename, base + filename))
 
     shell.run_command("dpkg -i " + " ".join(new_packages))
 
     for package in packagelist:
-        write_text_file("/etc/apt/preferences.d/99-adafruit-pin-kernel",
-"""Package: {}
-Pin: version {}
-Pin-Priority:999
-
-""".format(package, version))
+        shell.write_text_file("/etc/apt/preferences.d/99-adafruit-pin-kernel", (
+            f"Package: {package}\n"
+            f"Pin: version {version}\n"
+            f"Pin-Priority:999\n\n"
+        ))
     shell.prompt_reboot()
 
 # Main function
