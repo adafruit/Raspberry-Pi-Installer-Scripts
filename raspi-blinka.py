@@ -7,12 +7,11 @@ try:
     from adafruit_shell import Shell
 except ImportError:
     raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
-import os
 
 shell = Shell()
 shell.group="Blinka"
 default_python = 3
-blinka_minimum_python_version = 3.6
+blinka_minimum_python_version = 3.7
 
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
