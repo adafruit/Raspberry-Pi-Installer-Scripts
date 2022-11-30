@@ -1,0 +1,67 @@
+name: 🐞 Bug Report
+description: Create a bug report to help us improve
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thanks! for using the installer scripts. Now that you have encountered a
+        bug... you can file a report for it.
+  - type: textarea
+    id: script
+    attributes:
+      label: Script Command
+      description: >-
+        Include the exact command you're running with any parameters. There are quite
+        a handful of scripts and knowing which one is helpful. :)
+      placeholder: sudo python3 adafruit-pitft.py --display=28r --rotation=90 --install-type=console
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: os
+    attributes:
+      label: Operating System
+      description: Which OS was the script running under? Include details such as if it
+      was 32 or 64-bit, Whether it was the Lite of Full Desktop version. If it's on an older or newer
+      kernel, include that as well.
+      placeholder: |
+        64-bit Raspberry Pi OS Lite with Bullseye
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: This is the board or computer you are running the script on.
+      placeholder: |
+        Raspberry Pi 4B
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Behavior
+      description: What happens when you run the script above? Include error messages (if any).
+      placeholder: |
+        An error occurs at line 459 with this message...
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Optionally, describe the bug in more detail.
+      placeholder: |
+        - I selected options 1, then 3, then 4...
+        - Only happens when...
+        - might be related to #123...
+  - type: textarea
+    id: more-info
+    attributes:
+      label: Additional information
+      description: >-
+        Optionally, add any other information like hardware connection, scope
+        output etc. If you have already done some debugging, mention it here.
+      placeholder: Removing [this](url) line resolves the issue.

@@ -1,3 +1,10 @@
+"""
+Adafruit Raspberry Pi Joy Bonnet Setup Script
+(C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike
+
+Converted to Python by Melissa LeBlanc-Williams for Adafruit Industries
+"""
+
 try:
     from adafruit_shell import Shell
 except ImportError:
@@ -107,7 +114,7 @@ Updating package index files...""")
 Settings take effect on next boot.
 """)
     shell.prompt_reboot()
-    
+
 # Main function
 if __name__ == "__main__":
     shell.require_root()

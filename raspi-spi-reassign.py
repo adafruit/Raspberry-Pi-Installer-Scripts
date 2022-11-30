@@ -6,12 +6,11 @@ Adafruit Raspberry Pi SPI Chip Enable Reassignment Script
 try:
     import click
 except ImportError:
-    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install Click")
+    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install --upgrade click")
 try:
     from adafruit_shell import Shell
 except ImportError:
     raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
-import os
 
 shell = Shell()
 shell.group="SPI Reassign"
