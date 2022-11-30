@@ -23,9 +23,10 @@ body:
     id: os
     attributes:
       label: Operating System
-      description: Which OS was the script running under? Include details such as if it
-      was 32 or 64-bit, Whether it was the Lite of Full Desktop version. If it's on an older or newer
-      kernel, include that as well.
+      description: >-
+        Which OS was the script running under? Include details such as if it
+        was 32 or 64-bit, Whether it was the Lite of Full Desktop version. If it's on an older or newer
+        kernel, include that as well.
       placeholder: |
         64-bit Raspberry Pi OS Lite with Bullseye
     validations:
