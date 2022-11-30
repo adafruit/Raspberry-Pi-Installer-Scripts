@@ -8,7 +8,7 @@
 try:
     import click
 except ImportError:
-    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install Click==7.0")
+    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install --upgrade click")
 try:
     from adafruit_shell import Shell
 except ImportError:

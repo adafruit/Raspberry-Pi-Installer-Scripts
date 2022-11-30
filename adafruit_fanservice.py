@@ -1,3 +1,10 @@
+"""
+Adafruit Raspberry Pi Fan Service Setup Script
+(C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike
+
+Converted to Python by Melissa LeBlanc-Williams for Adafruit Industries
+"""
+
 import os
 
 try:

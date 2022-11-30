@@ -1,6 +1,8 @@
 """
-Adafruit PiTFT Installer Script
+Adafruit PiTFT MIPI Display Installer Script
 (C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike
+
+Written by Melissa LeBlanc-Williams for Adafruit Industries
 """
 
 import time
@@ -8,7 +10,7 @@ import os
 try:
     import click
 except ImportError:
-    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install Click")
+    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install --upgrade click")
 try:
     from adafruit_shell import Shell
 except ImportError:
@@ -352,7 +354,7 @@ def update_pointercal():
 
 def install_mipi():
     global mipi_data
-    
+
     if "mipi_data" in pitft_config:
         mipi_data.update(pitft_config['mipi_data'])
     if not compile_display_fw():
