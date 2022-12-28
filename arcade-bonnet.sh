@@ -110,7 +110,7 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Installing Python libraries..."
-apt-get install -y python3-pip python3-dev
+apt-get install -y python3-pip
 pip3 install evdev smbus
 
 echo "Installing Adafruit code in /boot..."
