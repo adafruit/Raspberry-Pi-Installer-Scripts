@@ -110,8 +110,8 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Installing Python libraries..."
-apt-get install -y --force-yes python-pip python-dev python-smbus
-pip install evdev
+apt-get install -y python3-pip
+pip3 install evdev smbus
 
 echo "Installing Adafruit code in /boot..."
 cd /tmp
@@ -158,10 +158,10 @@ fi
 grep arcadeBonnet.py /etc/rc.local >/dev/null
 if [ $? -eq 0 ]; then
 	# arcadeBonnet.py already in rc.local, but make sure correct:
-	sed -i "s/^.*arcadeBonnet.py.*$/cd \/boot;python arcadeBonnet.py \&/g" /etc/rc.local >/dev/null
+	sed -i "s/^.*arcadeBonnet.py.*$/cd \/boot;python3 arcadeBonnet.py \&/g" /etc/rc.local >/dev/null
 else
 	# Insert arcadeBonnet.py into rc.local before final 'exit 0'
-sed -i "s/^exit 0/cd \/boot;python arcadeBonnet.py \&\\nexit 0/g" /etc/rc.local >/dev/null
+sed -i "s/^exit 0/cd \/boot;python3 arcadeBonnet.py \&\\nexit 0/g" /etc/rc.local >/dev/null
 fi
 
 # Add udev rule (will overwrite if present)
