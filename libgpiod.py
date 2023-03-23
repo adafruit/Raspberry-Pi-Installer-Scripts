@@ -1,9 +1,7 @@
 # Instructions!
 # cd ~
 # sudo apt-get install python3-pip
-# sudo pip3 install --upgrade adafruit-python3-shell click 
-#   => NOTE: if the adafruit library fails, try installing
-#            the adafruit-python-shell package instead.
+# sudo pip3 install --upgrade adafruit-python-shell click
 # wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/libgpiod.py
 # sudo python3 libgpiod.py
 
