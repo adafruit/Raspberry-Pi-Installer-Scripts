@@ -19,7 +19,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.3.0"
+__version__ = "3.4.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -118,6 +118,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "menulabel": "PiTFT Mini 1.3\" or 1.54\" display",
         "product": "1.54\" or 1.3\" no touch",
         "kernel_upgrade": True,
+        "kernel_module": "fb_st7789v",
         "overlay_src": "overlays/minipitft13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft13.dtbo",
         "overlay": "dtoverlay=drm-minipitft13,rotation={pitftrot},fps=60",
@@ -135,6 +136,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "menulabel": "ST7789V 2.0\" no touch",
         "product": "2.0\" no touch",
         "kernel_upgrade": True,
+        "kernel_module": "fb_st7789v",
         "overlay_src": "overlays/st7789v_240x320-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-st7789v_240x320.dtbo",
         "overlay": "dtoverlay=drm-st7789v_240x320,rotate={pitftrot},fps=30",
@@ -146,6 +148,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "menulabel": "MiniPiTFT 1.14\" display",
         "product": "1.14\" no touch",
         "kernel_upgrade": True,
+        "kernel_module": "fb_st7789v",
         "overlay_src": "overlays/minipitft114-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft114.dtbo",
         "overlay": "dtoverlay=drm-minipitft114,rotation={pitftrot},fps=60",
@@ -169,6 +172,7 @@ dtoverlay=pitft28-capacitive,{rotation}""",
         "menulabel": "TFT 1.3\" Bonnet + Joystick",
         "product": "1.3\" Joystick",
         "kernel_upgrade": True,
+        "kernel_module": "fb_st7789v",
         "overlay_src": "overlays/tftbonnet13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-tftbonnet13.dtbo",
         "overlay": "dtoverlay=drm-tftbonnet13,rotation={pitftrot},fps=60",
@@ -265,6 +269,20 @@ def uninstall_etc_modules():
     shell.pattern_replace("/etc/modules", 'fbtft_device')
     return True
 
+def is_kernel_upgrade_required(config = None):
+    """Check if kernel upgrade is required"""
+    if not config:
+        config = pitft_config
+    if not config['kernel_upgrade']:
+        return False
+    module = config['kernel_module']
+    if shell.exists(f"/lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko.xz"):
+        return False
+    if shell.exists(f"/lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko"):
+        return False
+
+    return True
+
 def install_drivers():
     """Compile display driver and overlay if required"""
     if "overlay_src" in pitft_config and "overlay_dest" in pitft_config:
@@ -272,7 +290,7 @@ def install_drivers():
         destination = pitft_config['overlay_dest'].format(boot_dir=boot_dir)
         shell.run_command("dtc --warning no-unit_address_vs_reg -I dts -O dtb -o {dest} {src}".format(dest=destination, src=pitft_config['overlay_src']))
 
-    if pitft_config['kernel_upgrade']:
+    if is_kernel_upgrade_required():
         print("############# UPGRADING KERNEL ###############")
         print("Updating packages...")
         if not shell.run_command("sudo apt-get update", True):
@@ -283,15 +301,19 @@ def install_drivers():
         print("Installing Kernel Headers. This may take a few minutes...")
         if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", True):
             warn_exit("Apt failed to install software!")
-        if not shell.isdir("/lib/modules/{}/build".format(shell.release())):
-            warn_exit("Kernel was updated, but needs to be loaded. Please reboot now and re-run script!")
+        # If the kernel was upgraded, a build folder should exist once it has been loaded
+        module = pitft_config['kernel_module']
+        if not shell.isdir(f"/lib/modules/{shell.release()}/build"):
+            warn_exit(f"Kernel headers build folder for {shell.release()}, not found. Please reboot now and re-run script!")
         print("Compiling and installing display driver...")
         shell.pushd("st7789_module")
         if not shell.run_command("make"):
             warn_exit("Apt failed to compile ST7789V drivers!")
-        shell.run_command("mv /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.BACK".format(rel=shell.release()))
-        shell.run_command("mv fb_st7789v.ko /lib/modules/{rel}/kernel/drivers/staging/fbtft/fb_st7789v.ko".format(rel=shell.release()))
+        shell.run_command(f"mv /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.BACK")
+        shell.run_command(f"mv {module}.ko /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko")
         shell.popd()
+
+        # We may need to unzip the /lib/modules/6.1.19-v8+/kernel/drivers/staging/fbtft/fb_st7789v.ko.xz file
     return True
 
 def update_configtxt(rotation_override=None):
@@ -606,19 +628,19 @@ Run time of up to 5 minutes. Reboot required!
     if display in [str(x) for x in range(1, len(config) + 1)]:
         pitft_config = config[int(display) - 1]
         print("Display Type: {}".format(pitft_config["menulabel"]))
-        if pitft_config['kernel_upgrade']:
+        if is_kernel_upgrade_required():
             print("WARNING! WILL UPGRADE YOUR KERNEL TO LATEST")
     elif display in get_config_types():
         pitft_config = get_config(display)
         print("Display Type: {}".format(pitft_config["menulabel"]))
-        if pitft_config['kernel_upgrade']:
+        if is_kernel_upgrade_required():
             print("WARNING! WILL UPGRADE YOUR KERNEL TO LATEST")
     else:
         # Build menu from config
         selections = []
         for item in config:
             option = "{} ({}x{})".format(item['menulabel'], item['width'], item['height'])
-            if item['kernel_upgrade']:
+            if is_kernel_upgrade_required(item):
                 option += " - WARNING! WILL UPGRADE YOUR KERNEL TO LATEST"
             selections.append(option)
         selections.append("Uninstall PiTFT")
