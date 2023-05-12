@@ -1,9 +1,17 @@
+import platform
+
 try:
     from adafruit_shell import Shell
 except ImportError:
     raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
 
 shell = Shell()
+
+def is_kernel_userspace_mismatch():
+    """
+    Check if the userspace is 64-bit
+    """
+    return platform.machine() == "aarch64" and platform.architecture()[0] == "32bit"
 
 def main():
     shell.clear()
@@ -23,6 +31,13 @@ I2S microphone support.
     else:
         shell.bail("Unsupported Pi board detected.")
 
+    if shell.is_arm64() and is_kernel_userspace_mismatch():
+        print("Unable to compile driver because kernel space is 64-bit, but user space is 32-bit.")
+        if shell.prompt("Add parameter to /boot/config.txt to use 32-bit kernel?"):
+            shell.reconfig("/boot/config.txt", "^.*arm_64bit.*$", "arm_64bit=0")
+            shell.prompt_reboot()
+        else:
+            shell.bail("Unable to continue while mismatch is present.")
     auto_load = (
         not shell.argument_exists('noautoload') and
         shell.prompt("Auto load module at boot?", force_arg="autoload"))
