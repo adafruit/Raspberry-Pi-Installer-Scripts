@@ -275,11 +275,6 @@ def is_kernel_upgrade_required(config = None):
         config = pitft_config
     if not config['kernel_upgrade']:
         return False
-    module = config['kernel_module']
-    if shell.exists(f"/lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko.xz"):
-        return False
-    if shell.exists(f"/lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko"):
-        return False
 
     return True
 
@@ -309,11 +304,10 @@ def install_drivers():
         shell.pushd("st7789_module")
         if not shell.run_command("make"):
             warn_exit("Apt failed to compile ST7789V drivers!")
-        shell.run_command(f"mv /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.BACK")
-        shell.run_command(f"mv {module}.ko /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko")
+        shell.run_command(f"mv /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko.xz /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.BACK.xz")
+        shell.run_command(f"xz -v2 {module}.ko")
+        shell.run_command(f"mv {module}.ko.xz /lib/modules/{shell.release()}/kernel/drivers/staging/fbtft/{module}.ko.xz")
         shell.popd()
-
-        # We may need to unzip the /lib/modules/6.1.19-v8+/kernel/drivers/staging/fbtft/fb_st7789v.ko.xz file
     return True
 
 def update_configtxt(rotation_override=None):
@@ -759,4 +753,5 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
 # Main function
 if __name__ == "__main__":
     shell.require_root()
+    shell.check_kernel_userspace_mismatch()
     main()
