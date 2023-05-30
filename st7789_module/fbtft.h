@@ -240,7 +240,7 @@ struct fbtft_par {
 int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc);
 __printf(5, 6)
 void fbtft_dbg_hex(const struct device *dev, int groupsize,
-		   void *buf, size_t len, const char *fmt, ...);
+		   const void *buf, size_t len, const char *fmt, ...);
 struct fb_info *fbtft_framebuffer_alloc(struct fbtft_display *display,
 					struct device *dev,
 					struct fbtft_platform_data *pdata);
@@ -253,7 +253,7 @@ int fbtft_init_display(struct fbtft_par *par);
 int fbtft_probe_common(struct fbtft_display *display, struct spi_device *sdev,
 		       struct platform_device *pdev,
 		       const struct of_device_id *dt_ids);
-int fbtft_remove_common(struct device *dev, struct fb_info *info);
+void fbtft_remove_common(struct device *dev, struct fb_info *info);
 
 /* fbtft-io.c */
 int fbtft_write_spi(struct fbtft_par *par, void *buf, size_t len);
@@ -282,11 +282,11 @@ static int fbtft_driver_probe_spi(struct spi_device *spi)                  \
 	return fbtft_probe_common(_display, spi, NULL, dt_ids);	           \
 }                                                                          \
 									   \
-static int fbtft_driver_remove_spi(struct spi_device *spi)                 \
+static void fbtft_driver_remove_spi(struct spi_device *spi)                 \
 {                                                                          \
 	struct fb_info *info = spi_get_drvdata(spi);                       \
 									   \
-	return fbtft_remove_common(&spi->dev, info);                       \
+	fbtft_remove_common(&spi->dev, info);                              \
 }                                                                          \
 									   \
 static int fbtft_driver_probe_pdev(struct platform_device *pdev)           \
@@ -298,7 +298,8 @@ static int fbtft_driver_remove_pdev(struct platform_device *pdev)          \
 {                                                                          \
 	struct fb_info *info = platform_get_drvdata(pdev);                 \
 									   \
-	return fbtft_remove_common(&pdev->dev, info);                      \
+	fbtft_remove_common(&pdev->dev, info);                             \
+	return 0;                                                          \
 }                                                                          \
 									   \
 static const struct of_device_id dt_ids[] = {
@@ -343,7 +344,10 @@ static int __init fbtft_driver_module_init(void)                           \
 	ret = spi_register_driver(&fbtft_driver_spi_driver);               \
 	if (ret < 0)                                                       \
 		return ret;                                                \
-	return platform_driver_register(&fbtft_driver_platform_driver);    \
+	ret = platform_driver_register(&fbtft_driver_platform_driver);     \
+	if (ret < 0)                                                       \
+		spi_unregister_driver(&fbtft_driver_spi_driver);           \
+	return ret;                                                        \
 }                                                                          \
 									   \
 static void __exit fbtft_driver_module_exit(void)                          \
@@ -354,6 +358,46 @@ static void __exit fbtft_driver_module_exit(void)                          \
 									   \
 module_init(fbtft_driver_module_init);                                     \
 module_exit(fbtft_driver_module_exit);
+
+#define FBTFT_REGISTER_SPI_DRIVER(_name, _comp_vend, _comp_dev, _display)	\
+										\
+static const struct of_device_id dt_ids[] = {					\
+	{ .compatible = _comp_vend "," _comp_dev },				\
+	{},									\
+};										\
+										\
+static int fbtft_driver_probe_spi(struct spi_device *spi)			\
+{										\
+	return fbtft_probe_common(_display, spi, NULL, dt_ids);			\
+}										\
+										\
+static void fbtft_driver_remove_spi(struct spi_device *spi)			\
+{										\
+	struct fb_info *info = spi_get_drvdata(spi);				\
+										\
+	fbtft_remove_common(&spi->dev, info);					\
+}										\
+										\
+MODULE_DEVICE_TABLE(of, dt_ids);						\
+										\
+static const struct spi_device_id spi_ids[] = {					\
+	{ .name = _comp_dev },							\
+	{},									\
+};										\
+										\
+MODULE_DEVICE_TABLE(spi, spi_ids);						\
+										\
+static struct spi_driver fbtft_driver_spi_driver = {				\
+	.driver = {								\
+		.name  = _name,							\
+		.of_match_table = dt_ids,					\
+	},									\
+	.id_table = spi_ids,							\
+	.probe  = fbtft_driver_probe_spi,					\
+	.remove = fbtft_driver_remove_spi,					\
+};										\
+										\
+module_spi_driver(fbtft_driver_spi_driver);
 
 #define FBTFT_REGISTER_DRIVER(_name, _compatible, _display)                \
 	FBTFT_REGISTER_DRIVER_START(_display)                              \

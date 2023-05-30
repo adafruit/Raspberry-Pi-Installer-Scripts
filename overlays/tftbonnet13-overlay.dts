@@ -43,7 +43,7 @@
                         #size-cells = <0>;
 
                         pitft: pitft@0{
-                                compatible = "sitronix,st7789v";
+                                compatible = "fbtft,minipitft13";
                                 reg = <0>;
                                 pinctrl-names = "default";
                                 pinctrl-0 = <&pitft_pins>;
@@ -58,7 +58,7 @@
                         };
                 };
         };
-	
+
         fragment@3 {
                 target-path = "/";
                 __overlay__ {
