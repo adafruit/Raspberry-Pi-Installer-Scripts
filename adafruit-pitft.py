@@ -19,7 +19,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.4.0"
+__version__ = "3.5.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -76,14 +76,8 @@ config = [
             },
         },
         "overlay": """dtoverlay=pitft28-capacitive,speed=64000000,fps=30
-dtoverlay=pitft28-capacitive,{rotation}""",
+dtoverlay=pitft28-capacitive,rotate={pitftrot}""",
         "calibrations": "320 65536 0 -65536 0 15728640 65536",
-        "rotations": {
-            "0": "rotate=90,touch-invx=true,touch-invy=true",
-            "90": "rotate=90,touch-swapxy=true,touch-invx=true",
-            "180": "rotate=90",
-            "270": "rotate=270,touch-swapxy=true,touch-invy=true",
-        },
         "width": 320,
         "height": 240,
     },
@@ -318,8 +312,6 @@ def update_configtxt(rotation_override=None):
     if "{pitftrot}" in overlay:
         rotation = str(rotation_override) if rotation_override is not None else pitftrot
         overlay = overlay.format(pitftrot=rotation)
-    if "{rotation}" in overlay and isinstance(pitft_config['rotations'], dict) and pitft_config['rotations'][pitftrot] is not None:
-        overlay = overlay.format(rotation=pitft_config['rotations'][pitftrot])
 
     shell.write_text_file(f"{boot_dir}/config.txt", """
 # --- added by adafruit-pitft-helper {date} ---
