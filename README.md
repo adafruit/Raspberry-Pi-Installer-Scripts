@@ -21,7 +21,8 @@ We are in the process of converting our Shell Scripts to Python. Instructions fo
 To install the dependencies for the python scripts, run the following commands:
 
 ```bash
-sudo apt-get install python3-pip click
+sudo apt-get install python3-pip
+sudo pip3 install --upgrade click
 sudo pip3 install --upgrade setuptools
 sudo pip3 install --upgrade adafruit-python-shell
 ```
