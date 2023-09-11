@@ -35,8 +35,14 @@ def check_blinka_python_version():
     Check the Python 3 version for Blinka (which may be a later version than we're running this script with)
     """
     print("Making sure the required version of Python is installed")
-    if get_python3_version() < blinka_minimum_python_version:
-        shell.bail("Blinka requires a minimum of Python version {} to install. Please update your OS!".format(blinka_minimum_python_version))
+    current = get_python3_version(False)
+    current_major, current_minor = current.split(".")[0:2]
+    required_major, required_minor = str(blinka_minimum_python_version).split(".")[0:2]
+
+    if current_major >= required_major and current_minor >= required_minor:
+        return
+
+    shell.bail("Blinka requires a minimum of Python version {} to install, current one is {}. Please update your OS!".format(blinka_minimum_python_version, current))
 
 def sys_update():
     print("Updating System Packages")
