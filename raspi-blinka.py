@@ -18,9 +18,6 @@ shell.group="Blinka"
 default_python = 3
 blinka_minimum_python_version = 3.7
 
-def in_venv():
-    return sys.prefix != sys.base_prefix
-
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
     if numeric:
@@ -89,10 +86,6 @@ def install_blinka(user=False):
     username = None
     if user:
         username = os.environ["SUDO_USER"]
-        #user_homedir = os.path.expanduser(f"~{username}")
-        #install_dir = os.path.join(user_homedir, ".local", "lib", f"python{get_python3_version()}", "sitet-packages")
-        #print(f"Installing to {install_dir}")
-        #pip_command += f" -t {install_dir}"
     shell.run_command(f"{pip_command} RPi.GPIO", run_as_user=username)
     shell.run_command(f"{pip_command} adafruit-blinka", run_as_user=username)
 
@@ -129,10 +122,7 @@ Raspberry Pi and installs Blinka
     set_raspiconfig()
     update_python()
     update_pip()
-    if in_venv():
-        install_blinka()
-    else:
-        install_blinka(True)
+    install_blinka(True)
 
     # Done
     print("""DONE.
