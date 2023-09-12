@@ -21,8 +21,7 @@ shell.group = 'LIBGPIOD'
 @click.command()
 @click.option('-l', '--legacy', is_flag=True, help="Install a legacy version of libgpiod for systems with older libraries")
 def main(legacy):
-    print("""Installing build requirements - this may take a few minutes!
-""")
+    print("Installing build requirements - this may take a few minutes!\n")
 
     # install generic linux packages required
     shell.run_command("sudo apt-get update")
