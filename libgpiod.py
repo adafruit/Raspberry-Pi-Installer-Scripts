@@ -5,6 +5,7 @@
 # wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/libgpiod.py
 # sudo python3 libgpiod.py
 
+import sys
 try:
     import click
 except ImportError:
@@ -25,14 +26,13 @@ def main(legacy):
 
     # install generic linux packages required
     shell.run_command("sudo apt-get update")
-    shell.run_command("sudo apt-get install -y autoconf autoconf-archive automake build-essential git libtool pkg-config python3-dev python3-setuptools swig3.0 wget")
+    shell.run_command("sudo apt-get install -y autoconf autoconf-archive automake build-essential git libtool pkg-config python3-dev python3-setuptools swig4.0 wget")
 
     # for raspberry pi we need...
     shell.run_command("sudo apt-get install -y raspberrypi-kernel-headers")
 
-    build_dir = shell.run_command("mktemp -d /tmp/libgpiod.XXXX", return_output=True)
-    print("""Cloning libgpiod repository to {}
-""".format(build_dir))
+    build_dir = shell.run_command("mktemp -d /tmp/libgpiod.XXXX", return_output=True).strip()
+    print(f"Cloning libgpiod repository to {build_dir}\n")
 
     shell.chdir(build_dir)
     shell.run_command("git clone git://git.kernel.org/pub/scm/libs/libgpiod/libgpiod.git .")
@@ -40,8 +40,7 @@ def main(legacy):
     if legacy:
         shell.run_command("git checkout v1.4.2 -b v1.4.2")
 
-    print("""Building libgpiod
-""")
+    print("Building libgpiod\n")
 
     include_path = shell.run_command("python3 -c \"from sysconfig import get_paths; print(get_paths()['include'])\"", return_output=True)
 
@@ -49,10 +48,11 @@ def main(legacy):
     shell.run_command("./autogen.sh --enable-tools=yes --prefix=/usr/local/ --enable-bindings-python CFLAGS=\"-I/{}\" && make && sudo make install && sudo ldconfig".format(include_path))
 
     if shell.exists("bindings/python/.libs"):
-        # This is not the right way to do this, but it works
-        shell.run_command("sudo cp bindings/python/.libs/gpiod.so /usr/local/lib/python3.?/dist-packages/")
-        shell.run_command("sudo cp bindings/python/.libs/gpiod.la /usr/local/lib/python3.?/dist-packages/")
-        shell.run_command("sudo cp bindings/python/.libs/gpiod.a /usr/local/lib/python3.?/dist-packages/")
+        version = sys.version_info
+        python_folder = f"python{version.major}.{version.minor}"
+        shell.run_command(f"sudo cp bindings/python/.libs/gpiod.so /usr/local/lib/{python_folder}/dist-packages/")
+        shell.run_command(f"sudo cp bindings/python/.libs/gpiod.la /usr/local/lib/{python_folder}/dist-packages/")
+        shell.run_command(f"sudo cp bindings/python/.libs/gpiod.a /usr/local/lib/{python_folder}/dist-packages/")
     shell.exit()
 
 # Main function
