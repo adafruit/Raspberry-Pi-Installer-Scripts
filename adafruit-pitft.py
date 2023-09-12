@@ -223,9 +223,9 @@ def sysupdate():
     if not UPDATE_DB:
         print("Updating apt indexes...", end='')
         progress(3)
-        if not shell.run_command('sudo apt update', True):
+        if not shell.run_command('sudo apt update', suppress_message=True):
             warn_exit("Apt failed to update indexes! Try running 'sudo apt update' manually.")
-        if not shell.run_command('sudo apt-get update', True):
+        if not shell.run_command('sudo apt-get update', suppress_message=True):
             warn_exit("Apt failed to update indexes! Try running 'sudo apt-get update' manually.")
         print("Reading package lists...")
         progress(3)
@@ -236,7 +236,7 @@ def sysupdate():
 
 def softwareinstall():
     print("Installing Pre-requisite Software...This may take a few minutes!")
-    if not shell.run_command("apt-get install -y libts0", True):
+    if not shell.run_command("apt-get install -y libts0", suppress_message=True):
         if not shell.run_command("apt-get install -y tslib"):
             if not shell.run_command("apt-get install -y libts-dev"):
                 warn_exit("Apt failed to install TSLIB!")
@@ -282,13 +282,13 @@ def install_drivers():
     if is_kernel_upgrade_required():
         print("############# UPGRADING KERNEL ###############")
         print("Updating packages...")
-        if not shell.run_command("sudo apt-get update", True):
+        if not shell.run_command("sudo apt-get update", suppress_message=True):
             warn_exit("Apt failed to update itself!")
         print("Upgrading packages...")
-        if not shell.run_command("sudo apt-get -y upgrade", False):
+        if not shell.run_command("sudo apt-get -y upgrade"):
             warn_exit("Apt failed to install software!")
         print("Installing Kernel Headers. This may take a few minutes...")
-        if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", True):
+        if not shell.run_command("apt-get install -y raspberrypi-kernel-headers", suppress_message=True):
             warn_exit("Apt failed to install software!")
         # If the kernel was upgraded, a build folder should exist once it has been loaded
         module = pitft_config['kernel_module']
@@ -390,23 +390,23 @@ def uninstall_console():
 def install_fbcp():
     global fbcp_rotations
     print("Installing cmake...")
-    if not shell.run_command("apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake", True):
+    if not shell.run_command("apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake", suppress_message=True):
         warn_exit("Apt failed to install software!")
     print("Downloading rpi-fbcp...")
     shell.pushd("/tmp")
     shell.run_command("curl -sLO https://github.com/adafruit/rpi-fbcp/archive/master.zip")
     print("Uncompressing rpi-fbcp...")
     shell.run_command("rm -rf /tmp/rpi-fbcp-master")
-    if not shell.run_command("unzip master.zip", True):
+    if not shell.run_command("unzip master.zip", suppress_message=True):
         warn_exit("Failed to uncompress fbcp!")
     shell.chdir("rpi-fbcp-master")
     shell.run_command("mkdir build")
     shell.chdir("build")
     print("Building rpi-fbcp...")
     shell.write_text_file("../CMakeLists.txt", "\nset (CMAKE_C_FLAGS \"-std=gnu99 ${CMAKE_C_FLAGS}\")")
-    if not shell.run_command("cmake ..", True):
+    if not shell.run_command("cmake ..", suppress_message=True):
         warn_exit("Failed to cmake fbcp!")
-    if not shell.run_command("make", True):
+    if not shell.run_command("make", suppress_message=True):
         warn_exit("Failed to make fbcp!")
     print("Installing rpi-fbcp...")
     shell.run_command("install fbcp /usr/local/bin/fbcp")
@@ -669,7 +669,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
 
     # check init system (technique borrowed from raspi-config):
     shell.info('Checking init system...')
-    if shell.run_command("which systemctl", True) and shell.run_command("systemctl | grep '\-\.mount'", True):
+    if shell.run_command("which systemctl", suppress_message=True) and shell.run_command("systemctl | grep '\-\.mount'", suppress_message=True):
       SYSTEMD = True
       print("Found systemd")
     elif os.path.isfile("/etc/init.d/cron") and not os.path.islink("/etc/init.d/cron"):

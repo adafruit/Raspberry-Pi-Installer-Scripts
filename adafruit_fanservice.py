@@ -47,7 +47,7 @@ Run time < 1 minute. Reboot not required.""")
     # check init system (technique borrowed from raspi-config):
     shell.group = 'FAN'
     shell.info('Checking init system...')
-    if shell.run_command("which systemctl", True) and shell.run_command("systemctl | grep '\-\.mount'", True):
+    if shell.run_command("which systemctl", suppress_message=True) and shell.run_command("systemctl | grep '\-\.mount'", suppress_message=True):
         print("Found systemd, OK!")
     elif os.path.isfile("/etc/init.d/cron") and not os.path.islink("/etc/init.d/cron"):
         shell.bail("Found sysvinit, but we require systemd")

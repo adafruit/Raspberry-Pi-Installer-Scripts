@@ -246,9 +246,9 @@ def sysupdate():
     if not UPDATE_DB:
         print("Updating apt indexes...", end='')
         progress(3)
-        if not shell.run_command('sudo apt update', True):
+        if not shell.run_command('sudo apt update', suppress_message=True):
             warn_exit("Apt failed to update indexes!")
-        if not shell.run_command('sudo apt-get update', True):
+        if not shell.run_command('sudo apt-get update', suppress_message=True):
             warn_exit("Apt failed to update indexes!")
         print("Reading package lists...")
         progress(3)
@@ -259,7 +259,7 @@ def sysupdate():
 
 def softwareinstall():
     print("Installing Pre-requisite Software...This may take a few minutes!")
-    if not shell.run_command("apt-get install -y libts0", True):
+    if not shell.run_command("apt-get install -y libts0", suppress_message=True):
         if not shell.run_command("apt-get install -y tslib"):
             if not shell.run_command("apt-get install -y libts-dev"):
                 warn_exit("Apt failed to install TSLIB!")
@@ -489,7 +489,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
 
     # check init system (technique borrowed from raspi-config):
     shell.info('Checking init system...')
-    if shell.run_command("which systemctl", True) and shell.run_command("systemctl | grep '\-\.mount'", True):
+    if shell.run_command("which systemctl", suppress_message=True) and shell.run_command("systemctl | grep '\-\.mount'", suppress_message=True):
         SYSTEMD = True
         print("Found systemd")
     elif os.path.isfile("/etc/init.d/cron") and not os.path.islink("/etc/init.d/cron"):

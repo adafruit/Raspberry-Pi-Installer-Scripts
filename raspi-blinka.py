@@ -5,6 +5,9 @@ Adafruit Raspberry Pi Blinka Setup Script
 Written by Melissa LeBlanc-Williams for Adafruit Industries
 """
 
+import os
+import sys
+
 try:
     from adafruit_shell import Shell
 except ImportError:
@@ -14,6 +17,9 @@ shell = Shell()
 shell.group="Blinka"
 default_python = 3
 blinka_minimum_python_version = 3.7
+
+def in_venv():
+    return sys.prefix != sys.base_prefix
 
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
@@ -76,11 +82,19 @@ def update_pip():
     shell.run_command("sudo apt-get install -y python3-pip")
     shell.run_command("sudo pip3 install --upgrade setuptools")
 
-def install_blinka():
+def install_blinka(user=False):
     print("Installing latest version of Blinka locally")
     shell.run_command("sudo apt-get install -y i2c-tools libgpiod-dev")
-    shell.run_command("pip3 install --upgrade RPi.GPIO")
-    shell.run_command("pip3 install --upgrade adafruit-blinka")
+    pip_command = "pip3 install --upgrade"
+    username = None
+    if user:
+        username = os.environ["SUDO_USER"]
+        #user_homedir = os.path.expanduser(f"~{username}")
+        #install_dir = os.path.join(user_homedir, ".local", "lib", f"python{get_python3_version()}", "sitet-packages")
+        #print(f"Installing to {install_dir}")
+        #pip_command += f" -t {install_dir}"
+    shell.run_command(f"{pip_command} RPi.GPIO", run_as_user=username)
+    shell.run_command(f"{pip_command} adafruit-blinka", run_as_user=username)
 
 def main():
     global default_python
@@ -115,7 +129,10 @@ Raspberry Pi and installs Blinka
     set_raspiconfig()
     update_python()
     update_pip()
-    install_blinka()
+    if in_venv():
+        install_blinka()
+    else:
+        install_blinka(True)
 
     # Done
     print("""DONE.
