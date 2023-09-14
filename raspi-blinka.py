@@ -5,6 +5,9 @@ Adafruit Raspberry Pi Blinka Setup Script
 Written by Melissa LeBlanc-Williams for Adafruit Industries
 """
 
+import os
+import sys
+
 try:
     from adafruit_shell import Shell
 except ImportError:
@@ -82,11 +85,15 @@ def update_pip():
     shell.run_command("sudo apt-get install -y python3-pip")
     shell.run_command("sudo pip3 install --upgrade setuptools")
 
-def install_blinka():
+def install_blinka(user=False):
     print("Installing latest version of Blinka locally")
     shell.run_command("sudo apt-get install -y i2c-tools libgpiod-dev")
-    shell.run_command("pip3 install --upgrade RPi.GPIO")
-    shell.run_command("pip3 install --upgrade adafruit-blinka")
+    pip_command = "pip3 install --upgrade"
+    username = None
+    if user:
+        username = os.environ["SUDO_USER"]
+    shell.run_command(f"{pip_command} RPi.GPIO", run_as_user=username)
+    shell.run_command(f"{pip_command} adafruit-blinka", run_as_user=username)
 
 def main():
     global default_python
@@ -121,7 +128,7 @@ Raspberry Pi and installs Blinka
     set_raspiconfig()
     update_python()
     update_pip()
-    install_blinka()
+    install_blinka(True)
 
     # Done
     print("""DONE.

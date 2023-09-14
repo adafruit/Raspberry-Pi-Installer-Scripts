@@ -56,7 +56,7 @@ EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN.
     print("""
 Starting installation...
 Updating package index files...""")
-    shell.run_command('sudo apt-get update', True)
+    shell.run_command('sudo apt-get update', suppress_message=True)
 
     print("Installing Python libraries...")
     shell.run_command('sudo apt-get install -y python3-pip python3-dev python3-smbus')
