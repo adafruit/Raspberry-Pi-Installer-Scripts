@@ -7,6 +7,7 @@ Written by Melissa LeBlanc-Williams for Adafruit Industries
 
 import os
 import sys
+from pkg_resources import packaging
 
 try:
     from adafruit_shell import Shell
@@ -16,36 +17,27 @@ except ImportError:
 shell = Shell()
 shell.group="Blinka"
 default_python = 3
-blinka_minimum_python_version = 3.7
+blinka_minimum_python_version = "3.7.0"
+python_command="'import platform; print(platform.python_version())'"
 
-def default_python_version(numeric=True):
-    version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
-    if numeric:
-        try:
-            return float(version[0:version.rfind(".")])
-        except ValueError:
-            return None
-    return version
+def default_python_version():
+    return shell.run_command("python -c " + python_command, suppress_message=True, return_output=True)
 
-def get_python3_version(numeric=True):
-    version = shell.run_command("python3 -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
-    if numeric:
-        return float(version[0:version.rfind(".")])
-    return version
+def get_python3_version():
+    return shell.run_command("python3 -c " + python_command, suppress_message=True, return_output=True)
 
 def check_blinka_python_version():
     """
     Check the Python 3 version for Blinka (which may be a later version than we're running this script with)
     """
     print("Making sure the required version of Python is installed")
-    current = get_python3_version(False)
-    current_major, current_minor = current.split(".")[0:2]
-    required_major, required_minor = str(blinka_minimum_python_version).split(".")[0:2]
+    current = packaging.version.parse(get_python3_version())
+    required = packaging.version.parse(blinka_minimum_python_version)
 
-    if int(current_major) >= int(required_major) and int(current_minor) >= int(required_minor):
+    if current >= required:
         return
 
-    shell.bail("Blinka requires a minimum of Python version {} to install, current one is {}. Please update your OS!".format(blinka_minimum_python_version, current))
+    shell.bail("Blinka requires a minimum of Python version {} to install; the current version is {}. Please update your OS!".format(blinka_minimum_python_version, current))
 
 def sys_update():
     print("Updating System Packages")
@@ -118,7 +110,7 @@ Raspberry Pi and installs Blinka
         default_python = 0
         if not shell.prompt("Continue?"):
             shell.exit()
-    elif int(default_python_version()) < 3:
+    elif packaging.version.parse(default_python_version()) < packaging.version.parse("3.0.0"):
         shell.warn("WARNING Default System python version is {}. It will be updated to Version 3.".format(default_python_version(False)))
         default_python = 2
         if not shell.prompt("Continue?"):
