@@ -42,7 +42,7 @@ def check_blinka_python_version():
     current_major, current_minor = current.split(".")[0:2]
     required_major, required_minor = str(blinka_minimum_python_version).split(".")[0:2]
 
-    if current_major >= required_major and current_minor >= required_minor:
+    if int(current_major) >= int(required_major) and int(current_minor) >= int(required_minor):
         return
 
     shell.bail("Blinka requires a minimum of Python version {} to install, current one is {}. Please update your OS!".format(blinka_minimum_python_version, current))
