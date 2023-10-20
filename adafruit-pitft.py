@@ -7,14 +7,15 @@ Written in Python by Melissa LeBlanc-Williams for Adafruit Industries
 
 import time
 import os
+import sys
 try:
     import click
 except ImportError:
-    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install Click")
+    raise RuntimeError("The library 'Click' was not found. To install, try typing: pip3 install Click")
 try:
     from adafruit_shell import Shell
 except ImportError:
-    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
+    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: pip3 install adafruit-python-shell")
 
 shell = Shell()
 shell.group = 'PITFT'
@@ -242,7 +243,8 @@ def softwareinstall():
                 warn_exit("Apt failed to install TSLIB!")
     if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential"):
         warn_exit("Apt failed to install software!")
-    if not shell.run_command("pip3 install evdev"):
+    pip_path = f"{os.path.dirname(sys.executable)}/pip3"
+    if not shell.run_command(f"{pip_path} install evdev", run_as_user=os.environ["SUDO_USER"]):
         warn_exit("Pip failed to install software!")
     return True
 
