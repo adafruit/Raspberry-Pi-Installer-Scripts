@@ -20,7 +20,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.5.0"
+__version__ = "3.6.0"
 
 """
 This is the main configuration. Displays should be placed in the order
