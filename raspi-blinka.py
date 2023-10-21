@@ -81,9 +81,8 @@ def update_python():
         shell.run_command("sudo update-alternatives --skip-auto --config python")
 
 def update_pip():
-    print("Making sure PIP is installed")
-    shell.run_command("sudo apt-get install -y python3-pip")
-    shell.run_command("sudo pip3 install --upgrade setuptools")
+    print("Making sure PIP and setuptools is installed")
+    shell.run_command("sudo apt-get install --upgrade -y python3-pip python3-setuptools")
 
 def install_blinka(user=False):
     print("Installing latest version of Blinka locally")

@@ -7,19 +7,20 @@ Written in Python by Melissa LeBlanc-Williams for Adafruit Industries
 
 import time
 import os
+import sys
 try:
     import click
 except ImportError:
-    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install Click")
+    raise RuntimeError("The library 'Click' was not found. To install, try typing: pip3 install Click")
 try:
     from adafruit_shell import Shell
 except ImportError:
-    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
+    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: pip3 install adafruit-python-shell")
 
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.5.0"
+__version__ = "3.6.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -240,10 +241,8 @@ def softwareinstall():
         if not shell.run_command("apt-get install -y tslib"):
             if not shell.run_command("apt-get install -y libts-dev"):
                 warn_exit("Apt failed to install TSLIB!")
-    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential"):
+    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential python3-evdev"):
         warn_exit("Apt failed to install software!")
-    if not shell.run_command("pip3 install evdev"):
-        warn_exit("Pip failed to install software!")
     return True
 
 def uninstall_bootconfigtxt():
