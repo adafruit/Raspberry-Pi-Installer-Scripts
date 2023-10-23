@@ -86,7 +86,7 @@ def update_pip():
 
 def install_blinka(user=False):
     print("Installing latest version of Blinka locally")
-    shell.run_command("sudo apt-get install -y i2c-tools libgpiod-dev")
+    shell.run_command("sudo apt-get install -y i2c-tools libgpiod-dev python3-libgpiod")
     pip_command = "pip3 install --upgrade"
     username = None
     if user:
