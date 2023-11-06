@@ -10,16 +10,16 @@ import os
 try:
     import click
 except ImportError:
-    raise RuntimeError("The library 'Click' was not found. To install, try typing: sudo pip3 install --upgrade click")
+    raise RuntimeError("The library 'Click' was not found. To install, try typing: pip3 install Click")
 try:
     from adafruit_shell import Shell
 except ImportError:
-    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
+    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: pip3 install adafruit-python-shell")
 
 shell = Shell()
 shell.group = 'PITFT-MIPI'
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -263,25 +263,23 @@ def softwareinstall():
         if not shell.run_command("apt-get install -y tslib"):
             if not shell.run_command("apt-get install -y libts-dev"):
                 warn_exit("Apt failed to install TSLIB!")
-    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential"):
+    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential python3-evdev"):
         warn_exit("Apt failed to install software!")
-    if not shell.run_command("pip3 install evdev"):
-        warn_exit("Pip failed to install software!")
     return True
 
 def uninstall_bootconfigtxt():
     """Remove any old flexfb/fbtft stuff"""
-    if shell.pattern_search("/boot/config.txt", "adafruit-pitft-helper"):
-        print("Already have an adafruit-pitft-helper section in /boot/config.txt.")
+    if shell.pattern_search(f"{boot_dir}/config.txt", "adafruit-pitft-helper"):
+        print(f"Already have an adafruit-pitft-helper section in {boot_dir}/config.txt.")
         print("Removing old section...")
-        shell.run_command("cp /boot/config.txt /boot/configtxt.bak")
-        shell.pattern_replace("/boot/config.txt", '\n# --- added by adafruit-pitft-helper.*?\n# --- end adafruit-pitft-helper.*?\n', multi_line=True)
+        shell.run_command(f"cp {boot_dir}/config.txt {boot_dir}/configtxt.bak")
+        shell.pattern_replace(f"{boot_dir}/config.txt", '\n# --- added by adafruit-pitft-helper.*?\n# --- end adafruit-pitft-helper.*?\n', multi_line=True)
     return True
 def update_configtxt():
-    """update /boot/config.txt with appropriate values"""
+    f"""update {boot_dir}/config.txt with appropriate values"""
     uninstall_bootconfigtxt()
     # Driver does not work if hdmi_force_hotplug=1 is present
-    shell.pattern_replace("/boot/config.txt", "hdmi_force_hotplug=1", "hdmi_force_hotplug=0")
+    shell.pattern_replace(f"{boot_dir}/config.txt", "hdmi_force_hotplug=1", "hdmi_force_hotplug=0")
     display_overlay = f"dtoverlay=mipi-dbi-spi,{mipi_data['spi']},speed=40000000"
     display_overlay += f"\ndtparam=compatible={mipi_data['command_bin']}\\0panel-mipi-dbi-spi"
     viewport = ""
@@ -296,10 +294,10 @@ def update_configtxt():
     if "touchscreen" in pitft_config and "overlay" in pitft_config["touchscreen"]:
         # use dtc to compile and copy overlay
         touch_overlay = pitft_config["touchscreen"]["overlay"]
-        shell.run_command(f"dtc -I dts -O dtb -o /boot/overlays/{touch_overlay}.dtbo overlays/{touch_overlay}.dts")
+        shell.run_command(f"dtc -I dts -O dtb -o {boot_dir}/overlays/{touch_overlay}.dtbo overlays/{touch_overlay}.dts")
         touch_overlay = f"\ndtoverlay={touch_overlay}"
     date = shell.date()
-    shell.write_text_file("/boot/config.txt", f"""
+    shell.write_text_file(f"{boot_dir}/config.txt", f"""
 # --- added by adafruit-pitft-helper {date} ---
 [all]
 dtparam=spi=on
@@ -337,7 +335,7 @@ def compile_display_fw():
     shell.pattern_replace(command_src, "^#(.*?# rotation " + pitftrot + ".*?$)", "\\1")
     # Download the mipi-dbi-cmd script if it doesn't exist
     if not shell.exists("mipi-dbi-cmd"):
-        shell.run_command("wget https://github.com/notro/panel-mipi-dbi/raw/main/mipi-dbi-cmd")
+        shell.run_command("wget https://raw.githubusercontent.com/notro/panel-mipi-dbi/main/mipi-dbi-cmd")
         shell.run_command("chmod +x mipi-dbi-cmd")
     # Run the mipi-dbi-script and output directly to the /lib/firmware folder
     shell.run_command(f"./mipi-dbi-cmd /lib/firmware/{mipi_data['command_bin']}.bin mipi/panel.txt")
@@ -367,11 +365,11 @@ def install_mipi():
     # Disable overscan compensation (use full screen):
     shell.run_command("raspi-config nonint do_overscan 1")
 
-    shell.pattern_replace("/boot/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
-    shell.pattern_replace("/boot/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
+    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
+    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
     if not update_configtxt():
-        shell.bail("Unable to update /boot/config.txt")
+        shell.bail(f"Unable to update {boot_dir}/config.txt")
     return True
 
 def update_xorg():
@@ -419,18 +417,35 @@ Settings take effect on next boot.
 
 ####################################################### MAIN
 target_homedir = "/home/pi"
+username = os.environ["SUDO_USER"]
+user_homedir = os.path.expanduser(f"~{username}")
+if shell.isdir(user_homedir):
+    target_homedir = user_homedir
+
+boot_dir = "/boot/firmware"
+if not shell.exists(boot_dir) or not shell.isdir(boot_dir):
+    boot_dir = "/boot"
+
 @click.command()
 @click.option('-v', '--version', is_flag=True, callback=print_version, expose_value=False, is_eager=True, help="Print version information")
-@click.option('-u', '--user', nargs=1, default="/home/pi", type=str, help="Specify path of primary user's home directory", show_default=True)
+@click.option('-u', '--user', nargs=1, default=target_homedir, type=str, help="Specify path of primary user's home directory", show_default=True)
 @click.option('--display', nargs=1, default=None, help="Specify a display option (1-{}) or type {}".format(len(config), get_config_types()))
 @click.option('--rotation', nargs=1, default=None, type=int, help="Specify a rotation option (1-4) or degrees {}".format(tuple(sorted([int(x) for x in PITFT_ROTATIONS]))))
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
-def main(user, display, rotation, reboot):
+@click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
+
+def main(user, display, rotation, reboot, boot):
     global target_homedir, pitft_config, pitftrot, auto_reboot
     shell.clear()
     if user != target_homedir:
         target_homedir = user
-        print("Homedir = {}".format(target_homedir))
+        print(f"Homedir = {target_homedir}")
+    if boot != boot_dir:
+        if shell.isdir(boot):
+            boot_dir = boot
+            print(f"Boot dir = {boot_dir}")
+        else:
+            print(f"{boot} not found or not a directory. Using {boot_dir} instead.")
 
     print("""This script downloads and installs
 PiTFT Support using userspace touch
@@ -522,9 +537,9 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
     if not install_mipi():
         shell.bail("Unable to configure mipi")
 
-    shell.info("Updating /boot/config.txt...")
+    shell.info(f"Updating {boot_dir}/config.txt...")
     if not update_configtxt():
-        shell.bail("Unable to update /boot/config.txt")
+        shell.bail(f"Unable to update {boot_dir}/config.txt")
 
     if "touchscreen" in pitft_config:
         shell.info("Updating SysFS rules for Touchscreen...")
