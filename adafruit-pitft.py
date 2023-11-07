@@ -7,7 +7,6 @@ Written in Python by Melissa LeBlanc-Williams for Adafruit Industries
 
 import time
 import os
-import sys
 try:
     import click
 except ImportError:
@@ -576,7 +575,10 @@ user_homedir = os.path.expanduser(f"~{username}")
 if shell.isdir(user_homedir):
     target_homedir = user_homedir
 
-boot_dir = "/boot"
+boot_dir = "/boot/firmware"
+if not shell.exists(boot_dir) or not shell.isdir(boot_dir):
+    boot_dir = "/boot"
+
 @click.command()
 @click.option('-v', '--version', is_flag=True, callback=print_version, expose_value=False, is_eager=True, help="Print version information")
 @click.option('-u', '--user', nargs=1, default=target_homedir, type=str, help="Specify path of primary user's home directory", show_default=True)
@@ -584,7 +586,7 @@ boot_dir = "/boot"
 @click.option('--rotation', nargs=1, default=None, type=int, help="Specify a rotation option (1-4) or degrees {}".format(tuple(sorted([int(x) for x in PITFT_ROTATIONS]))))
 @click.option('--install-type', nargs=1, default=None, type=click.Choice(['fbcp', 'console', 'uninstall']), help="Installation Type")
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
-@click.option('--boot', nargs=1, default="/boot", type=str, help="Specify the boot directory", show_default=True)
+@click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
 def main(user, display, rotation, install_type, reboot, boot):
     global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir
     shell.clear()
