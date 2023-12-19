@@ -435,7 +435,7 @@ if not shell.exists(boot_dir) or not shell.isdir(boot_dir):
 @click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
 
 def main(user, display, rotation, reboot, boot):
-    global target_homedir, pitft_config, pitftrot, auto_reboot
+    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir
     shell.clear()
     if user != target_homedir:
         target_homedir = user
