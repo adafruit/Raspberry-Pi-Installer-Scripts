@@ -33,11 +33,21 @@ def valid_pins(ce0_pin, ce1_pin):
         return False
     if ce0_pin == ce1_pin:
         return False
-    if int(ce0_pin) not in allowed_gpios:
+    if ce0_pin is not None and int(ce0_pin) not in allowed_gpios:
         return False
-    if int(ce1_pin) not in allowed_gpios:
+    if ce1_pin is not None and int(ce1_pin) not in allowed_gpios:
         return False
     return True
+
+def convert_option(pin):
+    if pin == "disabled":
+        return None
+    return int(pin)
+
+def valid_options(ce0_option, ce1_option):
+    if ce0_option is None or ce1_option is None:
+        return False
+    return valid_pins(convert_option(ce0_option), convert_option(ce1_option))
 
 def disable_spi():
     print("Disabling SPI")
@@ -78,8 +88,8 @@ def write_new_custom(ce0_pin, ce1_pin):
         shell.write_text_file(f"{boot_dir}/config.txt", overlay_command + "\n")
 
 @click.command()
-@click.option('--ce0', nargs=1, default=None, help="Specify a GPIO for CE0")
-@click.option('--ce1', nargs=1, default=None, help="Specify a GPIO for CE1")
+@click.option('--ce0', nargs=1, default=None, help="Specify a GPIO for CE0 or 'disabled' to disable", type=str)
+@click.option('--ce1', nargs=1, default=None, help="Specify a GPIO for CE1 or 'disabled' to disable", type=str)
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
 def main(ce0, ce1, reboot):
     ask_reboot = True
@@ -87,7 +97,9 @@ def main(ce0, ce1, reboot):
     if reboot is not None:
         ask_reboot = False
         auto_reboot = reboot.lower() == 'yes'
-    if valid_pins(ce0, ce1):
+    if valid_options(ce0, ce1):
+        ce0 = convert_option(ce0)
+        ce1 = convert_option(ce1)
         remove_custom()
         write_new_custom(ce0, ce1)
         if auto_reboot:
