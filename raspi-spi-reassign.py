@@ -31,7 +31,7 @@ For now this will only ask about SPI0, but we can later add SPI1
 def valid_pins(ce0_pin, ce1_pin):
     if ce0_pin is None and ce1_pin is not None:
         return False
-    if ce0_pin == ce1_pin:
+    if ce0_pin is not None and ce0_pin == ce1_pin:
         return False
     if ce0_pin is not None and int(ce0_pin) not in allowed_gpios:
         return False
