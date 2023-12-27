@@ -46,13 +46,18 @@ ASK_TO_REBOOT=false
 CURRENT_SETTING=false
 UPDATE_DB=false
 
-BOOTCMD=/boot/cmdline.txt
-CONFIG=/boot/config.txt
+BOOTCMD=/boot/firmware/cmdline.txt
+CONFIG=/boot/firmware/config.txt
 APTSRC=/etc/apt/sources.list
 INITABCONF=/etc/inittab
 BLACKLIST=/etc/modprobe.d/raspi-blacklist.conf
 LOADMOD=/etc/modules
 DTBODIR=/boot/overlays
+
+# Fall back to old location
+if ! test -f $CONFIG; then
+    CONFIG=/boot/config.txt
+fi
 
 # function define
 
