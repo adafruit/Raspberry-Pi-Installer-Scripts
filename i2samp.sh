@@ -54,6 +54,11 @@ BLACKLIST=/etc/modprobe.d/raspi-blacklist.conf
 LOADMOD=/etc/modules
 DTBODIR=/boot/overlays
 
+# Fall back to old location
+if ! test -f $CONFIG; then
+    CONFIG=/boot/config.txt
+fi
+
 # function define
 
 confirm() {
