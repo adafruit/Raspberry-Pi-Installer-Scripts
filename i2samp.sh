@@ -46,8 +46,8 @@ ASK_TO_REBOOT=false
 CURRENT_SETTING=false
 UPDATE_DB=false
 
-BOOTCMD=/boot/cmdline.txt
-CONFIG=/boot/config.txt
+BOOTCMD=/boot/firmware/cmdline.txt
+CONFIG=/boot/firmware/config.txt
 APTSRC=/etc/apt/sources.list
 INITABCONF=/etc/inittab
 BLACKLIST=/etc/modprobe.d/raspi-blacklist.conf
