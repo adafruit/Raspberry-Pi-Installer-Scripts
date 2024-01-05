@@ -157,6 +157,19 @@ reconfig() {
         fi
 }
 
+# If /boot/firmware/config.txt exists, make sure /boot/config.txt is a symlink to it
+fix_config_symlink() {
+    if [ -f /boot/firmware/config.txt ]; then
+        if [ ! -L /boot/config.txt ]; then
+            warning "/boot/config.txt was overwritten as a file by another script."
+            if confirm "/boot/config.txt will be moved to /boot/firmware/config.txt and the symlink restored. Do you wish to continue?"; then
+                sudo mv /boot/config.txt /boot/firmware/config.txt
+                sudo ln -s /boot/firmware/config.txt /boot/config.txt
+            fi
+        fi
+    fi
+}
+
 arch_check() {
     IS_ARM64=false
     IS_ARMHF=false
@@ -359,6 +372,8 @@ if confirm "Do you wish to continue?"; then
 
     newline
     echo "Checking hardware requirements..."
+
+    fix_config_symlink
 
     if [ -e $CONFIG ] && grep -q "^device_tree=$" $CONFIG; then
         DEVICE_TREE=false
