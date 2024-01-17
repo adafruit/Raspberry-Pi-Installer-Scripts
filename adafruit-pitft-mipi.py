@@ -365,9 +365,6 @@ def install_mipi():
     # Disable overscan compensation (use full screen):
     shell.run_command("raspi-config nonint do_overscan 1")
 
-    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
-    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
-
     if not update_configtxt():
         shell.bail(f"Unable to update {boot_dir}/config.txt")
     return True
