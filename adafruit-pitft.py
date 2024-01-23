@@ -78,7 +78,10 @@ config = [
                 "270": "0 -1 1 1 0 0 0 0 1",
             },
         },
-        "overlay": """dtoverlay=pitft28-capacitive,speed=64000000,fps=30
+        "overlay_src": "overlays/pitft28-capacitive-overlay.dts",
+        "overlay_dest": "{boot_dir}/overlays/tinydrm-pitft28-capacitive.dtbo",
+        "overlay": "dtoverlay=tinydrm-pitft28-capacitive,rotate={pitftrot},touch-swapxy,touch-invy",
+        "fb_overlay": """dtoverlay=pitft28-capacitive,speed=64000000,fps=30
 dtoverlay=pitft28-capacitive,rotate={pitftrot}""",
         "calibrations": "320 65536 0 -65536 0 15728640 65536",
         "width": 320,
