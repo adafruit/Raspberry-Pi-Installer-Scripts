@@ -19,7 +19,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.6.0"
+__version__ = "3.7.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -56,7 +56,10 @@ config = [
         "menulabel": "PiTFT 2.2\" no touch",
         "product": "2.2\" no touch",
         "kernel_upgrade": False,
-        "overlay" : "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
+        "overlay_src": "overlays/pitft22-overlay.dts",
+        "overlay_dest": "{boot_dir}/overlays/tinydrm-pitft22.dtbo",
+        "overlay": "dtoverlay=tinydrm-pitft22,rotate={pitftrot}",
+        "fb_overlay": "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
         "width": 320,
         "height": 240,
     },
@@ -196,6 +199,7 @@ REMOVE_KERNEL_PINNING = False
 pitft_config = None
 pitftrot = None
 auto_reboot = None
+wayland = False
 
 def warn_exit(message):
     shell.warn(message)
@@ -233,6 +237,11 @@ def sysupdate():
     return True
 
 ############################ Sub-Scripts ############################
+
+def is_wayland():
+    username = os.environ["SUDO_USER"]
+    output = shell.run_command("loginctl show-session $(loginctl | grep $(whoami) | awk '{print $1}') -p Type | grep wayland", suppress_message=True, return_output=True, run_as_user=username).strip()
+    return len(output) > 0
 
 def softwareinstall():
     print("Installing Pre-requisite Software...This may take a few minutes!")
@@ -302,11 +311,14 @@ def install_drivers():
         shell.popd()
     return True
 
-def update_configtxt(rotation_override=None):
+def update_configtxt(rotation_override=None, tinydrm_install=False):
     """update /boot/config.txt (or equivalent folder) with appropriate values"""
     uninstall_bootconfigtxt()
     uninstall_etc_modules()
-    overlay = pitft_config['overlay']
+    overlay_key = "overlay"
+    if not tinydrm_install and "fb_overlay" in pitft_config:
+        overlay_key = "fb_overlay"
+    overlay = pitft_config[overlay_key]
     if "{pitftrot}" in overlay:
         rotation = str(rotation_override) if rotation_override is not None else pitftrot
         overlay = overlay.format(pitftrot=rotation)
@@ -444,8 +456,6 @@ def install_fbcp():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
-    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
-    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
     # if there's X11 installed...
     scale = 1
@@ -474,6 +484,27 @@ def install_fbcp():
         if not update_configtxt(default_orientation):
             shell.bail(f"Unable to update {boot_dir}/config.txt")
     return True
+
+def update_wayfire_settings():
+    # Set the scale factor for Wayland, which is the reciprocal of the X11 scale factor
+    if "x11_scale" in pitft_config:
+        scale = 1/pitft_config["x11_scale"]
+    else:
+        scale = 0.5
+    device_name = "SPI-1"
+    wayfire_config = f"{target_homedir}/.config/wayfire.ini"
+    # Remove any existing settings previously added by this script
+    shell.pattern_replace(wayfire_config, '\n# --- added by adafruit-pitft-helper.*?\n# --- end adafruit-pitft-helper.*?\n', multi_line=True)
+    date = shell.date()
+    shell.write_text_file(wayfire_config, f"""
+# --- added by adafruit-pitft-helper {date} ---
+[output:{device_name}]
+scale = {scale}
+# --- end adafruit-pitft-helper {date} ---
+""")
+
+    shell.pattern_replace(target_homedir, "^.*[output:SPI-1].*$", "hdmi_force_hotplug=0")
+
 
 def install_fbcp_unit():
     shell.write_text_file("/etc/systemd/system/fbcp.service",
@@ -584,7 +615,7 @@ if not shell.exists(boot_dir) or not shell.isdir(boot_dir):
 @click.option('-u', '--user', nargs=1, default=target_homedir, type=str, help="Specify path of primary user's home directory", show_default=True)
 @click.option('--display', nargs=1, default=None, help="Specify a display option (1-{}) or type {}".format(len(config), get_config_types()))
 @click.option('--rotation', nargs=1, default=None, type=int, help="Specify a rotation option (1-4) or degrees {}".format(tuple(sorted([int(x) for x in PITFT_ROTATIONS]))))
-@click.option('--install-type', nargs=1, default=None, type=click.Choice(['fbcp', 'console', 'uninstall']), help="Installation Type")
+@click.option('--install-type', nargs=1, default=None, type=click.Choice(['mirror', 'fbcp', 'console', 'uninstall']), help="Installation Type")
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
 @click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
 def main(user, display, rotation, install_type, reboot, boot):
@@ -599,6 +630,12 @@ def main(user, display, rotation, install_type, reboot, boot):
             print(f"Boot dir = {boot_dir}")
         else:
             print(f"{boot} not found or not a directory. Using {boot_dir} instead.")
+    wayland = is_wayland()
+    print(("Wayland" if wayland else "X11") + " Detected\n")
+
+    # "mirror" will be the new install type, but keep fbcp for backwards compatibility
+    if install_type == "fbcp":
+        install_type = "mirror"
 
     print("""This script downloads and installs
 PiTFT Support using userspace touch
@@ -705,7 +742,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
             shell.bail("Unable to install display drivers")
 
     shell.info(f"Updating {boot_dir}/config.txt...")
-    if not update_configtxt():
+    if not update_configtxt(tinydrm_install=wayland):
         shell.bail(f"Unable to update {boot_dir}/config.txt")
 
     if "touchscreen" in pitft_config:
@@ -729,13 +766,20 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
         if not uninstall_console():
             shell.bail("Unable to configure console")
 
-        if install_type == "fbcp" or (install_type is None and shell.prompt("Would you like the HDMI display to mirror to the PiTFT display?")):
-            shell.info("Adding FBCP support...")
-            if not install_fbcp():
-                shell.bail("Unable to configure fbcp")
+        mirror_prompt = "Would you like the HDMI display to mirror to the PiTFT display?"
+        if wayland:
+            # With wayland, PiTFT shows up as an additional display rather than a mirror
+            mirror_prompt = "Would you like the to use the PiTFT as an display?"
+        if install_type == "mirror" or (install_type is None and shell.prompt(mirror_prompt)):
+            if wayland:
+                update_wayfire_settings()
+            else:
+                shell.info("Adding FBCP support...")
+                if not install_fbcp():
+                    shell.bail("Unable to configure fbcp")
 
             if shell.exists("/etc/lightdm"):
-                shell.info("Updating X11 default calibration...")
+                shell.info("Updating Desktop Touch calibration...")
                 if not update_xorg():
                     shell.bail("Unable to update calibration")
         else:
