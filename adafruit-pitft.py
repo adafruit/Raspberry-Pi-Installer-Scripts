@@ -19,7 +19,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.7.0"
+__version__ = "3.7.1"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -77,10 +77,16 @@ config = [
                 "180": "1 0 0 0 1 0 0 0 1",
                 "270": "0 -1 1 1 0 0 0 0 1",
             },
+            "overlay_params": {
+                "0": "touch-invx,touch-invy",
+                "90": "touch-swapxy,touch-invy",
+                "180": None,
+                "270": "touch-swapxy,touch-invx",
+            },
         },
         "overlay_src": "overlays/pitft28-capacitive-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/tinydrm-pitft28-capacitive.dtbo",
-        "overlay": "dtoverlay=tinydrm-pitft28-capacitive,rotate={pitftrot},touch-swapxy,touch-invy",
+        "overlay": "dtoverlay=tinydrm-pitft28-capacitive,rotate={pitftrot}",
         "fb_overlay": """dtoverlay=pitft28-capacitive,speed=64000000,fps=30
 dtoverlay=pitft28-capacitive,rotate={pitftrot}""",
         "calibrations": "320 65536 0 -65536 0 15728640 65536",
@@ -325,7 +331,9 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
     if "{pitftrot}" in overlay:
         rotation = str(rotation_override) if rotation_override is not None else pitftrot
         overlay = overlay.format(pitftrot=rotation)
-
+    if tinydrm_install: # Wayland ignores X11 Transformations, so use params instead
+        if "overlay_params" in pitft_config and pitftrot in pitft_config["overlay_params"] and pitft_config["overlay_params"][pitftrot] is not None:
+            overlay += "," + pitft_config["overlay_params"][pitftrot]
     shell.write_text_file(f"{boot_dir}/config.txt", """
 # --- added by adafruit-pitft-helper {date} ---
 [all]
@@ -546,9 +554,12 @@ def uninstall_fbcp_rclocal():
     shell.pattern_replace("/etc/rc.local", '^.*fbcp.*$')
     return True
 
-def update_xorg():
+def update_xorg(tinydrm_install=False):
     if "touchscreen" in pitft_config:
-        transform = "Option \"TransformationMatrix\" \"{}\"".format(pitft_config["touchscreen"]["transforms"][pitftrot])
+        transform_setting = pitft_config["touchscreen"]["transforms"][pitftrot]
+        if not tinydrm_install and "old_transforms" in pitft_config["touchscreen"]:
+            transform_setting = pitft_config["touchscreen"]["old_transforms"][pitftrot]
+        transform = f"Option \"TransformationMatrix\" \"{transform_setting}\""
         shell.write_text_file("/usr/share/X11/xorg.conf.d/20-calibration.conf", """
 Section "InputClass"
         Identifier "{identifier}"
@@ -783,7 +794,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
 
             if shell.exists("/etc/lightdm"):
                 shell.info("Updating Desktop Touch calibration...")
-                if not update_xorg():
+                if not update_xorg(tinydrm_install=wayland):
                     shell.bail("Unable to update calibration")
         else:
             if not uninstall_fbcp():
