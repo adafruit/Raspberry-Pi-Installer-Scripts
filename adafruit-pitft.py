@@ -40,8 +40,17 @@ config = [
                 "180": "-1.115235 -0.010589 1.057967 -0.005964 -1.107968 1.025780 0 0 1",
                 "270": "-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1",
             },
+            "overlay_params": {
+                "0": None,
+                "90": "touch-swapxy,touch-invx",
+                "180": "touch-invx,touch-invy",
+                "270": "touch-swapxy,touch-invy",
+            },
         },
-        "overlay": "dtoverlay=pitft28-resistive,rotate={pitftrot},speed=64000000,fps=30",
+        "overlay_src": "overlays/pitft28-resistive-overlay.dts",
+        "overlay_dest": "{boot_dir}/overlays/pitft28-resistive-adafruit.dtbo",
+        "overlay": "dtoverlay=pitft28-resistive-adafruit,rotate={pitftrot},speed=64000000,fps=30",
+	"overlay_drm_option": "drm",
         "calibrations": {
             "0": "4232 11 -879396 1 5786 -752768 65536",
             "90": "33 -5782 21364572 4221 35 -1006432 65536",
@@ -57,9 +66,9 @@ config = [
         "product": "2.2\" no touch",
         "kernel_upgrade": False,
         "overlay_src": "overlays/pitft22-overlay.dts",
-        "overlay_dest": "{boot_dir}/overlays/tinydrm-pitft22.dtbo",
-        "overlay": "dtoverlay=tinydrm-pitft22,rotate={pitftrot}",
-        "fb_overlay": "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
+        "overlay_dest": "{boot_dir}/overlays/pitft22-adafruit.dtbo",
+        "overlay": "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
+	"overlay_drm_option": "drm",
         "width": 320,
         "height": 240,
     },
@@ -85,10 +94,9 @@ config = [
             },
         },
         "overlay_src": "overlays/pitft28-capacitive-overlay.dts",
-        "overlay_dest": "{boot_dir}/overlays/tinydrm-pitft28-capacitive.dtbo",
-        "overlay": "dtoverlay=tinydrm-pitft28-capacitive,rotate={pitftrot}",
-        "fb_overlay": """dtoverlay=pitft28-capacitive,speed=64000000,fps=30
-dtoverlay=pitft28-capacitive,rotate={pitftrot}""",
+        "overlay_dest": "{boot_dir}/overlays/pitft28-capacitive-adafruit.dtbo",
+        "overlay": "dtoverlay=pitft28-capacitive-adafruit,rotate={pitftrot},speed=64000000,fps=30",
+	"overlay_drm_option": "drm",
         "calibrations": "320 65536 0 -65536 0 15728640 65536",
         "width": 320,
         "height": 240,
@@ -107,8 +115,17 @@ dtoverlay=pitft28-capacitive,rotate={pitftrot}""",
                 "180": "1.102807 0.000030 -0.066352 0.001374 1.085417 -0.027208 0 0 1",
                 "270": "0.003893 -1.087542 1.025913 1.084281 0.008762 -0.060700 0 0 1",
             },
+            "overlay_params": {
+                "0": None,
+                "90": "touch-swapxy,touch-invx",
+                "180": "touch-invx,touch-invy",
+                "270": "touch-swapxy,touch-invy",
+            },
         },
-        "overlay": "dtoverlay=pitft35-resistive,rotate={pitftrot},speed=20000000,fps=20",
+        "overlay_src": "overlays/pitft35-resistive-overlay.dts",
+        "overlay_dest": "{boot_dir}/overlays/pitft35-resistive-adafruit.dtbo",
+        "overlay": "dtoverlay=pitft35-resistive-adafruit,rotate={pitftrot},speed=20000000,fps=20",
+	"overlay_drm_option": "drm",
         "calibrations": {
             "0": "5724 -6 -1330074 26 8427 -1034528 65536",
             "90": "5 8425 -978304 -5747 61 22119468 65536",
@@ -325,12 +342,12 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
     uninstall_bootconfigtxt()
     uninstall_etc_modules()
     overlay_key = "overlay"
-    if not tinydrm_install and "fb_overlay" in pitft_config:
-        overlay_key = "fb_overlay"
     overlay = pitft_config[overlay_key]
     if "{pitftrot}" in overlay:
         rotation = str(rotation_override) if rotation_override is not None else pitftrot
         overlay = overlay.format(pitftrot=rotation)
+    if tinydrm_install and "overlay_drm_option" in pitft_config:
+        overlay += "," + pitft_config["overlay_drm_option"]
     if tinydrm_install: # Wayland ignores X11 Transformations, so use params instead
         if "overlay_params" in pitft_config and pitftrot in pitft_config["overlay_params"] and pitft_config["overlay_params"][pitftrot] is not None:
             overlay += "," + pitft_config["overlay_params"][pitftrot]
@@ -783,7 +800,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
         mirror_prompt = "Would you like the HDMI display to mirror to the PiTFT display?"
         if wayland:
             # With wayland, PiTFT shows up as an additional display rather than a mirror
-            mirror_prompt = "Would you like the to use the PiTFT as an display?"
+            mirror_prompt = "Would you like the to use the PiTFT as a desktop display?"
         if install_type == "mirror" or (install_type is None and shell.prompt(mirror_prompt)):
             if wayland:
                 update_wayfire_settings()
