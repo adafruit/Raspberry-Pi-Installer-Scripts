@@ -194,11 +194,11 @@ config = [
     },
     {
         "type": "st7789v_bonnet_240x240",
-        "menulabel": "TFT 1.3\" Bonnet + Joystick",
+        "menulabel": "BrainCraft HAT or TFT 1.3\" Bonnet + Joystick",
         "product": "1.3\" Joystick",
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
-            "gpio": "dc-gpio=25,backlight-gpio=22",
+            "gpio": "dc-gpio=25,backlight-gpio=26",
             "viewport": {
                 "0": "width=240,height=240",
                 "90": "width=240,height=240,x-offset=80",
