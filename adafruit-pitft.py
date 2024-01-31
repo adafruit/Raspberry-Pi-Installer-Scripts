@@ -19,7 +19,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.7.1"
+__version__ = "3.8.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -50,7 +50,7 @@ config = [
         "overlay_src": "overlays/pitft28-resistive-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/pitft28-resistive-adafruit.dtbo",
         "overlay": "dtoverlay=pitft28-resistive-adafruit,rotate={pitftrot},speed=64000000,fps=30",
-	"overlay_drm_option": "drm",
+	    "overlay_drm_option": "drm",
         "calibrations": {
             "0": "4232 11 -879396 1 5786 -752768 65536",
             "90": "33 -5782 21364572 4221 35 -1006432 65536",
@@ -68,7 +68,7 @@ config = [
         "overlay_src": "overlays/pitft22-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/pitft22-adafruit.dtbo",
         "overlay": "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
-	"overlay_drm_option": "drm",
+	    "overlay_drm_option": "drm",
         "width": 320,
         "height": 240,
     },
@@ -96,7 +96,7 @@ config = [
         "overlay_src": "overlays/pitft28-capacitive-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/pitft28-capacitive-adafruit.dtbo",
         "overlay": "dtoverlay=pitft28-capacitive-adafruit,rotate={pitftrot},speed=64000000,fps=30",
-	"overlay_drm_option": "drm",
+	    "overlay_drm_option": "drm",
         "calibrations": "320 65536 0 -65536 0 15728640 65536",
         "width": 320,
         "height": 240,
@@ -125,7 +125,7 @@ config = [
         "overlay_src": "overlays/pitft35-resistive-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/pitft35-resistive-adafruit.dtbo",
         "overlay": "dtoverlay=pitft35-resistive-adafruit,rotate={pitftrot},speed=20000000,fps=20",
-	"overlay_drm_option": "drm",
+	    "overlay_drm_option": "drm",
         "calibrations": {
             "0": "5724 -6 -1330074 26 8427 -1034528 65536",
             "90": "5 8425 -978304 -5747 61 22119468 65536",
@@ -145,6 +145,16 @@ config = [
         "overlay_src": "overlays/minipitft13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft13.dtbo",
         "overlay": "dtoverlay=drm-minipitft13,rotate={pitftrot},fps=60",
+        "mipi_data": {
+            "command_bin": "adafruit_st7789_drm",
+            "gpio": "dc-gpio=25,backlight-gpio=22",
+            "viewport": {
+                "0": "width=240,height=240",
+                "90": "width=240,height=240,x-offset=80",
+                "180": "width=240,height=240,y-offset=80",
+                "270": "width=240,height=240",
+            },
+        },
         "width": 240,
         "height": 240,
         "fbcp_rotations": {
@@ -163,6 +173,16 @@ config = [
         "overlay_src": "overlays/st7789v_240x320-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-st7789v_240x320.dtbo",
         "overlay": "dtoverlay=drm-st7789v_240x320,rotate={pitftrot},fps=30",
+        "mipi_data": {
+            "command_bin": "adafruit_st7789_drm",
+            "gpio": "dc-gpio=25,backlight-gpio=22",
+            "viewport": {
+                "0": "width=320,height=240",
+                "90": "width=240,height=320",
+                "180": "width=320,height=240",
+                "270": "width=240,height=320",
+            },
+        },
         "width": 320,
         "height": 240,
     },
@@ -175,6 +195,16 @@ config = [
         "overlay_src": "overlays/minipitft114-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft114.dtbo",
         "overlay": "dtoverlay=drm-minipitft114,rotate={pitftrot},fps=60",
+        "mipi_data": {
+            "command_bin": "adafruit_st7789_drm",
+            "gpio": "dc-gpio=25,backlight-gpio=22",
+            "viewport": {
+                "0": "width=136,height=240,x-offset=52,y-offset=40",
+                "90": "width=240,height=136,y-offset=52,x-offset=40",
+                "180": "width=136,height=240,x-offset=52,y-offset=40",
+                "270": "width=240,height=136,y-offset=52,x-offset=40",
+            },
+        },
         "rotations": {
             "0": None,
             "90": "90",
@@ -192,13 +222,23 @@ config = [
     },
     {
         "type": "st7789v_bonnet_240x240",
-        "menulabel": "TFT 1.3\" Bonnet + Joystick",
+        "menulabel": "BrainCraft HAT or 1.3\" TFT Bonnet + Joystick",
         "product": "1.3\" Joystick",
         "kernel_upgrade": True,
         "kernel_module": "fb_st7789v",
         "overlay_src": "overlays/tftbonnet13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-tftbonnet13.dtbo",
         "overlay": "dtoverlay=drm-tftbonnet13,rotate={pitftrot},fps=60",
+        "mipi_data": {
+            "command_bin": "adafruit_st7789_drm",
+            "gpio": "dc-gpio=25,backlight-gpio=26",
+            "viewport": {
+                "0": "width=240,height=240",
+                "90": "width=240,height=240,x-offset=80",
+                "180": "width=240,height=240,y-offset=80",
+                "270": "width=240,height=240",
+            },
+        },
         "width": 240,
         "height": 240,
         "fbcp_rotations": {
@@ -216,6 +256,12 @@ fbcp_rotations = {
     "90": "0",
     "180": "3",
     "270": "2",
+}
+
+# default mipi data
+mipi_data = {
+    "speed": 40000000,
+    "spi": "spi0-0",
 }
 
 PITFT_ROTATIONS = ("90", "180", "270", "0")
@@ -296,11 +342,24 @@ def uninstall_etc_modules():
     shell.pattern_replace("/etc/modules", 'fbtft_device')
     return True
 
+def use_mipi_driver(config = None):
+    """Check if MIPI Overlay is Present"""
+    if not config:
+        config = pitft_config
+    if not "mipi_data" in config:
+        return False
+    if not shell.exists(f"{boot_dir}/overlays/mipi-dbi-spi.dtbo"):
+        return False
+    return True
+
 def is_kernel_upgrade_required(config = None):
     """Check if kernel upgrade is required"""
     if not config:
         config = pitft_config
     if not config['kernel_upgrade']:
+        return False
+    # Only upgrade Kernel if MIPI Driver is not an option
+    if use_mipi_driver(config):
         return False
 
     return True
@@ -311,6 +370,11 @@ def install_drivers():
         print("Compiling Device Tree Overlay")
         destination = pitft_config['overlay_dest'].format(boot_dir=boot_dir)
         shell.run_command("dtc --warning no-unit_address_vs_reg -I dts -O dtb -o {dest} {src}".format(dest=destination, src=pitft_config['overlay_src']))
+
+    if use_mipi_driver():
+        mipi_data.update(pitft_config['mipi_data'])
+        if not compile_display_fw():
+            shell.bail("Unable to compile MIPI firmware")
 
     if is_kernel_upgrade_required():
         print("############# UPGRADING KERNEL ###############")
@@ -346,6 +410,19 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
     if "{pitftrot}" in overlay:
         rotation = str(rotation_override) if rotation_override is not None else pitftrot
         overlay = overlay.format(pitftrot=rotation)
+    if use_mipi_driver():
+        # Mipi Driver does not work if hdmi_force_hotplug=1 is present
+        shell.pattern_replace(f"{boot_dir}/config.txt", "hdmi_force_hotplug=1", "hdmi_force_hotplug=0")
+        # Use the MIPI Overlay instead
+        overlay = f"dtoverlay=mipi-dbi-spi,{mipi_data['spi']},speed=40000000"
+        overlay += f"\ndtparam=compatible={mipi_data['command_bin']}\\0panel-mipi-dbi-spi"
+        viewport = ""
+        if mipi_data['viewport'][pitftrot] is not None:
+            viewport = mipi_data['viewport'][pitftrot]
+        overlay += f"\ndtparam={viewport}"
+        if "gpio" in mipi_data:
+            overlay += f"\ndtparam={mipi_data['gpio']}"
+
     if tinydrm_install and "overlay_drm_option" in pitft_config:
         overlay += "," + pitft_config["overlay_drm_option"]
     if tinydrm_install: # Wayland ignores X11 Transformations, so use params instead
@@ -374,6 +451,25 @@ SUBSYSTEM=="input", ATTRS{name}=="generic ft5x06*", ENV{DEVNAME}=="*event*", SYM
     shell.write_text_file("/etc/udev/rules.d/95-stmpe.rules", """
 SUBSYSTEM=="input", ATTRS{name}=="*stmpe*", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen"
 """, append=False)
+    return True
+
+def compile_display_fw():
+    command_src = "mipi/panel.txt"
+
+    # We could just copy the file to panel.txt, edit that, then remove it after
+    shell.copy(f"mipi/{mipi_data['command_bin']}.txt", command_src)
+
+    # Make sure each of the lines with "# rotation" starts with exactly 1 # and no more
+    shell.pattern_replace(command_src, "^#*(.*?# rotation.*?$)", "#\\1")
+    # Uncomment the one for the rotation we are going for
+    shell.pattern_replace(command_src, "^#(.*?# rotation " + pitftrot + ".*?$)", "\\1")
+    # Download the mipi-dbi-cmd script if it doesn't exist
+    if not shell.exists("mipi-dbi-cmd"):
+        shell.run_command("wget https://raw.githubusercontent.com/notro/panel-mipi-dbi/main/mipi-dbi-cmd")
+        shell.run_command("chmod +x mipi-dbi-cmd")
+    # Run the mipi-dbi-script and output directly to the /lib/firmware folder
+    shell.run_command(f"./mipi-dbi-cmd /lib/firmware/{mipi_data['command_bin']}.bin mipi/panel.txt")
+    shell.remove(command_src)
     return True
 
 def update_pointercal():
