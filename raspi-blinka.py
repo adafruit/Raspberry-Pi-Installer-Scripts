@@ -64,7 +64,8 @@ def set_raspiconfig():
     print("Enabling SPI")
     shell.run_command("sudo raspi-config nonint do_spi 0")
     print("Enabling Serial")
-    shell.run_command("sudo raspi-config nonint do_serial_hw 0")
+    if not shell.run_command("sudo raspi-config nonint do_serial_hw 0", suppress_message=True):
+        shell.run_command("sudo raspi-config nonint do_serial 0")
     print("Enabling SSH")
     shell.run_command("sudo raspi-config nonint do_ssh 0")
     print("Enabling Camera")
