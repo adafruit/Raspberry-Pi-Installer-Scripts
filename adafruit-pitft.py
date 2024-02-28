@@ -272,6 +272,7 @@ pitft_config = None
 pitftrot = None
 auto_reboot = None
 wayland = False
+is_bullseye = False
 
 def warn_exit(message):
     shell.warn(message)
@@ -580,6 +581,9 @@ def install_fbcp():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
+    if is_bullseye:
+        shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
+        shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
     # if there's X11 installed...
     scale = 1
@@ -737,6 +741,9 @@ boot_dir = "/boot/firmware"
 if not shell.exists(boot_dir) or not shell.isdir(boot_dir):
     boot_dir = "/boot"
 
+if shell.get_raspbian_version() == "bullseye":
+    is_bullseye = True
+
 @click.command()
 @click.option('-v', '--version', is_flag=True, callback=print_version, expose_value=False, is_eager=True, help="Print version information")
 @click.option('-u', '--user', nargs=1, default=target_homedir, type=str, help="Specify path of primary user's home directory", show_default=True)
@@ -758,8 +765,10 @@ def main(user, display, rotation, install_type, reboot, boot):
         else:
             print(f"{boot} not found or not a directory. Using {boot_dir} instead.")
     wayland = is_wayland()
-    print(("Wayland" if wayland else "X11") + " Detected\n")
-
+    print(("Wayland" if wayland else "X11") + " Detected")
+    if is_bullseye:
+        print("Bullseye Detected")
+    print()
     # "mirror" will be the new install type, but keep fbcp for backwards compatibility
     if install_type == "fbcp":
         install_type = "mirror"
