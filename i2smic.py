@@ -56,7 +56,10 @@ Installing...""")
         )
 
     # Enable I2S overlay
-    shell.run_command("sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' /boot/config.txt")
+    if shell.get_raspbian_version() == "bookworm":
+        shell.run_command("sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' /boot/firmware/config.txt")
+    else:
+        shell.run_command("sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' /boot/config.txt")
 
     # Done
     print("""DONE.
