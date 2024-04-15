@@ -1,4 +1,5 @@
 import platform
+import os
 
 try:
     from adafruit_shell import Shell
@@ -56,7 +57,7 @@ Installing...""")
         )
 
     # Enable I2S overlay
-    if shell.get_raspbian_version() == "bookworm":
+    if os.path.exists("/boot/firmware/config.txt"):
         shell.run_command("sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' /boot/firmware/config.txt")
     else:
         shell.run_command("sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' /boot/config.txt")
