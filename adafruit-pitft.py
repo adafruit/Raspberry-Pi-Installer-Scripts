@@ -145,6 +145,7 @@ config = [
         "overlay_src": "overlays/minipitft13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft13.dtbo",
         "overlay": "dtoverlay=drm-minipitft13,rotate={pitftrot},fps=60",
+        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=22",
@@ -173,6 +174,7 @@ config = [
         "overlay_src": "overlays/st7789v_240x320-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-st7789v_240x320.dtbo",
         "overlay": "dtoverlay=drm-st7789v_240x320,rotate={pitftrot},fps=30",
+        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=22",
@@ -195,6 +197,7 @@ config = [
         "overlay_src": "overlays/minipitft114-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft114.dtbo",
         "overlay": "dtoverlay=drm-minipitft114,rotate={pitftrot},fps=60",
+        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=22",
@@ -229,6 +232,7 @@ config = [
         "overlay_src": "overlays/tftbonnet13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-tftbonnet13.dtbo",
         "overlay": "dtoverlay=drm-tftbonnet13,rotate={pitftrot},fps=60",
+        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=26",
@@ -581,7 +585,7 @@ def install_fbcp():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
-    if is_bullseye:
+    if is_bullseye and ("use_kms" not in pitft_config or not pitft_config["use_kms"]):
         shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
         shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
