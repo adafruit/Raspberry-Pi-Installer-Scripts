@@ -19,7 +19,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "3.8.0"
+__version__ = "3.9.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -47,10 +47,9 @@ config = [
                 "270": "touch-swapxy,touch-invy",
             },
         },
-        "overlay_src": "overlays/pitft28-resistive-overlay.dts",
-        "overlay_dest": "{boot_dir}/overlays/pitft28-resistive-adafruit.dtbo",
-        "overlay": "dtoverlay=pitft28-resistive-adafruit,rotate={pitftrot},speed=64000000,fps=30",
+        "overlay": "dtoverlay=pitft28-resistive,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
+        "force_x11": True,
         "calibrations": {
             "0": "4232 11 -879396 1 5786 -752768 65536",
             "90": "33 -5782 21364572 4221 35 -1006432 65536",
@@ -65,8 +64,6 @@ config = [
         "menulabel": "PiTFT 2.2\" no touch",
         "product": "2.2\" no touch",
         "kernel_upgrade": False,
-        "overlay_src": "overlays/pitft22-overlay.dts",
-        "overlay_dest": "{boot_dir}/overlays/pitft22-adafruit.dtbo",
         "overlay": "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
         "width": 320,
@@ -93,10 +90,9 @@ config = [
                 "270": "touch-swapxy,touch-invx",
             },
         },
-        "overlay_src": "overlays/pitft28-capacitive-overlay.dts",
-        "overlay_dest": "{boot_dir}/overlays/pitft28-capacitive-adafruit.dtbo",
-        "overlay": "dtoverlay=pitft28-capacitive-adafruit,rotate={pitftrot},speed=64000000,fps=30",
+        "overlay": "dtoverlay=pitft28-capacitive,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
+        "force_x11": True,
         "calibrations": "320 65536 0 -65536 0 15728640 65536",
         "width": 320,
         "height": 240,
@@ -122,10 +118,9 @@ config = [
                 "270": "touch-swapxy,touch-invy",
             },
         },
-        "overlay_src": "overlays/pitft35-resistive-overlay.dts",
-        "overlay_dest": "{boot_dir}/overlays/pitft35-resistive-adafruit.dtbo",
-        "overlay": "dtoverlay=pitft35-resistive-adafruit,rotate={pitftrot},speed=20000000,fps=20",
+        "overlay": "dtoverlay=pitft35-resistive,rotate={pitftrot},speed=20000000,fps=20",
 	    "overlay_drm_option": "drm",
+        "force_x11": True,
         "calibrations": {
             "0": "5724 -6 -1330074 26 8427 -1034528 65536",
             "90": "5 8425 -978304 -5747 61 22119468 65536",
@@ -585,7 +580,9 @@ def install_fbcp():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
-    if is_bullseye and ("use_kms" not in pitft_config or not pitft_config["use_kms"]):
+
+    # Don't use the 3D driver if we're on X11, unless the display specifically uses kms
+    if (is_bullseye or not wayland) and ("use_kms" not in pitft_config or not pitft_config["use_kms"]):
         shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
         shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
@@ -667,6 +664,11 @@ def uninstall_fbcp():
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_group=2.*$')
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_mode=87.*$')
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_cvt=.*$')
+
+    if not wayland and not is_bullseye:
+        print("Restoring Wayland as default display manager...")
+        disable_wayland(False)
+
     return True
 
 def uninstall_fbcp_rclocal():
@@ -734,6 +736,18 @@ Settings take effect on next boot.
     shell.reboot()
     shell.exit()
 
+def disable_wayland(disable):
+    if is_bullseye:
+        return
+    if disable:
+        print("Using X11 instead of Wayland")
+        if not shell.run_command("sudo raspi-config nonint do_wayland W1"):
+            shell.bail("Unable to disable Wayland")
+    else:
+        print("Using Wayland instead of X11")
+        if not shell.run_command("sudo raspi-config nonint do_wayland W1"):
+            shell.bail("Unable to enable Wayland")
+
 ####################################################### MAIN
 target_homedir = "/home/pi"
 username = os.environ["SUDO_USER"]
@@ -757,7 +771,7 @@ if shell.get_raspbian_version() == "bullseye":
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
 @click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
 def main(user, display, rotation, install_type, reboot, boot):
-    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir
+    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir, wayland
     shell.clear()
     if user != target_homedir:
         target_homedir = user
@@ -789,16 +803,22 @@ Run time of up to 5 minutes. Reboot required!
     if install_type == "uninstall":
         uninstall()
 
+    def select_display(config, interactive=False):
+        global pitft_config, wayland
+        print(("Wayland" if wayland else "X11") + " Detected")
+        pitft_config = config
+        print("Display Type: {}".format(pitft_config["menulabel"]))
+        if is_kernel_upgrade_required():
+            print("WARNING! WILL UPGRADE YOUR KERNEL TO LATEST")
+        if "force_x11" in pitft_config and pitft_config["force_x11"] and wayland:
+            if not interactive or shell.prompt("This display works better with X11, but Wayland is currently running. Use X11 instead? (Recommended)", default="y"):
+                disable_wayland(True)
+                wayland = False
+
     if display in [str(x) for x in range(1, len(config) + 1)]:
-        pitft_config = config[int(display) - 1]
-        print("Display Type: {}".format(pitft_config["menulabel"]))
-        if is_kernel_upgrade_required():
-            print("WARNING! WILL UPGRADE YOUR KERNEL TO LATEST")
+        select_display(config[int(display) - 1])
     elif display in get_config_types():
-        pitft_config = get_config(display)
-        print("Display Type: {}".format(pitft_config["menulabel"]))
-        if is_kernel_upgrade_required():
-            print("WARNING! WILL UPGRADE YOUR KERNEL TO LATEST")
+        select_display(get_config(display))
     else:
         # Build menu from config
         selections = []
@@ -815,14 +835,14 @@ Run time of up to 5 minutes. Reboot required!
             shell.exit(1)
         if PITFT_SELECT == len(config) + 1:
             uninstall()
-        pitft_config = config[PITFT_SELECT - 1]
+        select_display(config[PITFT_SELECT - 1], True)
 
     if rotation is not None and 1 <= rotation <= 4:
         pitftrot = PITFT_ROTATIONS[rotation - 1]
-        print("Rotation: {}".format(pitftrot))
+        shell.info("Rotation: {}".format(pitftrot))
     elif str(rotation) in PITFT_ROTATIONS:
         pitftrot = str(rotation)
-        print("Rotation: {}".format(pitftrot))
+        shell.info("Rotation: {}".format(pitftrot))
     else:
         PITFT_ROTATE = shell.select_n(
         "Select rotation:", (
@@ -912,6 +932,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
             mirror_prompt = "Would you like the to use the PiTFT as a desktop display?"
         if install_type == "mirror" or (install_type is None and shell.prompt(mirror_prompt)):
             if wayland:
+                shell.info("Updating Wayland desktop settings...")
                 update_wayfire_settings()
             else:
                 shell.info("Adding FBCP support...")
