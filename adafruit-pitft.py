@@ -118,7 +118,7 @@ config = [
                 "270": "touch-swapxy,touch-invy",
             },
         },
-        "overlay": "dtoverlay=pitft35-resistive,rotate={pitftrot},speed=20000000,fps=20",
+        "overlay": "dtoverlay=pitft35-resistive,rotate={pitftrot},speed=20000000,fps=20,drm",
 	    "overlay_drm_option": "drm",
         "force_x11": True,
         "calibrations": {
