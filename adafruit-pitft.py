@@ -902,7 +902,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
             shell.bail("Unable to install display drivers")
 
     shell.info(f"Updating {boot_dir}/config.txt...")
-    if not update_configtxt(tinydrm_install=wayland):
+    if not update_configtxt(tinydrm_install=(not is_bullseye)):
         shell.bail(f"Unable to update {boot_dir}/config.txt")
 
     if "touchscreen" in pitft_config:
