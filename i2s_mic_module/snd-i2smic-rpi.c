@@ -38,7 +38,7 @@
  * N.B. playback vs capture is determined by the codec choice
  * */
 
-static struct asoc_simple_card_info card_info;
+static struct simple_card_info card_info;
 static struct platform_device card_device;
 
 /*
@@ -56,7 +56,7 @@ void device_release_callback(struct device *dev) { /*  do nothing */ };
 /*
  * Setup the card info
  */
-static struct asoc_simple_card_info default_card_info = {
+static struct simple_card_info default_card_info = {
   .card = "snd_rpi_i2s_card",       // -> snd_soc_card.name
   .name = "simple-card_codec_link", // -> snd_soc_dai_link.name
   .codec = "snd-soc-dummy",         // "dmic-codec", // -> snd_soc_dai_link.codec_name
