@@ -20,7 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/platform_device.h>
-#include <sound/simple_card.h>
+#include <sound/soc.h>
 #include <linux/delay.h>
 #include "snd-i2smic-rpi.h"
 
@@ -38,8 +38,8 @@
  * N.B. playback vs capture is determined by the codec choice
  * */
 
-static struct simple_card_info card_info;
-static struct platform_device card_device;
+static struct snd_soc_card snd_rpi_i2s_card;
+static struct platform_device *pdev;
 
 /*
  * Setup command line parameter
@@ -53,36 +53,34 @@ MODULE_PARM_DESC(rpi_platform_generation, "Raspberry Pi generation: 0=Pi0, 1=Pi2
  */
 void device_release_callback(struct device *dev) { /*  do nothing */ };
 
-/*
- * Setup the card info
- */
-static struct simple_card_info default_card_info = {
-  .card = "snd_rpi_i2s_card",       // -> snd_soc_card.name
-  .name = "simple-card_codec_link", // -> snd_soc_dai_link.name
-  .codec = "snd-soc-dummy",         // "dmic-codec", // -> snd_soc_dai_link.codec_name
-  .platform = "not-set.i2s",
-  .daifmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
-  .cpu_dai = {
-    .name = "not-set.i2s",          // -> snd_soc_dai_link.cpu_dai_name
-    .sysclk = 0
-  },
-  .codec_dai = {
-    .name = "snd-soc-dummy-dai",    //"dmic-codec", // -> snd_soc_dai_link.codec_dai_name
-    .sysclk = 0
-  },
+static struct snd_soc_dai_link_component cpu_component = {
+  .name = "not-set.i2s",
 };
 
-/*
- * Setup the card device
- */
-static struct platform_device default_card_device = {
-  .name = "asoc-simple-card",   //module alias
-  .id = 0,
-  .num_resources = 0,
-  .dev = {
-    .release = &device_release_callback,
-    .platform_data = &default_card_info, // *HACK ALERT*
-  },
+static struct snd_soc_dai_link_component codec_component = {
+  .name = "snd-soc-dummy-dai",
+};
+
+static struct snd_soc_dai_link_component platform_component = {
+  .name = "not-set.i2s",
+};
+
+static struct snd_soc_dai_link dai_link = {
+  .name = "simple-card_codec_link",
+  .stream_name = "simple-card_codec_link",
+  .cpus = &cpu_component,
+  .num_cpus = 1,
+  .codecs = &codec_component,
+  .num_codecs = 1,
+  .platforms = &platform_component,
+  .num_platforms = 1,
+  .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS,
+};
+
+static struct snd_soc_card snd_rpi_i2s_card = {
+  .name = "snd_rpi_i2s_card",
+  .dai_link = &dai_link,
+  .num_links = 1,
 };
 
 /*
@@ -117,19 +115,30 @@ int i2s_mic_rpi_init(void)
 
   // request DMA engine module
   ret = request_module(dmaengine);
-  pr_alert("request module load '%s': %d\n",dmaengine, ret);
+  pr_alert("request module load '%s': %d\n", dmaengine, ret);
 
   // update info
-  card_info = default_card_info;
-  card_info.platform = card_platform;
-  card_info.cpu_dai.name = card_platform;
-
-  card_device = default_card_device;
-  card_device.dev.platform_data = &card_info;
+  cpu_component.name = card_platform;
+  platform_component.name = card_platform;
 
   // register the card device
-  ret = platform_device_register(&card_device);
-  pr_alert("register platform device '%s': %d\n",card_device.name, ret);
+  pdev = platform_device_alloc("asoc-simple-card", -1);
+  if (!pdev) {
+    pr_err("snd-i2smic-rpi: platform_device_alloc failed\n");
+    return -ENOMEM;
+  }
+
+  pdev->dev.release = device_release_callback;
+  pdev->dev.platform_data = &snd_rpi_i2s_card;
+
+  ret = platform_device_add(pdev);
+  if (ret) {
+    pr_err("snd-i2smic-rpi: platform_device_add failed: %d\n", ret);
+    platform_device_put(pdev);
+    return ret;
+  }
+
+  pr_alert("register platform device '%s': %d\n", pdev->name, ret);
 
   return 0;
 }
@@ -139,7 +148,7 @@ int i2s_mic_rpi_init(void)
  */
 void i2s_mic_rpi_exit(void)
 {
-  platform_device_unregister(&card_device);
+  platform_device_unregister(pdev);
   pr_alert("i2s mic module unloaded\n");
 }
 
