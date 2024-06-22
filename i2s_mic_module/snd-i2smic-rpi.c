@@ -115,7 +115,7 @@ int i2s_mic_rpi_init(void)
 
   // request DMA engine module
   ret = request_module(dmaengine);
-  pr_alert("request module load '%s': %d\n", dmaengine, ret);
+  pr_alert("request module load '%s': %d\n",dmaengine, ret);
 
   // update info
   cpu_component.name = card_platform;
