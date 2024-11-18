@@ -92,15 +92,18 @@ def install_blinka(user=False):
     username = None
     if user:
         username = os.environ["SUDO_USER"]
-    shell.run_command(f"{pip_command} RPi.GPIO", run_as_user=username)
     shell.run_command(f"{pip_command} adafruit-blinka", run_as_user=username)
 
 # Custom function to run additional commands for Pi 5
-def check_and_install_for_pi5(pi_model):
+def check_and_install_for_pi5(pi_model, user=False):
     if pi_model.startswith("RASPBERRY_PI_5"):
+        username = None
+        if user:
+            username = os.environ["SUDO_USER"]
         print("Detected Raspberry Pi 5, applying additional fixes...")
-        os.system("sudo apt remove python3-rpi.gpio")
-        os.system("pip3 install rpi-lgpio")
+        shell.run_command("sudo apt remove python3-rpi.gpio")
+        shell.run_command("pip3 uninstall -y RPi.GPIO", run_as_user=username)
+        shell.run_command("pip3 install --upgrade rpi-lgpio", run_as_user=username)
     else:
         print(f"Detected {pi_model}, no additional fixes needed.")
 
@@ -139,8 +142,8 @@ Raspberry Pi and installs Blinka
     update_pip()
     install_blinka(True)
 
-    # Check and install for Pi 5 if detected
-    check_and_install_for_pi5(pi_model)
+    # Check and install any Pi 5 fixes if detected
+    check_and_install_for_pi5(pi_model, True)
 
     # Done
     print("""DONE.
