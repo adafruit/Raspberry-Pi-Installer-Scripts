@@ -112,6 +112,8 @@ def main():
     shell.clear()
     # Check Raspberry Pi and Bail
     pi_model = shell.get_board_model()
+    if not pi_model:
+        shell.bail("This model of Raspberry Pi is not currently supported by Blinka")
     print("""This script configures your
 Raspberry Pi and installs Blinka
 """)
