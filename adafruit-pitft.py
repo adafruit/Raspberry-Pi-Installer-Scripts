@@ -741,11 +741,11 @@ def disable_wayland(disable):
         return
     if disable:
         print("Using X11 instead of Wayland")
-        if not shell.run_command("sudo raspi-config nonint do_wayland 0"):
+        if not shell.run_command("sudo raspi-config nonint do_wayland W1"):
             shell.bail("Unable to disable Wayland")
     else:
         print("Using Wayland instead of X11")
-        if not shell.run_command("sudo raspi-config nonint do_wayland 1"):
+        if not shell.run_command("sudo raspi-config nonint do_wayland W2"):
             shell.bail("Unable to enable Wayland")
 
 ####################################################### MAIN
