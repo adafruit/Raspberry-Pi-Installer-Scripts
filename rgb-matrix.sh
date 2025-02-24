@@ -308,12 +308,17 @@ if [ $INSTALL_RTC -ne 0 ]; then
 fi
 
 if [ $QUALITY_MOD -eq 0 ]; then
-	# Disable sound ('easy way' -- kernel module not blacklisted)
+	# Disable sound
 	reconfig $CONFIG_FILE "^.*dtparam=audio.*$" "dtparam=audio=off"
+	# The rgb-matrix software also checks for the module to be blacklisted.
+	echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/blacklist-rgb-matrix.conf > /dev/null
 else
-	# Enable sound (ditto)
+	# Enable sound
 	reconfig $CONFIG_FILE "^.*dtparam=audio.*$" "dtparam=audio=on"
+	# Remove kernel blacklist if present
+	sudo rm -f /etc/modprobe.d/blacklist-rgb-matrix.conf
 fi
+sudo update-initramfs -u
 
 if [ $ISOL_CPU -eq 1 ]; then
 	# Enable CPU core isolation
