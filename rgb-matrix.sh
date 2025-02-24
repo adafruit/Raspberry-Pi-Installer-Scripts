@@ -216,10 +216,10 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Downloading prerequisites..."
-if [ $HAS_PYTHON2 ]; then
+if [ "$HAS_PYTHON2" = 1 ]; then
 	apt-get install -y --force-yes python2.7-dev python-pillow
 fi
-if [ $HAS_PYTHON3 ]; then
+if [ "$HAS_PYTHON3" = 1 ]; then
 	apt-get install -y --force-yes python3-dev python3-pillow
 fi
 
@@ -239,24 +239,24 @@ USER_DEFINES=""
 #	USER_DEFINES+=" -DLED_ROWS=${MATRIX_HEIGHTS[$MATRIX_SIZE]}"
 #fi
 if [ $QUALITY_MOD -eq 0 ]; then
-	if [ $HAS_PYTHON2 ]; then
+	if [ "$HAS_PYTHON2" = 1 ]; then
 		# Build and install for Python 2.7...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
 	fi
-	if [ $HAS_PYTHON3 ]; then
+	if [ "$HAS_PYTHON3" = 1 ]; then
 		# Do over for Python 3...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 	fi
 else
 	USER_DEFINES+=" -DDISABLE_HARDWARE_PULSES"
-	if [ $HAS_PYTHON2 ]; then
+	if [ "$HAS_PYTHON2" = 1 ]; then
 		# Build then install for Python 2.7...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
 	fi
-	if [ $HAS_PYTHON3 ]; then
+	if [ "$HAS_PYTHON3" = 1 ]; then
 		# Do over for Python 3...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
