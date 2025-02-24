@@ -21,11 +21,18 @@ fi
 HAS_PYTHON2=$( [ ! $(which python2) ] ; echo $?)
 HAS_PYTHON3=$( [ ! $(which python3) ] ; echo $?)
 
-# Bookworm moved the config file from /boot/config.txt to /boot/firmware/config.txt
+NUM_CORES=$( nproc --all )
+ISOLCPU_CMD=isolcpus=3
+
+# Bookworm moved the config and cmdline files from /boot/ to /boot/firmware/
 # Check to see where it is to ensure the config changes are written to the right place.
 CONFIG_FILE=/boot/firmware/config.txt
 if [ ! -f $CONFIG_FILE ]; then
     CONFIG_FILE=/boot/config.txt
+fi
+CMDLINE_FILE=/boot/firmware/cmdline.txt
+if [ ! -f $CMDLINE_FILE ]; then
+    CONFIG_FILE=/boot/cmdline.txt
 fi
 
 clear
@@ -53,6 +60,7 @@ fi
 INTERFACE_TYPE=0
 INSTALL_RTC=0
 QUALITY_MOD=0
+ISOL_CPU=0
 #SLOWDOWN_GPIO=5
 #MATRIX_SIZE=3
 
@@ -93,6 +101,11 @@ INTERFACES=( \
 QUALITY_OPTS=( \
   "Quality (disables sound, requires soldering)" \
   "Convenience (sound on, no soldering)" \
+)
+
+ISOLCPUS_OPTS=( \
+  "Do not reserve core for driving display" \
+  "Reserve core for driving display (recommended)" \
 )
 
 #SLOWDOWN_OPTS=( \
@@ -171,6 +184,18 @@ echo "What is thy bidding?"
 selectN "${QUALITY_OPTS[@]}"
 QUALITY_MOD=$?
 
+if [ $NUM_CORES -gt 3 ]; then
+  echo
+  echo "Your pi has ${NUM_CORES} CPU cores."
+  echo "You can choose to dedicate one just to driving the display."
+  echo "This will make the display less suseptible to glitches when"
+  echo "the system is doing other heavy tasks. Do you wish to isolate"
+  echo "one core for this purpose?"
+  selectN "${ISOLCPUS_OPTS[@]}"
+  ISOL_CPU=$?
+
+fi
+
 # VERIFY SELECTIONS BEFORE CONTINUING --------------------------------------
 
 echo
@@ -185,6 +210,7 @@ if [ $QUALITY_MOD -eq 0 ]; then
 	echo "Reminder: you must SOLDER a wire between GPIO4"
 	echo "and GPIO18, and internal sound is DISABLED!"
 fi
+echo "Isolate CPU for Display Driving: ${ISOLCPUS_OPTS[$ISOL_CPU]}"
 echo
 echo -n "CONTINUE? [y/n] "
 read
@@ -287,6 +313,14 @@ if [ $QUALITY_MOD -eq 0 ]; then
 else
 	# Enable sound (ditto)
 	reconfig $CONFIG_FILE "^.*dtparam=audio.*$" "dtparam=audio=on"
+fi
+
+if [ $ISOL_CPU -eq 1 ]; then
+	# Enable CPU core isolation
+	grep -qw $ISOLCPU_CMD $CMDLINE_FILE || echo -n " $ISOLCPU_CMD" >> $CMDLINE_FILE
+else
+  # Disable CPU core isolation
+  sed -i -e "s/\b${ISOLCPU_CMD}\b//g" -e 's/  */ /g' -e 's/^ //;s/ $//' $CMDLINE_FILE
 fi
 
 # PROMPT FOR REBOOT --------------------------------------------------------
