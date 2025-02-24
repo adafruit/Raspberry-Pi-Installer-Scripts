@@ -217,10 +217,10 @@ apt-get update
 
 echo "Downloading prerequisites..."
 if [ "$HAS_PYTHON2" = 1 ]; then
-	apt-get install -y --force-yes python2.7-dev python-pillow
+	apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages python2.7-dev python-pillow
 fi
 if [ "$HAS_PYTHON3" = 1 ]; then
-	apt-get install -y --force-yes python3-dev python3-pillow
+	apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages python3-dev python3-pillow
 fi
 
 echo "Downloading RGB matrix software..."
