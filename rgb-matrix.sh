@@ -21,6 +21,13 @@ fi
 HAS_PYTHON2=$( [ ! $(which python2) ] ; echo $?)
 HAS_PYTHON3=$( [ ! $(which python3) ] ; echo $?)
 
+# Bookworm moved the config file from /boot/config.txt to /boot/firmware/config.txt
+# Check to see where it is to ensure the config changes are written to the right place.
+CONFIG_FILE=/boot/firmware/config.txt
+if [ ! -f $CONFIG_FILE ]; then
+    CONFIG_FILE=/boot/config.txt
+fi
+
 clear
 
 echo "This script installs software for the Adafruit"
@@ -267,7 +274,7 @@ if [ $INSTALL_RTC -ne 0 ]; then
 	# Enable I2C for RTC
 	raspi-config nonint do_i2c 0
 	# Do additional RTC setup for DS1307
-	reconfig /boot/config.txt "^.*dtoverlay=i2c-rtc.*$" "dtoverlay=i2c-rtc,ds1307"
+	reconfig $CONFIG_FILE "^.*dtoverlay=i2c-rtc.*$" "dtoverlay=i2c-rtc,ds1307"
 	apt-get -y remove fake-hwclock
 	update-rc.d -f fake-hwclock remove
 	sudo sed --in-place '/if \[ -e \/run\/systemd\/system \] ; then/,+2 s/^#*/#/' /lib/udev/hwclock-set
@@ -276,10 +283,10 @@ fi
 
 if [ $QUALITY_MOD -eq 0 ]; then
 	# Disable sound ('easy way' -- kernel module not blacklisted)
-	reconfig /boot/config.txt "^.*dtparam=audio.*$" "dtparam=audio=off"
+	reconfig $CONFIG_FILE "^.*dtparam=audio.*$" "dtparam=audio=off"
 else
 	# Enable sound (ditto)
-	reconfig /boot/config.txt "^.*dtparam=audio.*$" "dtparam=audio=on"
+	reconfig $CONFIG_FILE "^.*dtparam=audio.*$" "dtparam=audio=on"
 fi
 
 # PROMPT FOR REBOOT --------------------------------------------------------
