@@ -13,6 +13,7 @@ COMMIT=62986e65dec25451a37531896be087664a49929b
 # Previously: COMMIT=21410d2b0bac006b4a1661594926af347b3ce334
 # Previously: COMMIT=e3dd56dcc0408862f39cccc47c1d9dea1b0fb2d2 
 
+
 if [ $(id -u) -ne 0 ]; then
 	echo "Installer must be run as root."
 	echo "Try 'sudo bash $0'"
