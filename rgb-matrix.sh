@@ -7,7 +7,8 @@
 # we reference a specific commit (update this as needed):
 GITUSER=https://github.com/hzeller
 REPO=rpi-rgb-led-matrix
-COMMIT=a3eea997a9254b83ab2de97ae80d83588f696387
+COMMIT=62986e65dec25451a37531896be087664a49929b
+# Previously: COMMIT=a3eea997a9254b83ab2de97ae80d83588f696387
 # Previously: COMMIT=45d3ab5d6cff6e0c14da58930d662822627471fc
 # Previously: COMMIT=21410d2b0bac006b4a1661594926af347b3ce334
 # Previously: COMMIT=e3dd56dcc0408862f39cccc47c1d9dea1b0fb2d2 
