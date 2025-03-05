@@ -667,7 +667,7 @@ def uninstall_fbcp():
 
     if not wayland and not is_bullseye:
         print("Restoring Wayland as default display manager...")
-        disable_wayland(False)
+        shell.set_window_manager("wayland")
 
     return True
 
@@ -736,18 +736,6 @@ Settings take effect on next boot.
     shell.reboot()
     shell.exit()
 
-def disable_wayland(disable):
-    if is_bullseye:
-        return
-    if disable:
-        print("Using X11 instead of Wayland")
-        if not shell.run_command("sudo raspi-config nonint do_wayland W1"):
-            shell.bail("Unable to disable Wayland")
-    else:
-        print("Using Wayland instead of X11")
-        if not shell.run_command("sudo raspi-config nonint do_wayland W2"):
-            shell.bail("Unable to enable Wayland")
-
 ####################################################### MAIN
 target_homedir = "/home/pi"
 username = os.environ["SUDO_USER"]
@@ -755,9 +743,9 @@ user_homedir = os.path.expanduser(f"~{username}")
 if shell.isdir(user_homedir):
     target_homedir = user_homedir
 
-boot_dir = "/boot/firmware"
-if not shell.exists(boot_dir) or not shell.isdir(boot_dir):
-    boot_dir = "/boot"
+boot_dir = shell.get_boot_config()
+if boot_dir is None:
+    shell.bail("Unable to find boot directory")
 
 if shell.get_raspbian_version() == "bullseye":
     is_bullseye = True
@@ -805,14 +793,13 @@ Run time of up to 5 minutes. Reboot required!
 
     def select_display(config, interactive=False):
         global pitft_config, wayland
-        print(("Wayland" if wayland else "X11") + " Detected")
         pitft_config = config
         print("Display Type: {}".format(pitft_config["menulabel"]))
         if is_kernel_upgrade_required():
             print("WARNING! WILL UPGRADE YOUR KERNEL TO LATEST")
         if "force_x11" in pitft_config and pitft_config["force_x11"] and wayland:
             if not interactive or shell.prompt("This display works better with X11, but Wayland is currently running. Use X11 instead? (Recommended)", default="y"):
-                disable_wayland(True)
+                shell.set_window_manager("x11")
                 wayland = False
 
     if display in [str(x) for x in range(1, len(config) + 1)]:
@@ -951,5 +938,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
 # Main function
 if __name__ == "__main__":
     shell.require_root()
+    if shell.is_raspberry_pi_os() and shell.is_kernel_userspace_mismatched() and shell.is_pi5_or_newer():
+        shell.bail("Unable to proceed on Pi 5 or newer boards with a with a 32-bit OS. Please reinstall with a 64-bit OS.")
     shell.check_kernel_userspace_mismatch()
     main()

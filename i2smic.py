@@ -9,6 +9,7 @@ shell = Shell()
 
 def main():
     shell.clear()
+    boot_config = shell.get_boot_config()
     print("""This script downloads and installs
 I2S microphone support.
 """)
@@ -56,10 +57,7 @@ Installing...""")
         )
 
     # Enable I2S overlay
-    if os.path.exists("/boot/firmware/config.txt"):
-        shell.run_command("sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' /boot/firmware/config.txt")
-    else:
-        shell.run_command("sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' /boot/config.txt")
+    shell.run_command(f"sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' {boot_config}")
 
     # Done
     print("""DONE.
@@ -72,5 +70,8 @@ Settings take effect on next boot.
 # Main function
 if __name__ == "__main__":
     shell.require_root()
+    # Probably not necessary for now because the Pi 5 doesn't work anyway
+    if shell.is_raspberry_pi_os() and shell.is_kernel_userspace_mismatched() and shell.is_pi5_or_newer():
+        shell.bail("Unable to proceed on Pi 5 or newer boards with a with a 32-bit OS. Please reinstall with a 64-bit OS.")
     shell.check_kernel_userspace_mismatch()
     main()

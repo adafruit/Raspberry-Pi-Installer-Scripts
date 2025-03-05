@@ -63,7 +63,7 @@ CURRENT_SETTING = False
 UPDATED_DB = False
 
 BOOTCMD = "/boot/cmdline.txt"
-CONFIG = "/boot/config.txt"
+CONFIG = shell.get_boot_config()
 APTSRC = "/etc/apt/sources.list"
 INITABCONF = "/etc/inittab"
 BLACKLIST = "/etc/modprobe.d/raspi-blacklist.conf"
@@ -74,7 +74,7 @@ def raspbian_old():
     return shell.get_raspbian_version() in ("wheezy", "squeeze")
 
 def dt_check():
-    # Check if /boot/config.txt exists and de
+    # Check if /boot/firmware/config.txt exists and de
     return shell.exists(CONFIG) and not shell.pattern_search(CONFIG, "^device_tree=$")
 
 #Perform all global variables declarations as well as function definition

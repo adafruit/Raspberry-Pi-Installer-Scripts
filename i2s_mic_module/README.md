@@ -16,7 +16,7 @@ Then do the following
 # Installing raspberrypi-kernel-headers works only if you haven't messed with
 # the rpi-update thing.
 # If you did, then you would have to do the rpi-source method
-# to get the kernel headers. See: 
+# to get the kernel headers. See:
 # https://learn.adafruit.com/adafruit-i2s-mems-microphone-breakout/raspberry-pi-wiring-and-test#kernel-compiling
 
 $ sudo apt install dkms raspberrypi-kernel-headers
@@ -24,8 +24,8 @@ $ sudo apt install dkms raspberrypi-kernel-headers
 $ sudo dpkg -i snd-i2s-rpi-dkms_0.0.2_all.deb
 
 # For this to work, remember to modify these first:
-# /boot/config.txt -> dtparam=i2s=on
-# and 
+# /boot/firmware/config.txt -> dtparam=i2s=on
+# and
 # /etc/modules -> snd-bcm2835
 # remember to reboot
 
