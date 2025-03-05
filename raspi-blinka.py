@@ -96,7 +96,7 @@ def install_blinka(user=False):
 
 # Custom function to run additional commands for Pi 5
 def check_and_install_for_pi5(pi_model, user=False):
-    if pi_model.startswith("RASPBERRY_PI_5"):
+    if shell.is_pi5_or_newer():
         username = None
         if user:
             username = os.environ["SUDO_USER"]
@@ -112,7 +112,7 @@ def main():
     shell.clear()
     # Check Raspberry Pi and Bail
     pi_model = shell.get_board_model()
-    if not pi_model:
+    if not shell.is_raspberry_pi():
         shell.bail("This model of Raspberry Pi is not currently supported by Blinka")
     print("""This script configures your
 Raspberry Pi and installs Blinka

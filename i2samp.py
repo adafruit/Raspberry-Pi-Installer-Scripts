@@ -32,10 +32,8 @@ def main():
     print("\nChecking hardware requirements...")
 
     # Enable I2S overlay
-    config = "/boot/firmware/config.txt"
-    if not os.path.exists(config):
-        config = "/boot/config.txt"
-    if not os.path.exists(config):
+    config = shell.get_boot_config()
+    if config is None:
         shell.bail("No Device Tree Detected, not supported")
 
     print(f"\nAdding Device Tree Entry to {config}")

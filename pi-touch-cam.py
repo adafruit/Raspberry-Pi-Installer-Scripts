@@ -25,7 +25,7 @@ adafruit-pitft.sh installer script (for
 PiTFT display support) was run first.
 
 Operations performed include:
-- In /boot/config.txt, enable camera
+- In /boot/firmware/config.txt, enable camera
 - apt-get update
 - Install Python libraries:
   picamera, pygame, PIL
@@ -37,33 +37,35 @@ Operations performed include:
 Run time 5+ minutes. Reboot required.
 """)
 
+    boot_config = shell.get_boot_config()
+
     if not shell.prompt("CONTINUE?", default='n'):
         print("Canceled.")
         shell.exit()
     print("Continuing...")
 
 
-    if shell.grep("dtoverlay=pitft", "/boot/config.txt"):
-        shell.bail("PiTFT overlay not in /boot/config.txt.\n"
+    if shell.grep("dtoverlay=pitft", boot_config):
+        shell.bail(f"PiTFT overlay not in {boot_config}.\n"
         "Download & run adafruit-pitft.py first.\n"
         "Canceling.")
 
     print("Configuring camera + PiTFT settings...")
 
     # Set PiTFT speed to 80 MHz, 60 Hz
-    shell.pattern_replace("/boot/config.txt", "speed=.*,fps=.*", "speed=80000000,fps=60")
+    shell.pattern_replace(boot_config, "speed=.*,fps=.*", "speed=80000000,fps=60")
 
     # Check if Pi camera is enabled. If not, add it...
-    shell.reconfig("/boot/config.txt", "^start_x=.*", "start_x=1")
+    shell.reconfig(boot_config, "^start_x=.*", "start_x=1")
 
     # gpu_mem must be >= 128 MB for camera to work
-    result = shell.pattern_search("/boot/config.txt", "^gpu_mem=", return_match=True)
+    result = shell.pattern_search(boot_config, "^gpu_mem=", return_match=True)
     if not result:
         # gpu_mem isn't set. Add to config
-        shell.write_text_file("/boot/config.txt", "\ngpu_mem=128", append=True)
+        shell.write_text_file(boot_config, "\ngpu_mem=128", append=True)
     elif result.group(1) < 128:
         # gpu_mem present but too small; increase to 128MB
-        shell.reconfig("/boot/config.txt", "^gpu_mem=.*", "gpu_mem=128")
+        shell.reconfig(boot_config, "^gpu_mem=.*", "gpu_mem=128")
 
     print("Installing prerequisite packages...")
 
