@@ -743,8 +743,14 @@ user_homedir = os.path.expanduser(f"~{username}")
 if shell.isdir(user_homedir):
     target_homedir = user_homedir
 
-boot_dir = shell.get_boot_config()
-if boot_dir is None:
+boot_dir = "/boot/firmware" if shell.isdir("/boot/firmware") else "/boot"
+
+# If neither directory is valid, use shell.get_boot_config()
+if not shell.isdir(boot_dir):
+    boot_dir = shell.get_boot_config()
+
+# Final safeguard: Ensure boot_dir is actually a directory and not a file path
+if boot_dir is None or not shell.isdir(boot_dir):
     shell.bail("Unable to find boot directory")
 
 if shell.get_raspbian_version() == "bullseye":
