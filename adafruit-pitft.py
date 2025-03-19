@@ -402,7 +402,7 @@ def install_drivers():
     return True
 
 def update_configtxt(rotation_override=None, tinydrm_install=False):
-    """update /boot/config.txt (or equivalent folder) with appropriate values"""
+    """update /boot/firmware/config.txt (or equivalent folder) with appropriate values"""
     uninstall_bootconfigtxt()
     uninstall_etc_modules()
     overlay_key = "overlay"

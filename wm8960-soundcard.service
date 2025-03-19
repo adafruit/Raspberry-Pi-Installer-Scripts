@@ -1,0 +1,12 @@
+[Unit]
+Description=WM8960 Soundcard service
+After=alsa-restore.service
+ 
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/wm8960-soundcard
+User=root
+ 
+[Install]
+WantedBy=sysinit.target
