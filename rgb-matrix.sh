@@ -7,10 +7,12 @@
 # we reference a specific commit (update this as needed):
 GITUSER=https://github.com/hzeller
 REPO=rpi-rgb-led-matrix
-COMMIT=a3eea997a9254b83ab2de97ae80d83588f696387
+COMMIT=62986e65dec25451a37531896be087664a49929b
+# Previously: COMMIT=a3eea997a9254b83ab2de97ae80d83588f696387
 # Previously: COMMIT=45d3ab5d6cff6e0c14da58930d662822627471fc
 # Previously: COMMIT=21410d2b0bac006b4a1661594926af347b3ce334
 # Previously: COMMIT=e3dd56dcc0408862f39cccc47c1d9dea1b0fb2d2 
+
 
 if [ $(id -u) -ne 0 ]; then
 	echo "Installer must be run as root."
@@ -20,6 +22,20 @@ fi
 
 HAS_PYTHON2=$( [ ! $(which python2) ] ; echo $?)
 HAS_PYTHON3=$( [ ! $(which python3) ] ; echo $?)
+
+NUM_CORES=$( nproc --all )
+ISOLCPU_CMD=isolcpus=3
+
+# Bookworm moved the config and cmdline files from /boot/ to /boot/firmware/
+# Check to see where it is to ensure the config changes are written to the right place.
+CONFIG_FILE=/boot/firmware/config.txt
+if [ ! -f $CONFIG_FILE ]; then
+    CONFIG_FILE=/boot/config.txt
+fi
+CMDLINE_FILE=/boot/firmware/cmdline.txt
+if [ ! -f $CMDLINE_FILE ]; then
+    CONFIG_FILE=/boot/cmdline.txt
+fi
 
 clear
 
@@ -46,6 +62,7 @@ fi
 INTERFACE_TYPE=0
 INSTALL_RTC=0
 QUALITY_MOD=0
+ISOL_CPU=0
 #SLOWDOWN_GPIO=5
 #MATRIX_SIZE=3
 
@@ -86,6 +103,11 @@ INTERFACES=( \
 QUALITY_OPTS=( \
   "Quality (disables sound, requires soldering)" \
   "Convenience (sound on, no soldering)" \
+)
+
+ISOLCPUS_OPTS=( \
+  "Do not reserve core for driving display" \
+  "Reserve core for driving display (recommended)" \
 )
 
 #SLOWDOWN_OPTS=( \
@@ -164,6 +186,18 @@ echo "What is thy bidding?"
 selectN "${QUALITY_OPTS[@]}"
 QUALITY_MOD=$?
 
+if [ $NUM_CORES -gt 3 ]; then
+  echo
+  echo "Your pi has ${NUM_CORES} CPU cores."
+  echo "You can choose to dedicate one just to driving the display."
+  echo "This will make the display less suseptible to glitches when"
+  echo "the system is doing other heavy tasks. Do you wish to isolate"
+  echo "one core for this purpose?"
+  selectN "${ISOLCPUS_OPTS[@]}"
+  ISOL_CPU=$?
+
+fi
+
 # VERIFY SELECTIONS BEFORE CONTINUING --------------------------------------
 
 echo
@@ -178,6 +212,7 @@ if [ $QUALITY_MOD -eq 0 ]; then
 	echo "Reminder: you must SOLDER a wire between GPIO4"
 	echo "and GPIO18, and internal sound is DISABLED!"
 fi
+echo "Isolate CPU for Display Driving: ${ISOLCPUS_OPTS[$ISOL_CPU]}"
 echo
 echo -n "CONTINUE? [y/n] "
 read
@@ -209,11 +244,11 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Downloading prerequisites..."
-if [ $HAS_PYTHON2 ]; then
-	apt-get install -y --force-yes python2.7-dev python-pillow
+if [ "$HAS_PYTHON2" = 1 ]; then
+	apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages python2.7-dev python-pillow
 fi
-if [ $HAS_PYTHON3 ]; then
-	apt-get install -y --force-yes python3-dev python3-pillow
+if [ "$HAS_PYTHON3" = 1 ]; then
+	apt-get install -y --allow-downgrades --allow-remove-essential --allow-change-held-packages python3-dev python3-pillow
 fi
 
 echo "Downloading RGB matrix software..."
@@ -232,24 +267,24 @@ USER_DEFINES=""
 #	USER_DEFINES+=" -DLED_ROWS=${MATRIX_HEIGHTS[$MATRIX_SIZE]}"
 #fi
 if [ $QUALITY_MOD -eq 0 ]; then
-	if [ $HAS_PYTHON2 ]; then
+	if [ "$HAS_PYTHON2" = 1 ]; then
 		# Build and install for Python 2.7...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
 	fi
-	if [ $HAS_PYTHON3 ]; then
+	if [ "$HAS_PYTHON3" = 1 ]; then
 		# Do over for Python 3...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
 	fi
 else
 	USER_DEFINES+=" -DDISABLE_HARDWARE_PULSES"
-	if [ $HAS_PYTHON2 ]; then
+	if [ "$HAS_PYTHON2" = 1 ]; then
 		# Build then install for Python 2.7...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
 	fi
-	if [ $HAS_PYTHON3 ]; then
+	if [ "$HAS_PYTHON3" = 1 ]; then
 		# Do over for Python 3...
 		make clean
 		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
@@ -267,7 +302,7 @@ if [ $INSTALL_RTC -ne 0 ]; then
 	# Enable I2C for RTC
 	raspi-config nonint do_i2c 0
 	# Do additional RTC setup for DS1307
-	reconfig /boot/config.txt "^.*dtoverlay=i2c-rtc.*$" "dtoverlay=i2c-rtc,ds1307"
+	reconfig $CONFIG_FILE "^.*dtoverlay=i2c-rtc.*$" "dtoverlay=i2c-rtc,ds1307"
 	apt-get -y remove fake-hwclock
 	update-rc.d -f fake-hwclock remove
 	sudo sed --in-place '/if \[ -e \/run\/systemd\/system \] ; then/,+2 s/^#*/#/' /lib/udev/hwclock-set
@@ -275,11 +310,24 @@ if [ $INSTALL_RTC -ne 0 ]; then
 fi
 
 if [ $QUALITY_MOD -eq 0 ]; then
-	# Disable sound ('easy way' -- kernel module not blacklisted)
-	reconfig /boot/config.txt "^.*dtparam=audio.*$" "dtparam=audio=off"
+	# Disable sound
+	reconfig $CONFIG_FILE "^.*dtparam=audio.*$" "dtparam=audio=off"
+	# The rgb-matrix software also checks for the module to be blacklisted.
+	echo "blacklist snd_bcm2835" | sudo tee /etc/modprobe.d/blacklist-rgb-matrix.conf > /dev/null
 else
-	# Enable sound (ditto)
-	reconfig /boot/config.txt "^.*dtparam=audio.*$" "dtparam=audio=on"
+	# Enable sound
+	reconfig $CONFIG_FILE "^.*dtparam=audio.*$" "dtparam=audio=on"
+	# Remove kernel blacklist if present
+	sudo rm -f /etc/modprobe.d/blacklist-rgb-matrix.conf
+fi
+sudo update-initramfs -u
+
+if [ $ISOL_CPU -eq 1 ]; then
+	# Enable CPU core isolation
+	grep -qw $ISOLCPU_CMD $CMDLINE_FILE || echo -n " $ISOLCPU_CMD" >> $CMDLINE_FILE
+else
+  # Disable CPU core isolation
+  sed -i -e "s/\b${ISOLCPU_CMD}\b//g" -e 's/  */ /g' -e 's/^ //;s/ $//' $CMDLINE_FILE
 fi
 
 # PROMPT FOR REBOOT --------------------------------------------------------
