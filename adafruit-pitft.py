@@ -654,7 +654,8 @@ WantedBy=multi-user.target
 def uninstall_fbcp():
     uninstall_fbcp_rclocal()
     # Enable overscan compensation
-    shell.run_command("sudo systemctl disable fbcp.service")
+    if shell.exists("/etc/systemd/system/fbcp.service"):
+        shell.run_command("sudo systemctl disable fbcp.service")
     # Set up HDMI parameters:
     shell.run_command("raspi-config nonint do_overscan 0")
     print("Configuring boot/config.txt for default HDMI")
@@ -665,7 +666,7 @@ def uninstall_fbcp():
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_mode=87.*$')
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_cvt=.*$')
 
-    if not wayland and not is_bullseye:
+    if not wayland and not is_bullseye and shell.exists("/etc/lightdm"):
         print("Restoring Wayland as default display manager...")
         shell.set_window_manager("wayland")
 
