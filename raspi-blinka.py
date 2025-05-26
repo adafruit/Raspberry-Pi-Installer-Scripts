@@ -6,7 +6,6 @@ Written by Melissa LeBlanc-Williams for Adafruit Industries
 """
 
 import os
-import sys
 
 try:
     from adafruit_shell import Shell
@@ -16,7 +15,7 @@ except ImportError:
 shell = Shell()
 shell.group="Blinka"
 default_python = 3
-blinka_minimum_python_version = 3.7
+blinka_minimum_python_version = 3.8
 
 def default_python_version(numeric=True):
     version = shell.run_command("python -c 'import platform; print(platform.python_version())'", suppress_message=True, return_output=True)
@@ -107,6 +106,15 @@ def check_and_install_for_pi5(pi_model, user=False):
     else:
         print(f"Detected {pi_model}, no additional fixes needed.")
 
+def check_user_groups():
+    # Check if the user has the groups i2c, spi, gpio, input, and video. If the user is not in a group, then they need to be added.
+    groups = shell.run_command("groups", suppress_message=True, return_output=True).split()
+    required_groups = ["i2c", "spi", "gpio", "input", "video"]
+    for group in required_groups:
+        if group not in groups:
+            print(f"Adding user to the group: {group}.")
+            shell.run_command(f"sudo usermod -aG {group} {os.environ['SUDO_USER']}")
+
 def main():
     global default_python
     shell.clear()
@@ -143,6 +151,7 @@ Raspberry Pi and installs Blinka
     update_python()
     update_pip()
     install_blinka(True)
+    check_user_groups()
 
     # Check and install any Pi 5 fixes if detected
     check_and_install_for_pi5(pi_model, True)
