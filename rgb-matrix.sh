@@ -7,10 +7,11 @@
 # we reference a specific commit (update this as needed):
 GITUSER=https://github.com/hzeller
 REPO=rpi-rgb-led-matrix
-COMMIT=a3eea997a9254b83ab2de97ae80d83588f696387
+COMMIT=7a503494378a67f3baa4ac680cecbae2703cc58f
+# Previously: COMMIT=a3eea997a9254b83ab2de97ae80d83588f696387
 # Previously: COMMIT=45d3ab5d6cff6e0c14da58930d662822627471fc
 # Previously: COMMIT=21410d2b0bac006b4a1661594926af347b3ce334
-# Previously: COMMIT=e3dd56dcc0408862f39cccc47c1d9dea1b0fb2d2 
+# Previously: COMMIT=e3dd56dcc0408862f39cccc47c1d9dea1b0fb2d2
 
 if [ $(id -u) -ne 0 ]; then
 	echo "Installer must be run as root."
@@ -18,8 +19,13 @@ if [ $(id -u) -ne 0 ]; then
 	exit 1
 fi
 
-HAS_PYTHON2=$( [ ! $(which python2) ] ; echo $?)
-HAS_PYTHON3=$( [ ! $(which python3) ] ; echo $?)
+HAS_PYTHON2=$(which python2)
+HAS_PYTHON3=$(which python3)
+if [ $HAS_PYTHON2 ] && ! [ $HAS_PYTHON3 ]; then
+	"Python 2 not supported. Must use Python 3."
+	exit 0
+fi
+
 
 clear
 
@@ -209,12 +215,7 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Downloading prerequisites..."
-if [ $HAS_PYTHON2 ]; then
-	apt-get install -y --force-yes python2.7-dev python-pillow
-fi
-if [ $HAS_PYTHON3 ]; then
-	apt-get install -y --force-yes python3-dev python3-pillow
-fi
+apt-get install -y python3-dev python3-pillow cython3
 
 echo "Downloading RGB matrix software..."
 curl -L $GITUSER/$REPO/archive/$COMMIT.zip -o $REPO-$COMMIT.zip
@@ -224,37 +225,12 @@ mv $REPO-$COMMIT rpi-rgb-led-matrix
 echo "Building RGB matrix software..."
 cd rpi-rgb-led-matrix
 USER_DEFINES=""
-#if [ $SLOWDOWN_GPIO -lt 5 ]; then
-#	USER_DEFINES+=" -DRGB_SLOWDOWN_GPIO=$SLOWDOWN_GPIO"
-#fi
-#if [ $MATRIX_SIZE --lt 3 ]; then
-#	USER_DEFINES+=" -DLED_COLS=${MATRIX_WIDTHS[$MATRIX_SIZE]}"
-#	USER_DEFINES+=" -DLED_ROWS=${MATRIX_HEIGHTS[$MATRIX_SIZE]}"
-#fi
-if [ $QUALITY_MOD -eq 0 ]; then
-	if [ $HAS_PYTHON2 ]; then
-		# Build and install for Python 2.7...
-		make clean
-		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
-	fi
-	if [ $HAS_PYTHON3 ]; then
-		# Do over for Python 3...
-		make clean
-		make install-python HARDWARE_DESC=adafruit-hat-pwm USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
-	fi
-else
+if [ $QUALITY_MOD -eq 1 ]; then
 	USER_DEFINES+=" -DDISABLE_HARDWARE_PULSES"
-	if [ $HAS_PYTHON2 ]; then
-		# Build then install for Python 2.7...
-		make clean
-		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python2)
-	fi
-	if [ $HAS_PYTHON3 ]; then
-		# Do over for Python 3...
-		make clean
-		make install-python HARDWARE_DESC=adafruit-hat USER_DEFINES="$USER_DEFINES" PYTHON=$(which python3)
-	fi
 fi
+make clean
+make build-python USER_DEFINES="$USER_DEFINES"
+
 # Change ownership to user calling sudo
 chown -R $SUDO_USER:$(id -g $SUDO_USER) `pwd`
 
@@ -267,19 +243,18 @@ if [ $INSTALL_RTC -ne 0 ]; then
 	# Enable I2C for RTC
 	raspi-config nonint do_i2c 0
 	# Do additional RTC setup for DS1307
-	reconfig /boot/config.txt "^.*dtoverlay=i2c-rtc.*$" "dtoverlay=i2c-rtc,ds1307"
+	reconfig /boot/firmware/config.txt "^.*dtoverlay=i2c-rtc.*$" "dtoverlay=i2c-rtc,ds1307"
 	apt-get -y remove fake-hwclock
 	update-rc.d -f fake-hwclock remove
-	sudo sed --in-place '/if \[ -e \/run\/systemd\/system \] ; then/,+2 s/^#*/#/' /lib/udev/hwclock-set
-
+	sed --in-place '/if \[ -e \/run\/systemd\/system \] ; then/,+2 s/^#*/#/' /lib/udev/hwclock-set
 fi
 
 if [ $QUALITY_MOD -eq 0 ]; then
-	# Disable sound ('easy way' -- kernel module not blacklisted)
-	reconfig /boot/config.txt "^.*dtparam=audio.*$" "dtparam=audio=off"
+	# Disable sound via blacklist
+	echo "blacklist snd_bcm2835" > /etc/modprobe.d/blacklist-rgb-matrix.conf
 else
-	# Enable sound (ditto)
-	reconfig /boot/config.txt "^.*dtparam=audio.*$" "dtparam=audio=on"
+	# Remove from blacklist
+	rm -f /etc/modprobe.d/blacklist-rgb-matrix.conf
 fi
 
 # PROMPT FOR REBOOT --------------------------------------------------------
