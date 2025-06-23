@@ -98,9 +98,23 @@ def check_and_install_for_pi5(pi_model, user=False):
     if shell.is_pi5_or_newer():
         username = None
         if user:
+            # Username should be used for PIP install commands
             username = os.environ["SUDO_USER"]
         print("Detected Raspberry Pi 5, applying additional fixes...")
-        shell.run_command("pip3 install --upgrade lgpio", run_as_user=username)
+        if shell.exists("lg"):
+            shell.remove("lg")
+        shell.run_command("sudo apt-get install -y wget swig python3-dev python3-setuptools")
+        # Temporarily install setuptools to as root for the build process
+        shell.run_command("sudo pip3 install -U setuptools", run_as_user=username)
+        shell.run_command("wget http://abyz.me.uk/lg/lg.zip")
+        shell.run_command("unzip lg.zip")
+        if shell.exists("lg.zip"):
+            shell.remove("lg.zip")
+        shell.chdir("lg")
+        shell.run_command("make")
+        shell.run_command("sudo make install")
+        # Remove setuptools after the build process is complete
+        shell.run_command("sudo pip3 uninstall -y setuptools", run_as_user=username)
     else:
         print(f"Detected {pi_model}, no additional fixes needed.")
 
