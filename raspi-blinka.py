@@ -100,9 +100,7 @@ def check_and_install_for_pi5(pi_model, user=False):
         if user:
             username = os.environ["SUDO_USER"]
         print("Detected Raspberry Pi 5, applying additional fixes...")
-        shell.run_command("sudo apt remove python3-rpi.gpio")
-        shell.run_command("pip3 uninstall -y RPi.GPIO", run_as_user=username)
-        shell.run_command("pip3 install --upgrade rpi-lgpio", run_as_user=username)
+        shell.run_command("pip3 install --upgrade lgpio", run_as_user=username)
     else:
         print(f"Detected {pi_model}, no additional fixes needed.")
 
