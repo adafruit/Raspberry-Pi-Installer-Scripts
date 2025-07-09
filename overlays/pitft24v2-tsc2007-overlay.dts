@@ -1,0 +1,114 @@
+/*
+ * Device Tree overlay for Adafruit PiTFT 2.4" resistive touch screen with tsc2007
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@3 {
+		target = <&spidev1>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@4 {
+		target = <&gpio>;
+		__overlay__ {
+			adafruit_2_4_tft_pins: adafruit_2_4_tft_pins {
+				brcm,pins = <25 24 18>;
+				brcm,function = <1 0 1>; /* out in out*/
+				brcm,pull = <0 2 2>; /* none up up */
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cs-gpios = <&gpio 8 1>;
+
+			adafruit_2_4_tft: adafruit_2_4_tft@0{
+				compatible = "adafruit,yx240qv29";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&adafruit_2_4_tft_pins>;
+
+				spi-max-frequency = <32000000>;
+				rotation = <90>;
+				reset-gpios = <&gpio 23 0>;
+				dc-gpios = <&gpio 25 0>;
+			};
+		};
+	};
+
+	fragment@7 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "okay";
+
+			tsc2007: tsc2007@48 {
+				compatible = "ti,tsc2007";
+				reg = <0x48>;
+				ti,fuzzx = <4>;
+				ti,fuzzy = <4>;
+				ti,max-rt = <3700>;
+				ti,fuzzz = <4>;
+				ti,x-plate-ohms = <180>;
+
+				panel = <&adafruit_2_4_tft>;
+				pinctrl-0 = <&adafruit_2_4_tft_pins>;
+				interrupt-parent = <&gpio>;
+				interrupts = <24 2>;
+                gpios = <&gpio 24 1>;
+
+			};
+		};
+	};
+
+	fragment@8 {
+		target-path = "/soc";
+		__overlay__ {
+			backlight: backlight {
+				compatible = "gpio-backlight";
+				pinctrl-0 = <&adafruit_2_4_tft_pins>;
+				gpios = <&gpio 18 2>;
+				default-on;
+			};
+		};
+	};
+
+	__overrides__ {
+		speed =     <&adafruit_2_4_tft>,"spi-max-frequency:0";
+		rotate =    <&adafruit_2_4_tft>,"rotation:0";
+		fps =       <&adafruit_2_4_tft>,"fps:0";
+		debug =     <&adafruit_2_4_tft>,"debug:0";
+		// xohms =     <&tsc2007>,"touchscreen-x-plate-ohms;0";
+		// swapxy =    <&tsc2007>,"touchscreen-swapped-x-y?";
+	};
+
+};

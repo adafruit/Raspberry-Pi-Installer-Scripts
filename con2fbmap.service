@@ -1,0 +1,14 @@
+[Unit]
+Description=Map console to framebuffer for SPI TFT
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/con2fbmap-helper.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target

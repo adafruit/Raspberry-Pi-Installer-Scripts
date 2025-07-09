@@ -19,7 +19,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "4.0.0"
+__version__ = "3.9.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -36,13 +36,14 @@ width: Width of the display in pixels.
 height: Height of the display in pixels.
 
 OPTIONAL fields:
-touchscreen: Dictionary containing touchscreen settings for displays with touchscreens.
+touchscreen: Dictionary containing touchscreen calibration data.
     identifier: Name of the touchscreen calibration.
     product: Product name for the touchscreen.
-    transforms: X11 transforms for different rotations.
+    transforms: Calibration transforms for different rotations.
     overlay_params: Overlay parameters for different rotations.
-    calibrations: Calibration data for the touchscreen. Can be overall or per rotation.
 overlay_drm_option: Optional parameter to add for DRM support.
+force_x11: Whether to force X11 for the display.
+calibrations: Calibration data for the touchscreen.
 overlay_src: Source path for the overlay file (if applicable).
 overlay_dest: Destination path for the compiled overlay file (if applicable).
 mipi_data (Optional): Dictionary containing MIPI display data.
@@ -51,12 +52,6 @@ mipi_data (Optional): Dictionary containing MIPI display data.
     viewport: Viewport settings for different rotations.
 use_kms: Whether to use KMS for the display.
 """
-
-# Touchscreen Products
-TS_STMPE = "stmpe"
-TS_TSC2007 = "tsc2007"
-TS_FOCALTOUCH = "EP0110M09"
-
 config = [
     {
         "type": "28r",
@@ -65,8 +60,7 @@ config = [
         "kernel_upgrade": False,
         "touchscreen": {
             "identifier": "STMPE Touchscreen Calibration",
-            "product": TS_STMPE,
-            # X11 Transforms
+            "product": "stmpe",
             "transforms": {
                 "0": "0.988809 -0.023645 0.060523 -0.028817 1.003935 0.034176 0 0 1",
                 "90": "0.014773 -1.132874 1.033662 1.118701 0.009656 -0.065273 0 0 1",
@@ -79,15 +73,16 @@ config = [
                 "180": "touch-invx,touch-invy",
                 "270": "touch-swapxy,touch-invy",
             },
-            "calibrations": {
-                "0": "4232 11 -879396 1 5786 -752768 65536",
-                "90": "33 -5782 21364572 4221 35 -1006432 65536",
-                "180": "-4273 61 16441290 4 -5772 21627524 65536",
-                "270": "-9 5786 -784608 -4302 19 16620508 65536",
-            },
         },
         "overlay": "dtoverlay=pitft28-resistive,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
+        "force_x11": True,
+        "calibrations": {
+            "0": "4232 11 -879396 1 5786 -752768 65536",
+            "90": "33 -5782 21364572 4221 35 -1006432 65536",
+            "180": "-4273 61 16441290 4 -5772 21627524 65536",
+            "270": "-9 5786 -784608 -4302 19 16620508 65536",
+        },
         "width": 320,
         "height": 240,
     },
@@ -108,8 +103,7 @@ config = [
         "kernel_upgrade": False,
         "touchscreen": {
             "identifier": "FocalTech Touchscreen Calibration",
-            "product": TS_FOCALTOUCH,
-            # X11 Transforms
+            "product": "EP0110M09",
             "transforms": {
                 "0": "-1 0 1 0 -1 1 0 0 1",
                 "90": "0 1 0 -1 0 1 0 0 1",
@@ -122,10 +116,11 @@ config = [
                 "180": None,
                 "270": "touch-swapxy,touch-invx",
             },
-            "calibrations": "320 65536 0 -65536 0 15728640 65536",
         },
         "overlay": "dtoverlay=pitft28-capacitive,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
+        "force_x11": True,
+        "calibrations": "320 65536 0 -65536 0 15728640 65536",
         "width": 320,
         "height": 240,
     },
@@ -136,8 +131,7 @@ config = [
         "kernel_upgrade": False,
         "touchscreen": {
             "identifier": "STMPE Touchscreen Calibration",
-            "product": TS_STMPE,
-            # X11 Transforms
+            "product": "stmpe",
             "transforms": {
                 "0": "-1.098388 0.003455 1.052099 0.005512 -1.093095 1.026309 0 0 1",
                 "90": "-0.000087 1.094214 -0.028826 -1.091711 -0.004364 1.057821 0 0 1",
@@ -150,15 +144,16 @@ config = [
                 "180": "touch-invx,touch-invy",
                 "270": "touch-swapxy,touch-invy",
             },
-            "calibrations": {
-                "0": "5724 -6 -1330074 26 8427 -1034528 65536",
-                "90": "5 8425 -978304 -5747 61 22119468 65536",
-                "180": "-5682 -1 22069150 13 -8452 32437698 65536",
-                "270": "3 -8466 32440206 5703 -1 -1308696 65536",
-            },
         },
         "overlay": "dtoverlay=pitft35-resistive,rotate={pitftrot},speed=20000000,fps=20",
 	    "overlay_drm_option": "drm",
+        "force_x11": True,
+        "calibrations": {
+            "0": "5724 -6 -1330074 26 8427 -1034528 65536",
+            "90": "5 8425 -978304 -5747 61 22119468 65536",
+            "180": "-5682 -1 22069150 13 -8452 32437698 65536",
+            "270": "3 -8466 32440206 5703 -1 -1308696 65536",
+        },
         "width": 480,
         "height": 320,
         "x11_scale": 1.5,
@@ -287,24 +282,24 @@ config = [
         "overlay_src": "overlays/pitft24v2-tsc2007-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/pitft24v2.dtbo",
         "touchscreen": {
-            "identifier": "TSC2007 Touchscreen Calibration",
-            "product": TS_TSC2007,
+            "identifier": "STMPE Touchscreen Calibration",
+            "product": "stmpe",
             "transforms": {
-                # TODO: Test because 0 and 180 may be reversed
-                "0": "-1 0 1 0 -1 1",
-                "90": "0 1 0 -1 0 1",
-                "180": "1 0 0 0 1 0",
-                "270": "0 -1 1 1 0 0",
-            },
-            "calibrations": {
-                "0": "4232 11 -879396 1 5786 -752768 65536",
-                "90": "33 -5782 21364572 4221 35 -1006432 65536",
-                "180": "-4273 61 16441290 4 -5772 21627524 65536",
-                "270": "-9 5786 -784608 -4302 19 16620508 65536",
+                "0": "0.988809 -0.023645 0.060523 -0.028817 1.003935 0.034176 0 0 1",
+                "90": "0.014773 -1.132874 1.033662 1.118701 0.009656 -0.065273 0 0 1",
+                "180": "-1.115235 -0.010589 1.057967 -0.005964 -1.107968 1.025780 0 0 1",
+                "270": "-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1",
             },
         },
         "overlay": "dtoverlay=pitft24v2,rotate={pitftrot},fps=60",
 	    "overlay_drm_option": "drm",
+        "force_x11": True,
+        "calibrations": {
+            "0": "4232 11 -879396 1 5786 -752768 65536",
+            "90": "33 -5782 21364572 4221 35 -1006432 65536",
+            "180": "-4273 61 16441290 4 -5772 21627524 65536",
+            "270": "-9 5786 -784608 -4302 19 16620508 65536",
+        },
         "width": 320,
         "height": 240,
     },
@@ -338,12 +333,12 @@ def warn_exit(message):
     shell.warn(message)
     shell.exit(1)
 
-def uninstall_cb(ctx, _param, value):
+def uninstall_cb(ctx, param, value):
     if not value or ctx.resilient_parsing:
        return
     uninstall()
 
-def print_version(ctx, _param, value):
+def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
        return
     print("Adafruit PiTFT Helper v{}".format(__version__))
@@ -372,7 +367,6 @@ def sysupdate():
 ############################ Sub-Scripts ############################
 
 def is_wayland():
-    "Check if the current session is Wayland"
     username = os.environ["SUDO_USER"]
     output = shell.run_command("loginctl show-session $(loginctl | grep $(whoami) | awk '{print $1}') -p Type | grep wayland", suppress_message=True, return_output=True, run_as_user=username).strip()
     return len(output) > 0
@@ -485,29 +479,34 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
         if "gpio" in mipi_data:
             overlay += f"\ndtparam={mipi_data['gpio']}"
 
-    if tinydrm_install: # Wayland ignores X11 Transformations, so use overlay params instead
-        overlay += ",drm"
+    if tinydrm_install and "overlay_drm_option" in pitft_config:
+        overlay += "," + pitft_config["overlay_drm_option"]
+    if tinydrm_install: # Wayland ignores X11 Transformations, so use params instead
         if "overlay_params" in pitft_config and pitftrot in pitft_config["overlay_params"] and pitft_config["overlay_params"][pitftrot] is not None:
             overlay += "," + pitft_config["overlay_params"][pitftrot]
-    config_text_base = shell.load_template("templates/config_text_base.txt", date=shell.date(), overlay=overlay)
-    shell.write_text_file(f"{boot_dir}/config.txt", config_text_base)
+    shell.write_text_file(f"{boot_dir}/config.txt", """
+# --- added by adafruit-pitft-helper {date} ---
+[all]
+hdmi_force_hotplug=1  # required for cases when HDMI is not plugged in!
+dtparam=spi=on
+dtparam=i2c1=on
+dtparam=i2c_arm=on
+{overlay}
+# --- end adafruit-pitft-helper {date} ---
+""".format(date=shell.date(), overlay=overlay))
     return True
 
 def update_udev():
-    product = None
-    if "touchscreen" in pitft_config and "product" in pitft_config["touchscreen"]:
-        product = pitft_config["touchscreen"]["product"]
-    shell.write_templated_file("/etc/udev/rules.d/", "templates/95-touchmouse.rules")
-    if product == TS_FOCALTOUCH:
-        shell.write_templated_file("/etc/udev/rules.d/", "templates/95-ftcaptouch.rules")
-    elif product == TS_STMPE:
-        shell.write_templated_file("/etc/udev/rules.d/", "templates/95-stmpe.rules")
-    elif product == TS_TSC2007:
-        calibration_matrix = "0 1 0 -1 0 1"  # Default calibration matrix
-        if "transforms" in pitft_config["touchscreen"] and pitftrot in pitft_config["touchscreen"]["transforms"]:
-            calibration_matrix = pitft_config["touchscreen"]["transforms"][pitftrot]
-        shell.write_templated_file("/etc/udev/rules.d/", "templates/99-tsc2007-touchscreen.rules", calibration_matrix=calibration_matrix)
-        shell.write_templated_file("/etc/udev/rules.d/", "templates/99-tsc2007-touchscreen-drm.rules")
+    shell.write_text_file("/etc/udev/rules.d/95-touchmouse.rules", """
+SUBSYSTEM=="input", ATTRS{name}=="touchmouse", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen"
+""", append=False)
+    shell.write_text_file("/etc/udev/rules.d/95-ftcaptouch.rules", """
+SUBSYSTEM=="input", ATTRS{name}=="EP0110M09", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen"
+SUBSYSTEM=="input", ATTRS{name}=="generic ft5x06*", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen"
+""", append=False)
+    shell.write_text_file("/etc/udev/rules.d/95-stmpe.rules", """
+SUBSYSTEM=="input", ATTRS{name}=="*stmpe*", ENV{DEVNAME}=="*event*", SYMLINK+="input/touchscreen"
+""", append=False)
     return True
 
 def compile_display_fw():
@@ -530,32 +529,33 @@ def compile_display_fw():
     return True
 
 def update_pointercal():
-    if "touchscreen" in pitft_config and "calibrations" in pitft_config["touchscreen"]:
-        if isinstance(pitft_config["touchscreen"]["calibrations"], dict):
-            shell.write_text_file("/etc/pointercal", pitft_config["touchscreen"]["calibrations"][pitftrot])
+    if "calibrations" in pitft_config:
+        if isinstance(pitft_config["calibrations"], dict):
+            shell.write_text_file("/etc/pointercal", pitft_config["calibrations"][pitftrot])
         else:
-            shell.write_text_file("/etc/pointercal", pitft_config["touchscreen"]["calibrations"])
+            shell.write_text_file("/etc/pointercal", pitft_config["calibrations"])
     return True
 
 def install_console():
-    print("Installing console fbcon map helper...")
-    shell.copy("con2fbmap-helper.sh", "/usr/local/bin/")
-    shell.chmod("/usr/local/bin/con2fbmap-helper.sh", "+x")
-
-    print("Installing console fbcon map service...")
-    shell.copy("con2fbmap.service", "/etc/systemd/system/")
-    shell.run_command("systemctl daemon-reload")
-    shell.run_command("systemctl restart con2fbmap.service")
+    print("Set up main console turn on")
+    if not shell.pattern_search(f"{boot_dir}/cmdline.txt", 'fbcon=map:10 fbcon=font:VGA8x8'):
+        print(f"Updating {boot_dir}/cmdline.txt")
+        shell.pattern_replace(f"{boot_dir}/cmdline.txt", "rootwait", "rootwait fbcon=map:10 fbcon=font:VGA8x8")
+    else:
+        print(f"{boot_dir}/cmdline.txt already updated")
 
     print("Turning off console blanking")
-    # removing old versions
+
+    # pre-stretch this is what you'd do:
+    if shell.exists("/etc/kbd/config"):
+        shell.pattern_replace("/etc/kbd/config", "BLANK_TIME=.*", "BLANK_TIME=0")
+
+    # as of stretch....
+    # removing any old version
     shell.pattern_replace("/etc/rc.local", '# disable console blanking.*')
     shell.pattern_replace("/etc/rc.local", 'sudo sh -c "TERM=linux setterm -blank.*')
-
-    # adding new version
     shell.pattern_replace("/etc/rc.local", '^exit 0', "# disable console blanking on PiTFT\\nsudo sh -c \"TERM=linux setterm -blank 0 >/dev/tty0\"\\nexit 0")
 
-    # Set the console font to Terminus 6x12
     shell.reconfig("/etc/default/console-setup", "^.*FONTFACE.*$", "FONTFACE=\"Terminus\"")
     shell.reconfig("/etc/default/console-setup", "^.*FONTSIZE.*$", "FONTSIZE=\"6x12\"")
 
@@ -570,15 +570,9 @@ def install_console():
 def uninstall_console():
     print(f"Removing console fbcon map from {boot_dir}/cmdline.txt")
     shell.pattern_replace(f"{boot_dir}/cmdline.txt", 'rootwait fbcon=map:10 fbcon=font:VGA8x8', 'rootwait')
-
-    print("Removing console fbcon map service...")
-    shell.run_command("systemctl stop con2fbmap.service")
-    shell.run_command("systemctl disable con2fbmap.service")
-    shell.remove("/etc/systemd/system/con2fbmap.service")
-
-    print("Removing console fbcon map helper...")
-    shell.remove("/usr/local/bin/con2fbmap-helper.sh")
-
+    if shell.exists("/etc/kbd/config"):
+        print("Screen blanking time reset to 10 minutes")
+        shell.pattern_replace(f"{boot_dir}/cmdline.txt", 'BLANK_TIME=0', 'BLANK_TIME=10')
     shell.pattern_replace("/etc/rc.local", '^# disable console blanking.*')
     shell.pattern_replace("/etc/rc.local", '^sudo sh -c "TERM=linux.*')
     return True
@@ -630,7 +624,7 @@ def install_fbcp():
             shell.bail("Unable to install fbcp unit file")
         shell.run_command("sudo systemctl enable fbcp.service")
 
-    # if desktop environment is installed...
+    # if there's X11 installed...
     if shell.exists("/etc/lightdm"):
         print("Setting raspi-config to boot to desktop w/o login...")
         shell.run_command("raspi-config nonint do_boot_behaviour B4")
@@ -698,7 +692,19 @@ scale = {scale}
 
 
 def install_fbcp_unit():
-    shell.write_templated_file("/etc/systemd/system/", "templates/fbcp.service")
+    shell.write_text_file("/etc/systemd/system/fbcp.service",
+    """[Unit]
+Description=Framebuffer copy utility for PiTFT
+After=network.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 10
+ExecStart=/usr/local/bin/fbcp
+
+[Install]
+WantedBy=multi-user.target
+""", append=False)
     return True
 
 def uninstall_fbcp():
@@ -734,8 +740,7 @@ def update_xorg(tinydrm_install=False):
         if not tinydrm_install and "old_transforms" in pitft_config["touchscreen"]:
             transform_setting = pitft_config["touchscreen"]["old_transforms"][pitftrot]
         transform = f"Option \"TransformationMatrix\" \"{transform_setting}\""
-        if shell.exists("/usr/share/X11/xorg.conf.d"):
-            shell.write_text_file("/usr/share/X11/xorg.conf.d/20-calibration.conf", """
+        shell.write_text_file("/usr/share/X11/xorg.conf.d/20-calibration.conf", """
 Section "InputClass"
         Identifier "{identifier}"
         MatchProduct "{product}"
@@ -855,6 +860,10 @@ Run time of up to 5 minutes. Reboot required!
         print("Display Type: {}".format(pitft_config["menulabel"]))
         if is_kernel_upgrade_required():
             print("WARNING! WILL UPGRADE YOUR KERNEL TO LATEST")
+        if "force_x11" in pitft_config and pitft_config["force_x11"] and wayland:
+            if not interactive or shell.prompt("This display works better with X11, but Wayland is currently running. Use X11 instead? (Recommended)", default="y"):
+                shell.set_window_manager("x11")
+                wayland = False
 
     if display in [str(x) for x in range(1, len(config) + 1)]:
         select_display(config[int(display) - 1])
