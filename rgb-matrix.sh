@@ -90,7 +90,7 @@ INTERFACES=( \
 )
 
 QUALITY_OPTS=( \
-  "Quality (disables sound, requires soldering)" \
+  "Quality (disables sound, requires soldering on single matrix Bonnet/HAT)" \
   "Convenience (sound on, no soldering)" \
 )
 
@@ -154,11 +154,14 @@ echo "Now you must choose between QUALITY and CONVENIENCE."
 echo
 echo "QUALITY: best output from the LED matrix requires"
 echo "commandeering hardware normally used for sound, plus"
-echo "some soldering.  If you choose this option, there will"
+echo "some soldering on the single matrix Bonnet/HAT.  If"
+echo "you choose this option, there will"
 echo "be NO sound from the audio jack or HDMI (USB audio"
 echo "adapters will work and sound best anyway), AND you"
 echo "must SOLDER a wire between GPIO4 and GPIO18 on the"
-echo "Bonnet or HAT board."
+echo "single matrix Bonnet or HAT board. For the Triple LED"
+echo "Matrix Bonnet choose QUALITY, and No soldering is"
+echo "required."
 echo
 echo "CONVENIENCE: sound works normally, no extra soldering."
 echo "Images on the LED matrix are not quite as steady, but"
