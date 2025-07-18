@@ -50,6 +50,7 @@ mipi_data (Optional): Dictionary containing MIPI display data.
     gpio: GPIO settings for the display.
     viewport: Viewport settings for different rotations.
 use_kms: Whether to use KMS for the display.
+mirror_rotations: Dictionary mapping pitftrot values to DRM rotation values.
 """
 
 # Touchscreen Products
@@ -185,7 +186,7 @@ config = [
         },
         "width": 240,
         "height": 240,
-        "fbcp_rotations": {
+        "mirror_rotations": {
             "0": "0",
             "90": "1",
             "180": "2",
@@ -243,7 +244,7 @@ config = [
         },
         "width": 240,
         "height": 135,
-        "fbcp_rotations": {
+        "mirror_rotations": {
             "0": "3",
             "90": "2",
             "180": "1",
@@ -272,7 +273,7 @@ config = [
         },
         "width": 240,
         "height": 240,
-        "fbcp_rotations": {
+        "mirror_rotations": {
             "0": "0",
             "90": "1",
             "180": "2",
@@ -304,14 +305,14 @@ config = [
             },
         },
         "overlay": "dtoverlay=pitft24v2,rotate={pitftrot},fps=60",
-	    "overlay_drm_option": "drm",
+	    #"overlay_drm_option": "drm",
         "width": 320,
         "height": 240,
     },
 ]
 
 # default rotations
-fbcp_rotations = {
+mirror_rotations = {
     "0": "1",
     "90": "0",
     "180": "3",
@@ -332,7 +333,6 @@ pitft_config = None
 pitftrot = None
 auto_reboot = None
 wayland = False
-is_bullseye = False
 
 def warn_exit(message):
     shell.warn(message)
@@ -343,7 +343,7 @@ def uninstall_cb(ctx, _param, value):
        return
     uninstall()
 
-def print_version(ctx, _param, value):
+def print_version_cb(ctx, _param, value):
     if not value or ctx.resilient_parsing:
        return
     print("Adafruit PiTFT Helper v{}".format(__version__))
@@ -385,6 +385,8 @@ def softwareinstall():
                 warn_exit("Apt failed to install TSLIB!")
     if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential python3-evdev"):
         warn_exit("Apt failed to install software!")
+    if not shell.run_command("apt-get install -y raspi-config"):
+        warn_exit("Apt failed to install raspi-config!")
     return True
 
 def uninstall_bootconfigtxt():
@@ -435,7 +437,7 @@ def install_drivers():
 
     if use_mipi_driver():
         mipi_data.update(pitft_config['mipi_data'])
-        if not compile_display_fw():
+        if not compile_mipi_fw():
             shell.bail("Unable to compile MIPI firmware")
 
     if is_kernel_upgrade_required():
@@ -490,6 +492,8 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
         if "overlay_params" in pitft_config and pitftrot in pitft_config["overlay_params"] and pitft_config["overlay_params"][pitftrot] is not None:
             overlay += "," + pitft_config["overlay_params"][pitftrot]
     config_text_base = shell.load_template("templates/config_text_base.txt", date=shell.date(), overlay=overlay)
+    if config_text_base is None:
+        shell.bail("Unable to load config_text_base template!")
     shell.write_text_file(f"{boot_dir}/config.txt", config_text_base)
     return True
 
@@ -510,7 +514,7 @@ def update_udev():
         shell.write_templated_file("/etc/udev/rules.d/", "templates/99-tsc2007-touchscreen-drm.rules")
     return True
 
-def compile_display_fw():
+def compile_mipi_fw():
     command_src = "mipi/panel.txt"
 
     # We could just copy the file to panel.txt, edit that, then remove it after
@@ -539,11 +543,11 @@ def update_pointercal():
 
 def install_console():
     print("Installing console fbcon map helper...")
-    shell.copy("con2fbmap-helper.sh", "/usr/local/bin/")
+    shell.write_templated_file("/usr/local/bin/", "templates/con2fbmap-helper.sh")
     shell.chmod("/usr/local/bin/con2fbmap-helper.sh", "+x")
 
     print("Installing console fbcon map service...")
-    shell.copy("con2fbmap.service", "/etc/systemd/system/")
+    shell.write_templated_file("/etc/systemd/system/", "templates/con2fbmap.service")
     shell.run_command("systemctl daemon-reload")
     shell.run_command("systemctl restart con2fbmap.service")
 
@@ -571,20 +575,22 @@ def uninstall_console():
     print(f"Removing console fbcon map from {boot_dir}/cmdline.txt")
     shell.pattern_replace(f"{boot_dir}/cmdline.txt", 'rootwait fbcon=map:10 fbcon=font:VGA8x8', 'rootwait')
 
-    print("Removing console fbcon map service...")
-    shell.run_command("systemctl stop con2fbmap.service")
-    shell.run_command("systemctl disable con2fbmap.service")
-    shell.remove("/etc/systemd/system/con2fbmap.service")
+    if shell.exists("/etc/systemd/system/con2fbmap.service"):
+        print("Removing console fbcon map service...")
+        shell.run_command("systemctl stop con2fbmap.service")
+        shell.run_command("systemctl disable con2fbmap.service")
+        shell.remove("/etc/systemd/system/con2fbmap.service")
 
-    print("Removing console fbcon map helper...")
-    shell.remove("/usr/local/bin/con2fbmap-helper.sh")
+    if shell.exists("/usr/local/bin/con2fbmap-helper.sh"):
+        print("Removing console fbcon map helper...")
+        shell.remove("/usr/local/bin/con2fbmap-helper.sh")
 
     shell.pattern_replace("/etc/rc.local", '^# disable console blanking.*')
     shell.pattern_replace("/etc/rc.local", '^sudo sh -c "TERM=linux.*')
     return True
 
-def install_fbcp():
-    global fbcp_rotations
+def install_mirror():
+    global mirror_rotations
     print("Installing cmake...")
     if not shell.run_command("apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake", suppress_message=True):
         warn_exit("Apt failed to install software!")
@@ -609,8 +615,8 @@ def install_fbcp():
     shell.popd()
     shell.run_command("rm -rf /tmp/rpi-fbcp-master")
 
-    if "fbcp_rotations" in pitft_config:
-        fbcp_rotations = pitft_config['fbcp_rotations']
+    if "mirror_rotations" in pitft_config:
+        mirror_rotations = pitft_config['mirror_rotations']
 
     # Start fbcp in the appropriate place, depending on init system:
     if SYSTEMD:
@@ -623,11 +629,11 @@ def install_fbcp():
             # Insert fbcp into rc.local before final 'exit 0':
             shell.pattern_replace("/etc/rc.local", "^exit 0", "/usr/local/bin/fbcp \&\\nexit 0")
     else:
-        # Install fbcp systemd unit, first making sure it's not in rc.local:
+        # Install fbcp systemd service, first making sure it's not in rc.local:
         uninstall_fbcp_rclocal()
-        print("We have systemd, so install fbcp systemd unit...")
-        if not install_fbcp_unit():
-            shell.bail("Unable to install fbcp unit file")
+        print("We have systemd, so install fbcp systemd service...")
+        if not install_fbcp_service():
+            shell.bail("Unable to install fbcp service file")
         shell.run_command("sudo systemctl enable fbcp.service")
 
     # if desktop environment is installed...
@@ -644,7 +650,7 @@ def install_fbcp():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
 
     # Don't use the 3D driver if we're on X11, unless the display specifically uses kms
-    if (is_bullseye or not wayland) and ("use_kms" not in pitft_config or not pitft_config["use_kms"]):
+    if (not wayland) and ("use_kms" not in pitft_config or not pitft_config["use_kms"]):
         shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
         shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
 
@@ -661,18 +667,18 @@ def install_fbcp():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_cvt.*$", "hdmi_cvt={} {} 60 1 0 0 0".format(WIDTH, HEIGHT))
 
     try:
-        default_orientation = int(list(fbcp_rotations.keys())[list(fbcp_rotations.values()).index("0")])
+        default_orientation = int(list(mirror_rotations.keys())[list(mirror_rotations.values()).index("0")])
     except ValueError:
         default_orientation = 90
 
-    if fbcp_rotations[pitftrot] == "0":
+    if mirror_rotations[pitftrot] == "0":
         # dont rotate HDMI on default orientation
         shell.reconfig(f"{boot_dir}/config.txt", "^.*display_hdmi_rotate.*$", "")
     else:
-        display_rotate = fbcp_rotations[pitftrot]
+        display_rotate = mirror_rotations[pitftrot]
         shell.reconfig(f"{boot_dir}/config.txt", "^.*display_hdmi_rotate.*$", "display_hdmi_rotate={}".format(display_rotate))
         # Because we rotate HDMI we have to 'unrotate' the TFT by overriding pitftrot!
-        if not update_configtxt(default_orientation):
+        if not update_configtxt(rotation=default_orientation):
             shell.bail(f"Unable to update {boot_dir}/config.txt")
     return True
 
@@ -697,7 +703,7 @@ scale = {scale}
     shell.pattern_replace(target_homedir, "^.*[output:SPI-1].*$", "hdmi_force_hotplug=0")
 
 
-def install_fbcp_unit():
+def install_fbcp_service():
     shell.write_templated_file("/etc/systemd/system/", "templates/fbcp.service")
     return True
 
@@ -716,7 +722,7 @@ def uninstall_fbcp():
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_mode=87.*$')
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_cvt=.*$')
 
-    if not wayland and not is_bullseye and shell.exists("/etc/lightdm"):
+    if not wayland and shell.exists("/etc/lightdm"):
         print("Restoring Wayland as default display manager...")
         shell.set_window_manager("wayland")
 
@@ -806,10 +812,10 @@ if boot_dir is None or not shell.isdir(boot_dir):
     shell.bail("Unable to find boot directory")
 
 if shell.get_raspbian_version() == "bullseye":
-    is_bullseye = True
+    shell.bail("Bullseye is not supported by this script. Please update to Bookworm first.")
 
 @click.command()
-@click.option('-v', '--version', is_flag=True, callback=print_version, expose_value=False, is_eager=True, help="Print version information")
+@click.option('-v', '--version', is_flag=True, callback=print_version_cb, expose_value=False, is_eager=True, help="Print version information")
 @click.option('-u', '--user', nargs=1, default=target_homedir, type=str, help="Specify path of primary user's home directory", show_default=True)
 @click.option('--display', nargs=1, default=None, help="Specify a display option (1-{}) or type {}".format(len(config), get_config_types()))
 @click.option('--rotation', nargs=1, default=None, type=int, help="Specify a rotation option (1-4) or degrees {}".format(tuple(sorted([int(x) for x in PITFT_ROTATIONS]))))
@@ -830,8 +836,6 @@ def main(user, display, rotation, install_type, reboot, boot):
             print(f"{boot} not found or not a directory. Using {boot_dir} instead.")
     wayland = is_wayland()
     print(("Wayland" if wayland else "X11") + " Detected")
-    if is_bullseye:
-        print("Bullseye Detected")
     print()
     # "mirror" will be the new install type, but keep fbcp for backwards compatibility
     if install_type == "fbcp":
@@ -943,7 +947,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
             shell.bail("Unable to install display drivers")
 
     shell.info(f"Updating {boot_dir}/config.txt...")
-    if not update_configtxt(tinydrm_install=(not is_bullseye)):
+    if not update_configtxt(tinydrm_install=True):
         shell.bail(f"Unable to update {boot_dir}/config.txt")
 
     if "touchscreen" in pitft_config:
@@ -977,7 +981,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
                 update_wayfire_settings()
             else:
                 shell.info("Adding FBCP support...")
-                if not install_fbcp():
+                if not install_mirror():
                     shell.bail("Unable to configure fbcp")
 
             if shell.exists("/etc/lightdm"):
