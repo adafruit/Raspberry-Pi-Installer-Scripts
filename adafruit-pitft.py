@@ -49,7 +49,6 @@ mipi_data (Optional): Dictionary containing MIPI display data.
     command_bin: Name of the command binary for MIPI.
     gpio: GPIO settings for the display.
     viewport: Viewport settings for different rotations.
-use_kms: Whether to use KMS for the display.
 mirror_rotations: Dictionary mapping pitftrot values to DRM rotation values.
 """
 
@@ -74,17 +73,17 @@ config = [
                 "180": "-1.115235 -0.010589 1.057967 -0.005964 -1.107968 1.025780 0 0 1",
                 "270": "-0.033192 1.126869 -0.014114 -1.115846 0.006580 1.050030 0 0 1",
             },
+            "calibrations": {
+                "0": "5724 -6 -1330074 26 8427 -1034528 65536",
+                "90": "5 8425 -978304 -5747 61 22119468 65536",
+                "180": "-5682 -1 22069150 13 -8452 32437698 65536",
+                "270": "3 -8466 32440206 5703 -1 -1308696 65536",
+            },
             "overlay_params": {
                 "0": None,
                 "90": "touch-swapxy,touch-invx",
                 "180": "touch-invx,touch-invy",
                 "270": "touch-swapxy,touch-invy",
-            },
-            "calibrations": {
-                "0": "4232 11 -879396 1 5786 -752768 65536",
-                "90": "33 -5782 21364572 4221 35 -1006432 65536",
-                "180": "-4273 61 16441290 4 -5772 21627524 65536",
-                "270": "-9 5786 -784608 -4302 19 16620508 65536",
             },
         },
         "overlay": "dtoverlay=pitft28-resistive,rotate={pitftrot},speed=64000000,fps=30",
@@ -151,12 +150,6 @@ config = [
                 "180": "touch-invx,touch-invy",
                 "270": "touch-swapxy,touch-invy",
             },
-            "calibrations": {
-                "0": "5724 -6 -1330074 26 8427 -1034528 65536",
-                "90": "5 8425 -978304 -5747 61 22119468 65536",
-                "180": "-5682 -1 22069150 13 -8452 32437698 65536",
-                "270": "3 -8466 32440206 5703 -1 -1308696 65536",
-            },
         },
         "overlay": "dtoverlay=pitft35-resistive,rotate={pitftrot},speed=20000000,fps=20",
 	    "overlay_drm_option": "drm",
@@ -173,7 +166,6 @@ config = [
         "overlay_src": "overlays/minipitft13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft13.dtbo",
         "overlay": "dtoverlay=drm-minipitft13,rotate={pitftrot},fps=60",
-        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=22",
@@ -202,7 +194,6 @@ config = [
         "overlay_src": "overlays/st7789v_240x320-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-st7789v_240x320.dtbo",
         "overlay": "dtoverlay=drm-st7789v_240x320,rotate={pitftrot},fps=30",
-        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=22",
@@ -225,7 +216,6 @@ config = [
         "overlay_src": "overlays/minipitft114-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-minipitft114.dtbo",
         "overlay": "dtoverlay=drm-minipitft114,rotate={pitftrot},fps=60",
-        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=22",
@@ -260,7 +250,6 @@ config = [
         "overlay_src": "overlays/tftbonnet13-overlay.dts",
         "overlay_dest": "{boot_dir}/overlays/drm-tftbonnet13.dtbo",
         "overlay": "dtoverlay=drm-tftbonnet13,rotate={pitftrot},fps=60",
-        "use_kms": True,
         "mipi_data": {
             "command_bin": "adafruit_st7789_drm",
             "gpio": "dc-gpio=25,backlight-gpio=26",
@@ -297,12 +286,6 @@ config = [
                 "180": "1 0 0 0 1 0",
                 "270": "0 -1 1 1 0 0",
             },
-            "calibrations": {
-                "0": "4232 11 -879396 1 5786 -752768 65536",
-                "90": "33 -5782 21364572 4221 35 -1006432 65536",
-                "180": "-4273 61 16441290 4 -5772 21627524 65536",
-                "270": "-9 5786 -784608 -4302 19 16620508 65536",
-            },
         },
         "overlay": "dtoverlay=pitft24v2,rotate={pitftrot},fps=60",
 	    #"overlay_drm_option": "drm",
@@ -332,7 +315,7 @@ REMOVE_KERNEL_PINNING = False
 pitft_config = None
 pitftrot = None
 auto_reboot = None
-wayland = False
+is_desktop = False
 
 def warn_exit(message):
     shell.warn(message)
@@ -360,8 +343,8 @@ def sysupdate():
     if not UPDATE_DB:
         print("Updating apt indexes...", end='')
         progress(3)
-        if not shell.run_command('sudo apt update', suppress_message=True):
-            warn_exit("Apt failed to update indexes! Try running 'sudo apt update' manually.")
+        if not shell.run_command('sudo apt-get update', suppress_message=True):
+            warn_exit("Apt failed to update indexes! Try running 'sudo apt-get update' manually.")
         if not shell.run_command('sudo apt-get update', suppress_message=True):
             warn_exit("Apt failed to update indexes! Try running 'sudo apt-get update' manually.")
         print("Reading package lists...")
@@ -370,12 +353,6 @@ def sysupdate():
     return True
 
 ############################ Sub-Scripts ############################
-
-def is_wayland():
-    "Check if the current session is Wayland"
-    username = os.environ["SUDO_USER"]
-    output = shell.run_command("loginctl show-session $(loginctl | grep $(whoami) | awk '{print $1}') -p Type | grep wayland", suppress_message=True, return_output=True, run_as_user=username).strip()
-    return len(output) > 0
 
 def softwareinstall():
     print("Installing Pre-requisite Software...This may take a few minutes!")
@@ -487,7 +464,7 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
         if "gpio" in mipi_data:
             overlay += f"\ndtparam={mipi_data['gpio']}"
 
-    if tinydrm_install: # Wayland ignores X11 Transformations, so use overlay params instead
+    if tinydrm_install: # Use overlay params for Wayland
         overlay += ",drm"
         if "overlay_params" in pitft_config and pitftrot in pitft_config["overlay_params"] and pitft_config["overlay_params"][pitftrot] is not None:
             overlay += "," + pitft_config["overlay_params"][pitftrot]
@@ -511,7 +488,7 @@ def update_udev():
         if "transforms" in pitft_config["touchscreen"] and pitftrot in pitft_config["touchscreen"]["transforms"]:
             calibration_matrix = pitft_config["touchscreen"]["transforms"][pitftrot]
         shell.write_templated_file("/etc/udev/rules.d/", "templates/99-tsc2007-touchscreen.rules", calibration_matrix=calibration_matrix)
-        shell.write_templated_file("/etc/udev/rules.d/", "templates/99-tsc2007-touchscreen-drm.rules")
+    shell.write_templated_file("/etc/udev/rules.d/", "templates/99-spi-tft-drm.rules")
     return True
 
 def compile_mipi_fw():
@@ -536,9 +513,11 @@ def compile_mipi_fw():
 def update_pointercal():
     if "touchscreen" in pitft_config and "calibrations" in pitft_config["touchscreen"]:
         if isinstance(pitft_config["touchscreen"]["calibrations"], dict):
-            shell.write_text_file("/etc/pointercal", pitft_config["touchscreen"]["calibrations"][pitftrot])
+            shell.write_text_file("/etc/pointercal", pitft_config["touchscreen"]["calibrations"][pitftrot], append=False)
         else:
-            shell.write_text_file("/etc/pointercal", pitft_config["touchscreen"]["calibrations"])
+            shell.write_text_file("/etc/pointercal", pitft_config["touchscreen"]["calibrations"], append=False)
+    else:
+        shell.remove("/etc/pointercal")
     return True
 
 def install_console():
@@ -572,8 +551,17 @@ def install_console():
     return True
 
 def uninstall_console():
+    global is_desktop
+
     print(f"Removing console fbcon map from {boot_dir}/cmdline.txt")
     shell.pattern_replace(f"{boot_dir}/cmdline.txt", 'rootwait fbcon=map:10 fbcon=font:VGA8x8', 'rootwait')
+
+    if is_desktop:
+        print("Restoring Desktop Environment...")
+        shell.run_command("apt-get -y install rpd-plym-splash")     # Install Splash Screen
+        shell.run_command("raspi-config nonint do_boot_splash 0")   # Enable Splash Screen
+        shell.run_command("apt-get -y install raspberrypi-ui-mods") # Reinstall Raspberry Pi OS UI mods
+        shell.run_command("raspi-config nonint do_boot_target B2")  # Boot to Desktop
 
     if shell.exists("/etc/systemd/system/con2fbmap.service"):
         print("Removing console fbcon map service...")
@@ -585,8 +573,9 @@ def uninstall_console():
         print("Removing console fbcon map helper...")
         shell.remove("/usr/local/bin/con2fbmap-helper.sh")
 
-    shell.pattern_replace("/etc/rc.local", '^# disable console blanking.*')
-    shell.pattern_replace("/etc/rc.local", '^sudo sh -c "TERM=linux.*')
+    if shell.exists("/etc/rc.local"):
+        shell.pattern_replace("/etc/rc.local", '^# disable console blanking.*')
+        shell.pattern_replace("/etc/rc.local", '^sudo sh -c "TERM=linux.*')
     return True
 
 def install_mirror():
@@ -637,7 +626,7 @@ def install_mirror():
         shell.run_command("sudo systemctl enable fbcp.service")
 
     # if desktop environment is installed...
-    if shell.exists("/etc/lightdm"):
+    if is_desktop:
         print("Setting raspi-config to boot to desktop w/o login...")
         shell.run_command("raspi-config nonint do_boot_behaviour B4")
 
@@ -649,14 +638,9 @@ def install_mirror():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
 
-    # Don't use the 3D driver if we're on X11, unless the display specifically uses kms
-    if (not wayland) and ("use_kms" not in pitft_config or not pitft_config["use_kms"]):
-        shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
-        shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-fkms-v3d.*$", "#dtoverlay=vc4-fkms-v3d")
-
     # if there's X11 installed...
     scale = 1
-    if shell.exists("/etc/lightdm"):
+    if is_desktop:
         if "x11_scale" in pitft_config:
             scale = pitft_config["x11_scale"]
         else:
@@ -722,10 +706,6 @@ def uninstall_fbcp():
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_mode=87.*$')
     shell.pattern_replace(f"{boot_dir}/config.txt", '^hdmi_cvt=.*$')
 
-    if not wayland and shell.exists("/etc/lightdm"):
-        print("Restoring Wayland as default display manager...")
-        shell.set_window_manager("wayland")
-
     return True
 
 def uninstall_fbcp_rclocal():
@@ -734,11 +714,9 @@ def uninstall_fbcp_rclocal():
     shell.pattern_replace("/etc/rc.local", '^.*fbcp.*$')
     return True
 
-def update_xorg(tinydrm_install=False):
+def update_xorg():
     if "touchscreen" in pitft_config:
         transform_setting = pitft_config["touchscreen"]["transforms"][pitftrot]
-        if not tinydrm_install and "old_transforms" in pitft_config["touchscreen"]:
-            transform_setting = pitft_config["touchscreen"]["old_transforms"][pitftrot]
         transform = f"Option \"TransformationMatrix\" \"{transform_setting}\""
         if shell.exists("/usr/share/X11/xorg.conf.d"):
             shell.write_text_file("/usr/share/X11/xorg.conf.d/20-calibration.conf", """
@@ -775,7 +753,6 @@ def uninstall():
     uninstall_bootconfigtxt()
     uninstall_console()
     uninstall_fbcp()
-    uninstall_fbcp_rclocal()
     uninstall_etc_modules()
     success()
 
@@ -823,7 +800,7 @@ if shell.get_raspbian_version() == "bullseye":
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
 @click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
 def main(user, display, rotation, install_type, reboot, boot):
-    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir, wayland
+    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir, is_desktop
     shell.clear()
     if user != target_homedir:
         target_homedir = user
@@ -834,8 +811,9 @@ def main(user, display, rotation, install_type, reboot, boot):
             print(f"Boot dir = {boot_dir}")
         else:
             print(f"{boot} not found or not a directory. Using {boot_dir} instead.")
-    wayland = is_wayland()
-    print(("Wayland" if wayland else "X11") + " Detected")
+    # Check if we are running on a desktop environment or lite
+    is_desktop = shell.exists("/etc/lightdm")
+    print("Running on a {} environment".format("desktop" if is_desktop else "lite"))
     print()
     # "mirror" will be the new install type, but keep fbcp for backwards compatibility
     if install_type == "fbcp":
@@ -854,7 +832,7 @@ Run time of up to 5 minutes. Reboot required!
         uninstall()
 
     def select_display(config, interactive=False):
-        global pitft_config, wayland
+        global pitft_config
         pitft_config = config
         print("Display Type: {}".format(pitft_config["menulabel"]))
         if is_kernel_upgrade_required():
@@ -971,22 +949,15 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
         if not uninstall_console():
             shell.bail("Unable to configure console")
 
-        mirror_prompt = "Would you like the HDMI display to mirror to the PiTFT display?"
-        if wayland:
-            # With wayland, PiTFT shows up as an additional display rather than a mirror
-            mirror_prompt = "Would you like the to use the PiTFT as a desktop display?"
+        # With wayland, PiTFT shows up as an additional display rather than a mirror
+        mirror_prompt = "Would you like the to use the PiTFT as a desktop display?"
         if install_type == "mirror" or (install_type is None and shell.prompt(mirror_prompt)):
-            if wayland:
-                shell.info("Updating Wayland desktop settings...")
-                update_wayfire_settings()
-            else:
-                shell.info("Adding FBCP support...")
-                if not install_mirror():
-                    shell.bail("Unable to configure fbcp")
+            shell.info("Updating Wayland desktop settings...")
+            update_wayfire_settings()
 
-            if shell.exists("/etc/lightdm"):
+            if is_desktop:
                 shell.info("Updating Desktop Touch calibration...")
-                if not update_xorg(tinydrm_install=wayland):
+                if not update_xorg():
                     shell.bail("Unable to update calibration")
         else:
             if not uninstall_fbcp():
