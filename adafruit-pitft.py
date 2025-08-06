@@ -7,6 +7,9 @@ Written in Python by Melissa LeBlanc-Williams for Adafruit Industries
 
 import time
 import os
+import glob
+import re
+
 try:
     import click
 except ImportError:
@@ -58,6 +61,27 @@ TS_TSC2007 = "tsc2007"
 TS_FOCALTOUCH = "EP0110M09"
 
 config = [
+    {
+        "type": "24rv2",
+        "menulabel": "PiTFT 2.4\" V2 resistive (240x320)",
+        "product": "2.4\" V2 resistive",
+        "kernel_upgrade": False,
+        "overlay_src": "overlays/pitft24v2-tsc2007-overlay.dts",
+        "overlay_dest": "{boot_dir}/overlays/pitft24rv2.dtbo",
+        "touchscreen": {
+            "identifier": "TSC2007 Touchscreen Calibration",
+            "product": TS_TSC2007,
+            "transforms": {
+                "0": "-1 0 1 0 -1 1",
+                "90": "0 1 0 -1 0 1",
+                "180": "1 0 0 0 1 0",
+                "270": "0 -1 1 1 0 0",
+            },
+        },
+        "overlay": "dtoverlay=pitft24rv2,rotate={pitftrot},fps=60",
+        "width": 320,
+        "height": 240,
+    },
     {
         "type": "28r",
         "menulabel": "PiTFT 2.4\", 2.8\" or 3.2\" resistive (240x320)",
@@ -155,7 +179,7 @@ config = [
 	    "overlay_drm_option": "drm",
         "width": 480,
         "height": 320,
-        "x11_scale": 1.5,
+        "display_scale": 1.5,
     },
     {
         "type": "st7789_240x240",
@@ -269,29 +293,6 @@ config = [
             "270": "3",
         },
     },
-    {
-        "type": "24v2",
-        "menulabel": "PiTFT 2.4\" V2 resistive (240x320)",
-        "product": "2.4\" V2 resistive",
-        "kernel_upgrade": False,
-        "overlay_src": "overlays/pitft24v2-tsc2007-overlay.dts",
-        "overlay_dest": "{boot_dir}/overlays/pitft24v2.dtbo",
-        "touchscreen": {
-            "identifier": "TSC2007 Touchscreen Calibration",
-            "product": TS_TSC2007,
-            "transforms": {
-                # TODO: Test because 0 and 180 may be reversed
-                "0": "-1 0 1 0 -1 1",
-                "90": "0 1 0 -1 0 1",
-                "180": "1 0 0 0 1 0",
-                "270": "0 -1 1 1 0 0",
-            },
-        },
-        "overlay": "dtoverlay=pitft24v2,rotate={pitftrot},fps=60",
-	    #"overlay_drm_option": "drm",
-        "width": 320,
-        "height": 240,
-    },
 ]
 
 # default rotations
@@ -308,6 +309,12 @@ mipi_data = {
     "spi": "spi0-0",
 }
 
+install_types = {
+    "mirror": "Setup PiTFT as desktop display (mirror)",
+    "console": "Display console on PiTFT (console)",
+    "drivers": "Install Drivers only"
+}
+
 PITFT_ROTATIONS = ("90", "180", "270", "0")
 UPDATE_DB = False
 SYSTEMD = None
@@ -316,6 +323,7 @@ pitft_config = None
 pitftrot = None
 auto_reboot = None
 is_desktop = False
+manager = None
 
 def warn_exit(message):
     shell.warn(message)
@@ -551,8 +559,6 @@ def install_console():
     return True
 
 def uninstall_console():
-    global is_desktop
-
     print(f"Removing console fbcon map from {boot_dir}/cmdline.txt")
     shell.pattern_replace(f"{boot_dir}/cmdline.txt", 'rootwait fbcon=map:10 fbcon=font:VGA8x8', 'rootwait')
 
@@ -638,11 +644,11 @@ def install_mirror():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
 
-    # if there's X11 installed...
+    # if using the desktop version, update driver scale...
     scale = 1
     if is_desktop:
-        if "x11_scale" in pitft_config:
-            scale = pitft_config["x11_scale"]
+        if "display_scale" in pitft_config:
+            scale = pitft_config["display_scale"]
         else:
             scale = 2
     WIDTH = int(pitft_config['width'] * scale)
@@ -666,26 +672,68 @@ def install_mirror():
             shell.bail(f"Unable to update {boot_dir}/config.txt")
     return True
 
-def update_wayfire_settings():
+def update_wayland_settings():
     # Set the scale factor for Wayland, which is the reciprocal of the X11 scale factor
-    if "x11_scale" in pitft_config:
-        scale = 1/pitft_config["x11_scale"]
+    if "display_scale" in pitft_config:
+        scale = 1/pitft_config["display_scale"]
     else:
-        scale = 0.5
+        scale = 0.5 # Default Scale
     device_name = "SPI-1"
-    wayfire_config = f"{target_homedir}/.config/wayfire.ini"
-    # Remove any existing settings previously added by this script
-    shell.pattern_replace(wayfire_config, '\n# --- added by adafruit-pitft-helper.*?\n# --- end adafruit-pitft-helper.*?\n', multi_line=True)
     date = shell.date()
-    shell.write_text_file(wayfire_config, f"""
+
+    if manager == "wayfire":
+        ### WAYFIRE ###
+        wayfire_config = f"{target_homedir}/.config/wayfire.ini"
+        # Remove any existing settings previously added by this script
+        shell.pattern_replace(wayfire_config, '\n# --- added by adafruit-pitft-helper.*?\n# --- end adafruit-pitft-helper.*?\n', multi_line=True)
+        shell.write_text_file(wayfire_config, f"""
 # --- added by adafruit-pitft-helper {date} ---
 [output:{device_name}]
 scale = {scale}
 # --- end adafruit-pitft-helper {date} ---
 """)
 
-    shell.pattern_replace(target_homedir, "^.*[output:SPI-1].*$", "hdmi_force_hotplug=0")
+    elif manager == "labwc":
+        ### LABWC (Using Kanshi) ###
+        # See https://man.archlinux.org/man/kanshi.5.en for more information on kanshi config files
+        labwc_config = f"{target_homedir}/.config/kanshi/config"
 
+        # If the config file doesn't exist or doesn't contain profile, enumerate the devices and create a new profile
+        if not shell.exists(labwc_config) or not shell.pattern_search(labwc_config, "^profile"):
+            drm_devices = get_drm_devices(connected_only=True)
+            profile_content = "profile {"
+            for device in drm_devices:
+                device_name = device["name"]
+                mode = device["modes"][0]
+                device_refresh = "@60.000"
+                device_scale = ""
+                if device_name == "SPI-1":
+                    device_refresh = ""  # For SPI displays, we don't specify refresh rate
+                    device_scale = f" scale {scale}"
+
+                profile_content += f"\n\t\toutput {device_name} enable mode {mode}{device_refresh} transform normal{device_scale}"
+            profile_content += "\n}\n"
+            shell.write_text_file(labwc_config, profile_content, append=True)
+        else:
+            profiles = shell.pattern_search(labwc_config, r"(profile(?: .*)?) {([\S\s]*?)}", multi_line=True, return_match=True, find_all=True)
+            if profiles:
+                for profile in profiles:
+                    profile_name = profile[0].strip()
+                    profile_content = profile[1].strip()
+                    # Check if the profile already has an output section for the device
+                    if not shell.pattern_search(profile_content, f"(output {device_name}.*)"):
+                        # If not, add the output section for the device
+                        width, height = pitft_config["width"], pitft_config["height"]
+                        new_output_device = f"\t\toutput {device_name} enable mode {width}x{height} transform normal scale {scale}\n"
+                        # insert the new output device line into the profile content
+                        profile_content += new_output_device
+                        # Replace the profile with the updated content
+                        shell.pattern_replace(labwc_config, f"^{profile_name} {{([\S\s]*?)}}", f"{profile_name}: {{{profile_content}}}", multi_line=True)
+
+            # Remove scaling from any existing scale settings for the device
+            shell.pattern_replace(labwc_config, f"(output {device_name}.*) scale [0-9](?:\.[0-9]+)?(.*)", r"\1\2")
+            # Add new scale to the end of the line
+            shell.pattern_replace(labwc_config, f"(output {device_name}.*)", r"\1 scale " + f"{scale}")
 
 def install_fbcp_service():
     shell.write_templated_file("/etc/systemd/system/", "templates/fbcp.service")
@@ -771,6 +819,24 @@ Settings take effect on next boot.
     shell.reboot()
     shell.exit()
 
+def get_drm_devices(connected_only=False):
+    # get all drm devices from /sys/class/drm e.g. card1-HDMI-A-1, card2-SPI-1, etc.
+    devices = []
+    for item in glob.glob("/sys/class/drm/card?-*"):
+        status = shell.read_text_file(f"{item}/status").strip()
+        if connected_only and status != "connected":
+            continue
+        modes = shell.read_text_file(f"{item}/modes").strip().splitlines()
+        # remove duplicate modes
+        modes = list(dict.fromkeys(modes))
+        info = {
+            "name": item.split("-", 1)[1],
+            "status": status,
+            "modes": modes,
+        }
+        devices.append(info)
+    return devices
+
 ####################################################### MAIN
 target_homedir = "/home/pi"
 username = os.environ["SUDO_USER"]
@@ -800,7 +866,7 @@ if shell.get_raspbian_version() == "bullseye":
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
 @click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
 def main(user, display, rotation, install_type, reboot, boot):
-    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir, is_desktop
+    global target_homedir, pitft_config, pitftrot, auto_reboot, boot_dir, is_desktop, manager, SYSTEMD
     shell.clear()
     if user != target_homedir:
         target_homedir = user
@@ -814,10 +880,12 @@ def main(user, display, rotation, install_type, reboot, boot):
     # Check if we are running on a desktop environment or lite
     is_desktop = shell.exists("/etc/lightdm")
     print("Running on a {} environment".format("desktop" if is_desktop else "lite"))
+    if is_desktop:
+        manager = shell.get_window_manager()
+        if manager is None:
+            shell.bail("Unable to determine desktop manager. Please run this script in a terminal emulator, not from the desktop environment.")
+        print("Desktop manager: {}".format(manager))
     print()
-    # "mirror" will be the new install type, but keep fbcp for backwards compatibility
-    if install_type == "fbcp":
-        install_type = "mirror"
 
     print("""This script downloads and installs
 PiTFT Support using userspace touch
@@ -830,7 +898,6 @@ Run time of up to 5 minutes. Reboot required!
 
     if install_type == "uninstall":
         uninstall()
-
     def select_display(config, interactive=False):
         global pitft_config
         pitft_config = config
@@ -880,6 +947,11 @@ Run time of up to 5 minutes. Reboot required!
         shell.bail("""Unfortunately {rotation} degrees for the {display} is not working at this time. Please
 restart the script and choose a different orientation.""".format(rotation=pitftrot, display=pitft_config["menulabel"]))
 
+    if install_type is None:
+        # Show a selection menu for install_types using shell.select_n and setting the selection to the key of install_types
+        install_selection = shell.select_n("Select install type:", install_types.values())
+        install_type = list(install_types.keys())[install_selection - 1]
+    update_wayland_settings()
     if REMOVE_KERNEL_PINNING:
         # Checking if kernel is pinned
         if shell.exists('/etc/apt/preferences.d/99-adafruit-pin-kernel'):
@@ -938,7 +1010,7 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
             shell.bail("Unable to update /etc/pointercal")
 
     # ask for console access
-    if install_type == "console" or (install_type is None and shell.prompt("Would you like the console to appear on the PiTFT display?")):
+    if install_type == "console":
         shell.info("Updating console to PiTFT...")
         if not uninstall_fbcp():
             shell.bail("Unable to uninstall fbcp")
@@ -947,15 +1019,13 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
     else:
         shell.info("Making sure console doesn't use PiTFT")
         if not uninstall_console():
-            shell.bail("Unable to configure console")
+            shell.bail("Unable to uninstall console")
 
         # With wayland, PiTFT shows up as an additional display rather than a mirror
-        mirror_prompt = "Would you like the to use the PiTFT as a desktop display?"
-        if install_type == "mirror" or (install_type is None and shell.prompt(mirror_prompt)):
-            shell.info("Updating Wayland desktop settings...")
-            update_wayfire_settings()
-
+        if install_type == "mirror":
             if is_desktop:
+                shell.info("Updating Wayland desktop settings...")
+                update_wayland_settings()
                 shell.info("Updating Desktop Touch calibration...")
                 if not update_xorg():
                     shell.bail("Unable to update calibration")
