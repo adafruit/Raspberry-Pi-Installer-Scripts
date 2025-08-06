@@ -8,7 +8,6 @@ Written in Python by Melissa LeBlanc-Williams for Adafruit Industries
 import time
 import os
 import glob
-import re
 
 try:
     import click
