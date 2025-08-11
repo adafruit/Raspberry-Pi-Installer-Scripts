@@ -1,0 +1,5 @@
+# udev rule for TSC2007 touchscreen to create /dev/input/touchscreen symlink and apply transformation
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="TSC2007 Touchscreen", SYMLINK+="input/touchscreen", ENV{LIBINPUT_CALIBRATION_MATRIX}="{calibration_matrix}"
+
+# Backup rule using touchscreen capability and TSC2007 name pattern
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_TOUCHSCREEN}=="1", ATTRS{name}=="*TSC2007*", SYMLINK+="input/touchscreen", ENV{LIBINPUT_CALIBRATION_MATRIX}="{calibration_matrix}"

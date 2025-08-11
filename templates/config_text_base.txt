@@ -1,0 +1,8 @@
+# --- added by adafruit-pitft-helper {date} ---
+[all]
+hdmi_force_hotplug=1  # required for cases when HDMI is not plugged in!
+dtparam=spi=on
+dtparam=i2c1=on
+dtparam=i2c_arm=on
+{overlay}
+# --- end adafruit-pitft-helper {date} ---

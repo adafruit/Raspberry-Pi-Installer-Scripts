@@ -1,0 +1,14 @@
+# udev rules for SPI TFT DRM devices to create reliable symlinks
+# Supports ili9341, st7789, and other SPI TFT displays
+
+# Rule for ili9341 DRM device (and other SPI TFT displays)
+SUBSYSTEM=="drm", KERNEL=="card*", KERNELS=="spi0.0", DRIVERS=="ili9341", SYMLINK+="dri/spitft"
+
+# Generic rule for any SPI TFT display on spi0.0
+SUBSYSTEM=="drm", KERNEL=="card*", KERNELS=="spi0.0", SUBSYSTEMS=="spi", SYMLINK+="dri/spitft"
+
+# Rule for st7789 displays (add when needed)
+SUBSYSTEM=="drm", KERNEL=="card*", KERNELS=="spi0.0", DRIVERS=="st7789", SYMLINK+="dri/spitft"
+
+# Alternative rule using device path pattern
+SUBSYSTEM=="drm", KERNEL=="card*", DEVPATH=="*/spi0/spi0.0/drm/card*", SYMLINK+="dri/spitft"
