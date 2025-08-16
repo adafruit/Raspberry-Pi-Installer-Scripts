@@ -10,6 +10,7 @@ shell = Shell()
 
 BLACKLIST = "/etc/modprobe.d/raspi-blacklist.conf"
 PRODUCT_NAME = "I2S Amplifier"
+OVERLAY = "googlevoicehat-soundcard"
 
 def driver_loaded(driver_name):
     return shell.run_command(f"lsmod | grep -q '{driver_name}'", suppress_message=True)
@@ -38,10 +39,10 @@ def main():
 
     print(f"\nAdding Device Tree Entry to {config}")
 
-    if shell.pattern_search(config, "^dtoverlay=max98357a$"):
+    if shell.pattern_search(config, f"^dtoverlay={OVERLAY}$"):
         print("dtoverlay already active")
     else:
-        shell.write_text_file(config, "dtoverlay=max98357a")
+        shell.write_text_file(config, f"dtoverlay={OVERLAY}")
         reboot = True
 
     if os.path.exists(BLACKLIST):
@@ -111,12 +112,12 @@ WantedBy=multi-user.target""", append=False)
 
     shell.run_command("sudo systemctl daemon-reload")
     shell.run_command("sudo systemctl disable aplay")
-    print("\nYou can optionally activate '/dev/zero' playback in\n"
-        "the background at boot. This will remove all\n"
-        "popping/clicking but does use some processor time.\n\n")
-    if shell.prompt("Activate '/dev/zero' playback in background? [RECOMMENDED]\n", default="y"):
-        shell.run_command("sudo systemctl enable aplay")
-        reboot = True
+    #print("\nYou can optionally activate '/dev/zero' playback in\n"
+    #    "the background at boot. This will remove all\n"
+    #    "popping/clicking but does use some processor time.\n\n")
+    #if shell.prompt("Activate '/dev/zero' playback in background? [RECOMMENDED]\n", default="y"):
+    #    shell.run_command("sudo systemctl enable aplay")
+    #    reboot = True
 
     if driver_loaded("max98357a"):
         print(f"\nWe can now test your {PRODUCT_NAME}")
