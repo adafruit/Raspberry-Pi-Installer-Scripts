@@ -112,12 +112,12 @@ WantedBy=multi-user.target""", append=False)
 
     shell.run_command("sudo systemctl daemon-reload")
     shell.run_command("sudo systemctl disable aplay")
-    #print("\nYou can optionally activate '/dev/zero' playback in\n"
-    #    "the background at boot. This will remove all\n"
-    #    "popping/clicking but does use some processor time.\n\n")
-    #if shell.prompt("Activate '/dev/zero' playback in background? [RECOMMENDED]\n", default="y"):
-    #    shell.run_command("sudo systemctl enable aplay")
-    #    reboot = True
+    print("\nYou can optionally activate '/dev/zero' playback in\n"
+        "the background at boot. This will remove all\n"
+        "popping/clicking but does use some processor time.\n\n")
+    if shell.prompt("Activate '/dev/zero' playback in background? [RECOMMENDED]\n", default="y"):
+        shell.run_command("sudo systemctl enable aplay")
+        reboot = True
 
     if driver_loaded("max98357a"):
         print(f"\nWe can now test your {PRODUCT_NAME}")
