@@ -10,6 +10,7 @@ shell = Shell()
 
 BLACKLIST = "/etc/modprobe.d/raspi-blacklist.conf"
 PRODUCT_NAME = "I2S Amplifier"
+OVERLAY = "googlevoicehat-soundcard"
 
 def driver_loaded(driver_name):
     return shell.run_command(f"lsmod | grep -q '{driver_name}'", suppress_message=True)
@@ -38,10 +39,10 @@ def main():
 
     print(f"\nAdding Device Tree Entry to {config}")
 
-    if shell.pattern_search(config, "^dtoverlay=max98357a$"):
+    if shell.pattern_search(config, f"^dtoverlay={OVERLAY}$"):
         print("dtoverlay already active")
     else:
-        shell.write_text_file(config, "dtoverlay=max98357a")
+        shell.write_text_file(config, f"dtoverlay={OVERLAY}")
         reboot = True
 
     if os.path.exists(BLACKLIST):
