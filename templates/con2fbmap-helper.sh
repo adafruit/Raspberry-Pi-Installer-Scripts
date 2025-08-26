@@ -7,11 +7,11 @@ echo "Waiting for SPI TFT framebuffer..."
 for i in {1..300}; do
     for fbdev in 0 1; do
         if [ -e /dev/fb$fbdev ]; then
-            echo "Found /dev/fb$fbdev, checking if it's ili9341..."
+            echo "Found /dev/fb$fbdev, checking if it's {display_type}..."
 
             # Check if it's actually the ili9341 device
-            if dmesg | grep -q "ili9341.*fb$fbdev"; then
-                echo "ili9341 framebuffer ready, mapping console..."
+            if dmesg | grep -q "{display_type}.*fb$fbdev"; then
+                echo "{display_type} framebuffer ready, mapping console..."
                 con2fbmap 1 $fbdev
                 echo "Console mapped to framebuffer $fbdev"
                 exit 0
