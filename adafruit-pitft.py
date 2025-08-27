@@ -34,6 +34,7 @@ menulabel: The label to display in the menu.
 product: The product name for the display.
 kernel_upgrade: Whether the kernel needs to be upgraded for this display.
 overlay: The overlay string to apply for the display.
+display_type: The display type identifier for con2fbmap.
 width: Width of the display in pixels.
 height: Height of the display in pixels.
 
@@ -78,6 +79,7 @@ config = [
             },
         },
         "overlay": "dtoverlay=pitft24rv2,rotate={pitftrot},fps=60",
+        "display_type": "ili9341",
         "width": 320,
         "height": 240,
     },
@@ -111,6 +113,7 @@ config = [
         },
         "overlay": "dtoverlay=pitft28-resistive,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
+        "display_type": "ili9341",
         "width": 320,
         "height": 240,
     },
@@ -121,6 +124,7 @@ config = [
         "kernel_upgrade": False,
         "overlay": "dtoverlay=pitft22,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
+        "display_type": "ili9341",
         "width": 320,
         "height": 240,
     },
@@ -149,6 +153,7 @@ config = [
         },
         "overlay": "dtoverlay=pitft28-capacitive,rotate={pitftrot},speed=64000000,fps=30",
 	    "overlay_drm_option": "drm",
+        "display_type": "ili9341",
         "width": 320,
         "height": 240,
     },
@@ -176,6 +181,7 @@ config = [
         },
         "overlay": "dtoverlay=pitft35-resistive,rotate={pitftrot},speed=20000000,fps=20",
 	    "overlay_drm_option": "drm",
+        "display_type": "hx8357d",
         "width": 480,
         "height": 320,
         "display_scale": 1.5,
@@ -199,6 +205,7 @@ config = [
                 "270": "width=240,height=240",
             },
         },
+        "display_type": "panel-mipi-dbi-spi",
         "width": 240,
         "height": 240,
         "mirror_rotations": {
@@ -227,6 +234,7 @@ config = [
                 "270": "width=240,height=320",
             },
         },
+        "display_type": "panel-mipi-dbi-spi",
         "width": 320,
         "height": 240,
     },
@@ -255,6 +263,7 @@ config = [
             "180": None,
             "270": "270",
         },
+        "display_type": "panel-mipi-dbi-spi",
         "width": 240,
         "height": 135,
         "mirror_rotations": {
@@ -283,6 +292,7 @@ config = [
                 "270": "width=240,height=240",
             },
         },
+        "display_type": "panel-mipi-dbi-spi",
         "width": 240,
         "height": 240,
         "mirror_rotations": {
@@ -367,7 +377,7 @@ def softwareinstall():
         if not shell.run_command("apt-get install -y tslib"):
             if not shell.run_command("apt-get install -y libts-dev"):
                 warn_exit("Apt failed to install TSLIB!")
-    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler libraspberrypi-dev build-essential python3-evdev"):
+    if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler build-essential python3-evdev"):
         warn_exit("Apt failed to install software!")
     if not shell.run_command("apt-get install -y raspi-config"):
         warn_exit("Apt failed to install raspi-config!")
@@ -529,12 +539,14 @@ def update_pointercal():
 
 def install_console():
     print("Installing console fbcon map helper...")
-    shell.write_templated_file("/usr/local/bin/", "templates/con2fbmap-helper.sh")
+    display_type = pitft_config["display_type"]
+    shell.write_templated_file("/usr/local/bin/", "templates/con2fbmap-helper.sh", display_type=display_type)
     shell.chmod("/usr/local/bin/con2fbmap-helper.sh", "+x")
 
     print("Installing console fbcon map service...")
     shell.write_templated_file("/etc/systemd/system/", "templates/con2fbmap.service")
     shell.run_command("systemctl daemon-reload")
+    shell.run_command("systemctl enable con2fbmap.service")
     shell.run_command("systemctl restart con2fbmap.service")
 
     print("Turning off console blanking")
