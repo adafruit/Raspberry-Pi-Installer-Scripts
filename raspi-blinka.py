@@ -110,7 +110,7 @@ def check_and_install_for_pi5(pi_model, user=False):
         shell.run_command("unzip lgpio.zip")
         if shell.exists("lgpio.zip"):
             shell.remove("lgpio.zip")
-        shell.chdir("lgpio")
+        shell.chdir("lg")
         shell.run_command("make")
         shell.run_command("sudo make install")
         # Remove setuptools after the build process is complete
