@@ -4,7 +4,7 @@ Some scripts for helping install Adafruit HATs, bonnets, add-on's, & friends!
 
 Many scripts are based heavily on get.pimoroni.com scripts!
 
-  * Install i2s amplifier with: curl -sS https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/i2samp.sh | bash
+  * Install i2s amplifier with: curl -sS https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/main/i2samp.sh | bash
 
 ## Python Scripts
 
