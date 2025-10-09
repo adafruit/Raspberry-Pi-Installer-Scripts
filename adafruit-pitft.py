@@ -575,7 +575,8 @@ def uninstall_console():
         print("Restoring Desktop Environment...")
         shell.run_command("apt-get -y install rpd-plym-splash")     # Install Splash Screen
         shell.run_command("raspi-config nonint do_boot_splash 0")   # Enable Splash Screen
-        #shell.run_command("apt-get -y install raspberrypi-ui-mods") # Reinstall Raspberry Pi OS UI mods
+        if not shell.is_minumum_version("trixie"):
+            shell.run_command("apt-get -y install raspberrypi-ui-mods") # Reinstall Raspberry Pi OS UI mods
         shell.run_command("raspi-config nonint do_boot_target B2")  # Boot to Desktop
 
     if shell.exists("/etc/systemd/system/con2fbmap.service"):
