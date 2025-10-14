@@ -379,8 +379,6 @@ def softwareinstall():
                 warn_exit("Apt failed to install TSLIB!")
     if not shell.run_command("apt-get install -y bc fbi git python3-dev python3-pip python3-smbus python3-spidev evtest libts-bin device-tree-compiler build-essential python3-evdev"):
         warn_exit("Apt failed to install software!")
-    if not shell.run_command("apt-get install -y raspi-config"):
-        warn_exit("Apt failed to install raspi-config!")
     return True
 
 def uninstall_bootconfigtxt():
@@ -577,7 +575,8 @@ def uninstall_console():
         print("Restoring Desktop Environment...")
         shell.run_command("apt-get -y install rpd-plym-splash")     # Install Splash Screen
         shell.run_command("raspi-config nonint do_boot_splash 0")   # Enable Splash Screen
-        shell.run_command("apt-get -y install raspberrypi-ui-mods") # Reinstall Raspberry Pi OS UI mods
+        if not shell.is_minimum_version("trixie"):
+            shell.run_command("apt-get -y install raspberrypi-ui-mods") # Reinstall Raspberry Pi OS UI mods
         shell.run_command("raspi-config nonint do_boot_target B2")  # Boot to Desktop
 
     if shell.exists("/etc/systemd/system/con2fbmap.service"):
