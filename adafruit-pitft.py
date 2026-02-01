@@ -418,6 +418,11 @@ def is_kernel_upgrade_required(config = None):
     if use_mipi_driver(config):
         return False
 
+    # This only applies if the kernel upgrade is required
+    if shell.is_raspberry_pi_os() and shell.is_kernel_userspace_mismatched() and shell.is_pi5_or_newer():
+        shell.bail("Unable to proceed on Pi 5 or newer boards with a with a 32-bit OS. Please reinstall with a 64-bit OS or try adding \"arm_64bit=1\" to /boot/config.txt and rebooting.")
+    shell.check_kernel_userspace_mismatch()
+
     return True
 
 def install_drivers():
@@ -1048,7 +1053,4 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
 # Main function
 if __name__ == "__main__":
     shell.require_root()
-    if shell.is_raspberry_pi_os() and shell.is_kernel_userspace_mismatched() and shell.is_pi5_or_newer():
-        shell.bail("Unable to proceed on Pi 5 or newer boards with a with a 32-bit OS. Please reinstall with a 64-bit OS.")
-    shell.check_kernel_userspace_mismatch()
     main()
