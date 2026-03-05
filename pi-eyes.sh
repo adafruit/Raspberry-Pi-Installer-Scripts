@@ -1,370 +1,384 @@
 #!/bin/bash
+# Adafruit Snake Eyes Bonnet installer for Raspberry Pi OS Trixie (Debian 13).
+# Supports Pi 3B, Pi 4, and Pi 5.
+#
+# Changes vs upstream pi-eyes.sh:
+#   - Targets Trixie only; drops Buster/Bullseye legacy paths
+#   - Boot config always at /boot/firmware (Trixie standard)
+#   - Does not touch vc4-kms-v3d overlay (fkms was removed in Bookworm)
+#   - Forces HDMI mode via video= kernel cmdline (works headless)
+#   - pip installs into Python venv (PEP 668 / externally-managed-env)
+#   - Code installed to /opt/Pi_Eyes (not /boot — FAT32 partition)
+#   - Uses local fbx2.c if present next to this script
+#   - fbx2 uses X11 MIT-SHM capture (replaces dispmanx, removed in Bookworm)
+#   - fbx2 uses Linux GPIO character device (works on Pi 3B, 4 and 5)
+#   - Uses xinit to launch eyes.py (pi3d requires EGL; dispmanx is gone)
+#   - Uses rpi-lgpio on Pi 5 (RP1 GPIO controller, RPi.GPIO not supported)
+#   - Autostart via systemd units (rc.local is deprecated in Trixie)
 
 if [ $(id -u) -ne 0 ]; then
-  echo "Installer must be run as root."
-  echo "Try 'sudo bash $0'"
-  exit 1
+    echo "Installer must be run as root."
+    echo "Try 'sudo bash $0'"
+    exit 1
 fi
 
-# FEATURE PROMPTS ----------------------------------------------------------
-# Installation doesn't begin until after all user input is taken.
+# Trixie always uses /boot/firmware
+CONFIG_TXT=/boot/firmware/config.txt
+CMDLINE_TXT=/boot/firmware/cmdline.txt
 
-INSTALL_HALT=0
-INSTALL_ADC=0
-INSTALL_GADGET=0
+if [ ! -f "$CONFIG_TXT" ]; then
+    echo "ERROR: $CONFIG_TXT not found."
+    echo "This installer requires Raspberry Pi OS Trixie (Debian 13)."
+    exit 1
+fi
 
-# Given a list of strings representing options, display each option
-# preceded by a number (1 to N), display a prompt, check input until
-# a valid number within the selection range is entered.
+# Detect Pi 5 — uses RP1 GPIO controller, needs rpi-lgpio instead of RPi.GPIO
+PI_MODEL=$(cat /proc/device-tree/model 2>/dev/null | tr -d '\0')
+IS_PI5=0
+echo "$PI_MODEL" | grep -q "Raspberry Pi 5" && IS_PI5=1
+
+# ---- FEATURE PROMPTS --------------------------------------------------------
+
 selectN() {
-  for ((i=1; i<=$#; i++)); do
-    echo $i. ${!i}
-  done
-  echo
-  REPLY=""
-  while :
-  do
-    echo -n "SELECT 1-$#: "
-    read
-    if [[ $REPLY -ge 1 ]] && [[ $REPLY -le $# ]]; then
-      return $REPLY
-    fi
-  done
+    for ((i=1; i<=$#; i++)); do
+        echo "$i. ${!i}"
+    done
+    echo
+    REPLY=""
+    while :; do
+        echo -n "SELECT 1-$#: "
+        read
+        if [[ $REPLY -ge 1 ]] && [[ $REPLY -le $# ]]; then
+            return $REPLY
+        fi
+    done
 }
 
 clear
 
-echo "This script installs Adafruit Snake Eyes Bonnet"
-echo "software for Raspberry Pi. It's best to dedicate"
-echo "a card to this, not for systems in regular use."
+echo "Adafruit Snake Eyes Bonnet installer"
+echo "Raspberry Pi OS Trixie — Pi 3B / Pi 4 / Pi 5"
 echo
-echo "Target system (may be different than current host):"
-selectN "Raspberry Pi 4, Pi 400, or Compute Module 4" "All other models"
-#if [[ $? -eq "1" ]]; then
-if [ $? -eq "1" ]; then
-  IS_PI4=1
-fi
-
-if [ $IS_PI4 ]; then
-  # Verify this is Raspbian Desktop OS (X11 should exist)
-  if [ ! -d "/usr/bin/X11" ]; then
-    echo "Target system is Pi 4/400/CM4 but this appears to"
-    echo "be a \"Lite\" OS. \"Desktop\" OS is required."
-    echo -n "Continue anyway? [y/N]"
-    read
-    if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-      echo "Canceled."
-      exit 0
-    fi
-  fi
-else
-  # Verify this is Raspbian Lite OS (X11 should NOT exist)
-  if [ -d "/usr/bin/X11" ]; then
-    echo "Target system is not Pi 4/400/CM4 yet this appears to"
-    echo "be a \"Desktop\" OS. \"Lite\" OS (Legacy) is required."
-    echo -n "Continue anyway? [y/N]"
-    read
-    if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-      echo "Canceled."
-      exit 0
-    fi
-  fi
-fi
-
-SCREEN_VALUES=(-o -t -i)
-SCREEN_NAMES=("OLED (128x128)" "TFT (128x128)" "IPS (240x240)" HDMI)
-RADIUS_VALUES=(128 128 240)
-OPTION_NAMES=(NO YES)
+echo "Running on: $PI_MODEL"
 echo
+
+SCREEN_OPTS=("-o" "-t" "-i" "")
+SCREEN_NAMES=("OLED 128x128 (SSD1351)" "TFT 128x128 (ST7735)" "IPS 240x240 (ST7789)" "HDMI only (no SPI screens)")
+RADIUS_VALUES=(128 128 240 240)
+
 echo "Select screen type:"
-selectN "${SCREEN_NAMES[0]}" \
-        "${SCREEN_NAMES[1]}" \
-        "${SCREEN_NAMES[2]}" \
-        "${SCREEN_NAMES[3]}"
+selectN "${SCREEN_NAMES[@]}"
 SCREEN_SELECT=$?
+SCREEN_OPT=${SCREEN_OPTS[$((SCREEN_SELECT-1))]}
+RADIUS=${RADIUS_VALUES[$((SCREEN_SELECT-1))]}
 
+if [ $SCREEN_SELECT -eq 3 ]; then
+    VIDEO_RES="1280x720"
+else
+    VIDEO_RES="640x480"
+fi
+
+INSTALL_HALT=0
+HALT_PIN=21
 echo -n "Install GPIO-halt utility? [y/N] "
 read
-if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
-  INSTALL_HALT=1
-  echo -n "GPIO pin for halt: "
-  read
-  HALT_PIN=$REPLY
+if [[ "$REPLY" =~ ^(yes|y|Y)$ ]]; then
+    INSTALL_HALT=1
+    echo -n "GPIO pin number for halt button: "
+    read
+    HALT_PIN=$REPLY
 fi
 
+INSTALL_ADC=0
 echo -n "Install Bonnet ADC support? [y/N] "
 read
-if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
-  INSTALL_ADC=1
-fi
+[[ "$REPLY" =~ ^(yes|y|Y)$ ]] && INSTALL_ADC=1
 
+INSTALL_GADGET=0
 echo -n "Install USB Ethernet gadget support? (Pi Zero) [y/N] "
 read
-if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
-  INSTALL_GADGET=1
-fi
+[[ "$REPLY" =~ ^(yes|y|Y)$ ]] && INSTALL_GADGET=1
 
 echo
-echo "Screen type: ${SCREEN_NAMES[$SCREEN_SELECT-1]}"
-if [ $INSTALL_HALT -eq 1 ]; then
-  echo "Install GPIO-halt: YES (GPIO$HALT_PIN)"
-else
-  echo "Install GPIO-halt: NO"
-fi
-echo "Bonnet ADC support: ${OPTION_NAMES[$INSTALL_ADC]}"
-echo "Ethernet USB gadget support: ${OPTION_NAMES[$INSTALL_GADGET]}"
-if [ $SCREEN_SELECT -eq 3 ]; then
-  echo "Video resolution will be set to 1280x720, no overscan"
-else
-  echo "Video resolution will be set to 640x480, no overscan"
-fi
-
+echo "Summary:"
+echo "  Screen:       ${SCREEN_NAMES[$((SCREEN_SELECT-1))]}"
+echo "  Resolution:   ${VIDEO_RES}"
+echo "  GPIO halt:    $([ $INSTALL_HALT -eq 1 ] && echo YES, GPIO$HALT_PIN || echo NO)"
+echo "  ADC support:  $([ $INSTALL_ADC  -eq 1 ] && echo YES || echo NO)"
+echo "  USB gadget:   $([ $INSTALL_GADGET -eq 1 ] && echo YES || echo NO)"
 echo
-echo "Installation steps include:"
-echo "- Update package index files (apt-get update)"
-echo "- Install Python libraries: numpy, pi3d, svg.path,"
-echo "  rpi-gpio, python3-dev, python3-pil"
-echo "- Install Adafruit eye code and data in /boot"
-echo "- Set HDMI resolution, GPU RAM, disable overscan"
-if [ $IS_PI4 ]; then
-	echo "- Disable desktop, configure video driver"
-fi
-echo "- Enable SPI0 and SPI1 peripherals if needed"
+echo "THIS IS A ONE-WAY OPERATION — NO UNINSTALL PROVIDED."
+echo "Run time ~10-15 minutes. Reboot required."
 echo
-echo "THIS IS A ONE-WAY OPERATION, NO UNINSTALL PROVIDED."
-echo "EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN."
-echo "Run time ~10 minutes. Reboot required."
-echo
-echo -n "Do you understand and want to proceed? [y/N]"
+echo -n "Proceed? [y/N] "
 read
 if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-	echo "Canceled."
-	exit 0
+    echo "Canceled."
+    exit 0
 fi
 
-# START INSTALL ------------------------------------------------------------
-# All selections are validated at this point...
+# ---- HELPERS ----------------------------------------------------------------
 
-# Given a filename, a regex pattern to match and a replacement string,
-# perform replacement if found, else append replacement to end of file.
-# (# $1 = filename, $2 = pattern to match, $3 = replacement)
 reconfig() {
-  grep $2 $1 >/dev/null
-  if [ $? -eq 0 ]; then
-    # Pattern found; replace in file
-    sed -i "s/$2/$3/g" $1 >/dev/null
-  else
-    # Not found; append (silently)
-    echo $3 | sudo tee -a $1 >/dev/null
-  fi
+    # Replace matching line or append. $1=file $2=pattern $3=replacement
+    grep -E "$2" "$1" >/dev/null 2>&1 \
+        && sed -i "s|$2|$3|g" "$1" \
+        || echo "$3" | tee -a "$1" >/dev/null
 }
 
-# Same as above, but appends to same line rather than new line
 reconfig2() {
-  grep $2 $1 >/dev/null
-  if [ $? -eq 0 ]; then
-    # Pattern found; replace in file
-    sed -i "s/$2/$3/g" $1 >/dev/null
-  else
-    # Not found; append to line (silently)
-    sed -i "s/$/ $3/g" $1 >/dev/null
-  fi
+    # Replace on existing line or append to end of first line. $1=file $2=pattern $3=replacement
+    grep -E "$2" "$1" >/dev/null 2>&1 \
+        && sed -i "s|$2|$3|g" "$1" \
+        || sed -i "s|$| $3|" "$1"
 }
+
+# ---- PACKAGES ---------------------------------------------------------------
 
 echo
-echo "Starting installation..."
-echo "Updating package index files..."
+echo "Updating package index..."
 apt-get update
 
-echo "Installing Python libraries..."
-# WAS: apt-get install -y --force-yes python-pip python-dev python-imaging python-smbus
-apt-get install -y python3-pip python3-dev python3-pil python3-smbus libatlas-base-dev
-# WAS: pip3 install numpy pi3d==2.34 svg.path rpi-gpio adafruit-ads1x15
-pip3 install numpy pi3d svg.path rpi-gpio adafruit-blinka adafruit-circuitpython-ads1x15
-# smbus and Blinka+ADC libs are installed regardless whether ADC is
-# enabled; simplifies the Python code a little (no "uncomment this")
+echo "Installing system packages..."
+apt-get install -y \
+    build-essential \
+    python3-venv python3-dev python3-full \
+    libx11-dev libxext-dev \
+    git curl unzip
 
-echo "Installing Adafruit code and data in /boot..."
-cd /tmp
-curl -LO https://github.com/adafruit/Pi_Eyes/archive/master.zip
-unzip master.zip
-# Moving between filesystems requires copy-and-delete:
-cp -r Pi_Eyes-master /boot/Pi_Eyes
-rm -rf master.zip Pi_Eyes-master
-if [ $INSTALL_HALT -ne 0 ]; then
-  echo "Installing gpio-halt in /usr/local/bin..."
-  curl -LO https://github.com/adafruit/Adafruit-GPIO-Halt/archive/master.zip
-  unzip master.zip
-  cd Adafruit-GPIO-Halt-master
-  make
-  mv gpio-halt /usr/local/bin
-  cd ..
-  rm -rf Adafruit-GPIO-Halt-master
+# Python GPIO library: Pi 5 uses the RP1 controller; RPi.GPIO does not
+# support it. rpi-lgpio is a drop-in compatible replacement via lgpio.
+if [ $IS_PI5 -eq 1 ]; then
+    echo "Pi 5: installing rpi-lgpio (RP1 GPIO controller)..."
+    apt-get install -y python3-lgpio python3-rpi-lgpio python3-smbus i2c-tools
+else
+    apt-get install -y python3-rpi.gpio python3-smbus i2c-tools
 fi
 
-# CONFIG -------------------------------------------------------------------
+# ---- PYTHON VENV ------------------------------------------------------------
+
+echo "Creating Python venv at /opt/pi-eyes-venv..."
+# --system-site-packages lets the venv see system gpio/smbus without re-installing
+python3 -m venv --system-site-packages /opt/pi-eyes-venv
+PIP=/opt/pi-eyes-venv/bin/pip
+$PIP install --upgrade pip --quiet
+
+echo "Installing Python libraries..."
+$PIP install --quiet numpy pi3d svg.path adafruit-blinka \
+    adafruit-circuitpython-ads1x15
+
+# ---- PI_EYES CODE -----------------------------------------------------------
+
+echo "Downloading Pi_Eyes..."
+cd /tmp
+rm -f master.zip
+rm -rf Pi_Eyes-master
+curl -sLO https://github.com/adafruit/Pi_Eyes/archive/master.zip
+unzip -q master.zip
+mkdir -p /opt/Pi_Eyes
+cp -r Pi_Eyes-master/. /opt/Pi_Eyes/
+rm -rf master.zip Pi_Eyes-master
+
+# Use local fbx2.c (Trixie-compatible) if it sits next to this script
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [ -f "${SCRIPT_DIR}/fbx2.c" ]; then
+    echo "Using local fbx2.c from ${SCRIPT_DIR}..."
+    cp "${SCRIPT_DIR}/fbx2.c" /opt/Pi_Eyes/fbx2.c
+fi
+
+echo "Compiling fbx2..."
+cd /opt/Pi_Eyes
+gcc -O2 -o fbx2 fbx2.c -lpthread -lm -lX11 -lXext 2>&1 | head -20
+chmod +x fbx2
+
+# ---- GPIO HALT --------------------------------------------------------------
+
+if [ $INSTALL_HALT -ne 0 ]; then
+    echo "Installing gpio-halt..."
+    cd /tmp
+    rm -f master.zip
+    rm -rf Adafruit-GPIO-Halt-master
+    curl -sLO https://github.com/adafruit/Adafruit-GPIO-Halt/archive/master.zip
+    unzip -q master.zip
+    cd Adafruit-GPIO-Halt-master
+    make
+    mv gpio-halt /usr/local/bin/
+    cd /tmp
+    rm -rf Adafruit-GPIO-Halt-master
+fi
+
+# ---- BOOT CONFIGURATION -----------------------------------------------------
 
 echo "Configuring system..."
 
-if [ $IS_PI4 ]; then
-  # Make desktop system to boot to console (from raspi-config script):
-  systemctl set-default multi-user.target
-  ln -fs /lib/systemd/system/getty@.service /etc/systemd/system/getty.target.wants/getty@tty1.service
-  rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
+# Boot to console — eyes.py launches its own X via xinit
+systemctl set-default multi-user.target
+ln -fs /lib/systemd/system/getty@.service \
+    /etc/systemd/system/getty.target.wants/getty@tty1.service
+rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf
 
-  # Pi3D requires "fake" KMS overlay to work. Check /boot/config.txt for
-  # vc4-fkms-v3d overlay present and active. If so, nothing to do here,
-  # module's already configured.
-  grep '^dtoverlay=vc4-fkms-v3d' /boot/config.txt >/dev/null
-  if [ $? -ne 0 ]; then
-    # fkms overlay not present, or is commented out. Check if vc4-kms-v3d
-    # (no 'f') is present and active. That's normally the default.
-    grep '^dtoverlay=vc4-kms-v3d' /boot/config.txt >/dev/null
-    if [ $? -eq 0 ]; then
-      # It IS present. Comment out that line for posterity, and insert the
-      # 'fkms' item on the next line.
-      sed -i "s/^dtoverlay=vc4-kms-v3d/#&\ndtoverlay=vc4-fkms-v3d/g" /boot/config.txt >/dev/null
-    else
-      # It's NOT present. Silently append 'fkms' overlay to end of file.
-      echo dtoverlay=vc4-fkms-v3d | sudo tee -a /boot/config.txt >/dev/null
-    fi
-  fi
+# Do NOT modify the vc4 overlay. vc4-kms-v3d is correct for Trixie.
+# vc4-fkms-v3d was removed in Bookworm and must not be added.
 
-  # Disable screen blanking in X config
-  echo "Section \"ServerFlags\"
-  Option \"BlankTime\" \"0\"
-  Option \"StandbyTime\" \"0\"
-  Option \"SuspendTime\" \"0\"
-  Option \"OffTime\" \"0\"
-  Option \"dpms\" \"false\"
-EndSection" > /etc/X11/xorg.conf
+# Disable X screen blanking
+mkdir -p /etc/X11
+cat > /etc/X11/xorg.conf << XORGEOF
+Section "ServerFlags"
+    Option "BlankTime"    "0"
+    Option "StandbyTime"  "0"
+    Option "SuspendTime"  "0"
+    Option "OffTime"      "0"
+    Option "dpms"         "false"
+EndSection
 
-fi
-
-# Disable overscan compensation (use full screen):
-raspi-config nonint do_overscan 1
-
-# Dedicate 128 MB to the GPU:
-sudo raspi-config nonint do_memory_split 128
-
-# HDMI settings for Pi eyes
-reconfig /boot/config.txt "^.*hdmi_force_hotplug.*$" "hdmi_force_hotplug=1"
-reconfig /boot/config.txt "^.*hdmi_group.*$" "hdmi_group=2"
-reconfig /boot/config.txt "^.*hdmi_mode.*$" "hdmi_mode=87"
-if [ $SCREEN_SELECT -eq 3 ]; then
-  # IPS display - set HDMI to 1280x720
-  reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=1280 720 60 1 0 0 0"
+Section "Monitor"
+    Identifier "HDMI-1"
+$(if [ "$VIDEO_RES" = "1280x720" ]; then
+    echo '    Modeline "1280x720" 74.25 1280 1390 1430 1650 720 725 730 750 +hsync +vsync'
 else
-  # All others - set HDMI to 640x480
-  reconfig /boot/config.txt "^.*hdmi_cvt.*$" "hdmi_cvt=640 480 60 1 0 0 0"
+    echo '    Modeline "640x480"  25.18  640  656  752  800 480 490 492 525 -hsync -vsync'
+fi)
+EndSection
+
+Section "Screen"
+    Identifier  "Screen0"
+    Monitor     "HDMI-1"
+    DefaultDepth 24
+    SubSection "Display"
+        Depth 24
+        Modes "${VIDEO_RES}"
+    EndSubSection
+EndSection
+XORGEOF
+
+# GPU memory: set via config.txt directly (raspi-config do_memory_split
+# was removed in Trixie's raspi-config)
+reconfig "$CONFIG_TXT" "^.*gpu_mem.*$" "gpu_mem=128"
+
+# HDMI config — force hotplug and custom resolution.
+# video= in cmdline forces the mode at the KMS level and enables the
+# connector even when no physical display is connected ('e' flag).
+reconfig "$CONFIG_TXT" "^.*hdmi_force_hotplug.*$" "hdmi_force_hotplug=1"
+reconfig "$CONFIG_TXT" "^.*hdmi_group.*$"          "hdmi_group=2"
+reconfig "$CONFIG_TXT" "^.*hdmi_mode.*$"           "hdmi_mode=87"
+
+if [ "$VIDEO_RES" = "1280x720" ]; then
+    reconfig  "$CONFIG_TXT"  "^.*hdmi_cvt.*$" "hdmi_cvt=1280 720 60 1 0 0 0"
+    reconfig2 "$CMDLINE_TXT" "video=HDMI-A-1:[^ ]*" "video=HDMI-A-1:1280x720@60e"
+else
+    reconfig  "$CONFIG_TXT"  "^.*hdmi_cvt.*$" "hdmi_cvt=640 480 60 1 0 0 0"
+    reconfig2 "$CMDLINE_TXT" "video=HDMI-A-1:[^ ]*" "video=HDMI-A-1:640x480@60e"
 fi
 
+# I2C for ADC
+[ $INSTALL_ADC -ne 0 ] && raspi-config nonint do_i2c 0
 
-# Enable I2C for ADC
-if [ $INSTALL_ADC -ne 0 ]; then
-  raspi-config nonint do_i2c 0
+# SPI for screen
+if [ $SCREEN_SELECT -ne 4 ]; then
+    raspi-config nonint do_spi 0
+    reconfig  "$CONFIG_TXT"  "^.*dtparam=spi1.*$"   "dtparam=spi1=on"
+    reconfig  "$CONFIG_TXT"  "^.*dtoverlay=spi1.*$"  "dtoverlay=spi1-3cs"
+    reconfig2 "$CMDLINE_TXT" "spidev\.bufsiz=[^ ]*"  "spidev.bufsiz=8192"
 fi
+
+# USB Ethernet gadget (Pi Zero)
+if [ $INSTALL_GADGET -ne 0 ]; then
+    reconfig "$CONFIG_TXT" "^.*dtoverlay=dwc2.*$" "dtoverlay=dwc2"
+    grep "modules-load=dwc2,g_ether" "$CMDLINE_TXT" >/dev/null 2>&1 || \
+        sed -i "s/rootwait/rootwait modules-load=dwc2,g_ether/g" "$CMDLINE_TXT"
+fi
+
+# ---- SYSTEMD SERVICES -------------------------------------------------------
+
+echo "Creating systemd service units..."
+
+mkdir -p /etc/pi-eyes
+cat > /etc/pi-eyes/env << ENVEOF
+PYTHON=/opt/pi-eyes-venv/bin/python3
+PI_EYES_DIR=/opt/Pi_Eyes
+RADIUS=${RADIUS}
+ENVEOF
+
+if [ $SCREEN_SELECT -ne 4 ]; then
+    # fbx2: copies X display to SPI screens.
+    # DISPLAY=:0 required so fbx2 can connect to the X server started by
+    # the pi-eyes service.  After= ensures eyes.py is up before fbx2 runs.
+    cat > /etc/systemd/system/pi-eyes-fbx2.service << EOF
+[Unit]
+Description=Pi Eyes SPI framebuffer copy (fbx2)
+After=pi-eyes.service
+Requires=pi-eyes.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+EnvironmentFile=/etc/pi-eyes/env
+ExecStartPre=/bin/sleep 5
+ExecStart=/opt/Pi_Eyes/fbx2 ${SCREEN_OPT}
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl enable pi-eyes-fbx2.service
+fi
+
+# pi-eyes: launches eyes.py under its own X server via xinit.
+# Requires Desktop OS (xinit pre-installed).
+cat > /etc/systemd/system/pi-eyes.service << EOF
+[Unit]
+Description=Pi Eyes animation
+After=multi-user.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/pi-eyes/env
+ExecStart=/bin/bash -c 'cd \${PI_EYES_DIR}; xinit \${PYTHON} $([ $SCREEN_SELECT -eq 4 ] && echo cyclops.py || echo "eyes.py --radius \${RADIUS}") :0'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl enable pi-eyes.service
 
 if [ $INSTALL_HALT -ne 0 ]; then
-  # Add gpio-halt to /rc.local:
-  grep gpio-halt /etc/rc.local >/dev/null
-  if [ $? -eq 0 ]; then
-    # gpio-halt already in rc.local, but make sure correct:
-    sed -i "s/^.*gpio-halt.*$/\/usr\/local\/bin\/gpio-halt $HALT_PIN \&/g" /etc/rc.local >/dev/null
-  else
-    # Insert gpio-halt into rc.local before final 'exit 0'
-    sed -i "s/^exit 0/\/usr\/local\/bin\/gpio-halt $HALT_PIN \&\\nexit 0/g" /etc/rc.local >/dev/null
-  fi
+    cat > /etc/systemd/system/gpio-halt.service << EOF
+[Unit]
+Description=GPIO halt button
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/gpio-halt ${HALT_PIN}
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl enable gpio-halt.service
 fi
 
-# If using OLED, TFT or IPS, enable SPI and install fbx2 and eyes.py,
-# else (HDMI) skip SPI, fbx2 and install cyclops.py (single eye)
-if [ $SCREEN_SELECT -ne 4 ]; then
+systemctl daemon-reload
 
-  # Enable SPI0 using raspi-config
-  raspi-config nonint do_spi 0
+# ---- DONE -------------------------------------------------------------------
 
-  # Enable SPI1 by adding overlay to /boot/config.txt
-  reconfig /boot/config.txt "^.*dtparam=spi1.*$" "dtparam=spi1=on"
-  reconfig /boot/config.txt "^.*dtoverlay=spi1.*$" "dtoverlay=spi1-3cs"
-
-  # Adjust spidev buffer size to 8K (default is 4K)
-  reconfig2 /boot/cmdline.txt "spidev\.bufsiz=.*" "spidev.bufsiz=8192"
-
-  SCREEN_OPT=${SCREEN_VALUES[($SCREEN_SELECT-1)]}
-
-  # Auto-start fbx2 on boot
-  grep fbx2 /etc/rc.local >/dev/null
-  if [ $? -eq 0 ]; then
-    # fbx2 already in rc.local, but make sure correct:
-    sed -i "s/^.*fbx2.*$/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&/g" /etc/rc.local >/dev/null
-  else
-    # Insert fbx2 into rc.local before final 'exit 0'
-    sed -i "s/^exit 0/\/boot\/Pi_Eyes\/fbx2 $SCREEN_OPT \&\\nexit 0/g" /etc/rc.local >/dev/null
-  fi
-
-  RADIUS=${RADIUS_VALUES[($SCREEN_SELECT-1)]}
-  # Auto-start eyes.py on boot
-  grep eyes.py /etc/rc.local >/dev/null
-  if [ $? -eq 0 ]; then
-    # eyes.py already in rc.local, but make sure correct:
-    if [ $IS_PI4 ]; then
-      sed -i "s/^.*eyes.py.*$/cd \/boot\/Pi_Eyes;xinit \/usr\/bin\/python3 eyes.py --radius $RADIUS \:0 \&/g" /etc/rc.local >/dev/null
-    else
-      sed -i "s/^.*eyes.py.*$/cd \/boot\/Pi_Eyes;python3 eyes.py --radius $RADIUS \&/g" /etc/rc.local >/dev/null
-    fi
-  else
-    # Insert eyes.py into rc.local before final 'exit 0'
-    if [ $IS_PI4 ]; then
-      sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;xinit \/usr\/bin\/python3 eyes.py --radius $RADIUS \:0 \&\\nexit 0/g" /etc/rc.local >/dev/null
-    else
-      sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;python3 eyes.py --radius $RADIUS \&\\nexit 0/g" /etc/rc.local >/dev/null
-    fi
-  fi
-
-else
-
-  # Auto-start cyclops.py on boot
-  grep cyclops.py /etc/rc.local >/dev/null
-  if [ $? -eq 0 ]; then
-    # cyclops.py already in rc.local, but make sure correct:
-    if [ $IS_PI4 ]; then
-      sed -i "s/^.*cyclops.py.*$/cd \/boot\/Pi_Eyes;xinit \/usr\/bin\/python3 cyclops.py \:0 \&/g" /etc/rc.local >/dev/null
-    else
-      sed -i "s/^.*cyclops.py.*$/cd \/boot\/Pi_Eyes;python3 cyclops.py \&/g" /etc/rc.local >/dev/null
-    fi
-  else
-    # Insert cyclops.py into rc.local before final 'exit 0'
-    if [ $IS_PI4 ]; then
-      sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;xinit \/usr\/bin\/python3 cyclops.py \:0 \&\\nexit 0/g" /etc/rc.local >/dev/null
-    else
-      sed -i "s/^exit 0/cd \/boot\/Pi_Eyes;python3 cyclops.py \&\\nexit 0/g" /etc/rc.local >/dev/null
-    fi
-  fi
-
-fi
-
-if [ $INSTALL_GADGET -ne 0 ]; then
-  reconfig /boot/config.txt "^.*dtoverlay=dwc2.*$" "dtoverlay=dwc2"
-  grep "modules-load=dwc2,g_ether" /boot/cmdline.txt >/dev/null
-  if [ $? -ne 0 ]; then
-    # Insert ethernet gadget into config.txt after 'rootwait'
-    sed -i "s/rootwait/rootwait modules-load=dwc2,g_ether/g" /boot/cmdline.txt >/dev/null
-  fi
-fi
-
-# PROMPT FOR REBOOT --------------------------------------------------------
-
-echo "Done."
+echo
+echo "============================================================"
+echo "Installation complete."
+echo
+echo "Boot config: ${CONFIG_TXT}"
+echo "Eye code:    /opt/Pi_Eyes/"
+echo "Python venv: /opt/pi-eyes-venv/"
 echo
 echo "Settings take effect on next boot."
 echo
 echo -n "REBOOT NOW? [y/N] "
 read
-if [[ ! "$REPLY" =~ ^(yes|y|Y)$ ]]; then
-  echo "Exiting without reboot."
-  exit 0
+if [[ "$REPLY" =~ ^(yes|y|Y)$ ]]; then
+    echo "Rebooting..."
+    reboot
 fi
-echo "Reboot started..."
-reboot
 exit 0
