@@ -105,6 +105,9 @@ pcm.!default {
 Description=Invoke aplay from /dev/zero at system start.
 
 [Service]
+Restart=on-failure
+RestartSec=5s
+
 ExecStart=/usr/bin/aplay -D default -t raw -r 44100 -c 2 -f S16_LE /dev/zero
 
 [Install]
