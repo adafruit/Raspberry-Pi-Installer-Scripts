@@ -103,18 +103,7 @@ def check_and_install_for_pi5(pi_model, user=False):
         print("Detected Raspberry Pi 5, applying additional fixes...")
         if shell.exists("lg"):
             shell.remove("lg")
-        shell.run_command("sudo apt-get install -y wget swig python3-dev python3-setuptools")
-        # Temporarily install setuptools to as root for the build process
-        shell.run_command("sudo pip3 install -U setuptools", run_as_user=username)
-        shell.run_command("wget https://github.com/adafruit/Raspberry-Pi-Installer-Scripts/raw/refs/heads/main/packages/lgpio.zip")
-        shell.run_command("unzip lgpio.zip")
-        if shell.exists("lgpio.zip"):
-            shell.remove("lgpio.zip")
-        shell.chdir("lg")
-        shell.run_command("make")
-        shell.run_command("sudo make install")
-        # Remove setuptools after the build process is complete
-        shell.run_command("sudo pip3 uninstall -y setuptools", run_as_user=username)
+        shell.run_command("sudo apt-get install -y python3-lgpio")
     else:
         print(f"Detected {pi_model}, no additional fixes needed.")
 
