@@ -11,6 +11,10 @@ shell = Shell()
 BLACKLIST = "/etc/modprobe.d/raspi-blacklist.conf"
 PRODUCT_NAME = "I2S Amplifier"
 OVERLAY = "googlevoicehat-soundcard"
+# ALSA card id registered by the overlay above (see /proc/asound/cards).
+# Binding asound.conf by name rather than numeric index keeps routing
+# correct when HDMI/USB audio pushes the I2S card off card 0.
+CARD_NAME = "sndrpigooglevoicehat"
 
 def driver_loaded(driver_name):
     return shell.run_command(f"lsmod | grep -q '{driver_name}'", suppress_message=True)
@@ -95,7 +99,7 @@ pcm.!default {
     type             plug
     slave.pcm       "softvol"
 }
-""")
+""".replace("card 0", f'card "{CARD_NAME}"'))
     shell.move("~/asound.conf", "/etc/asound.conf")
 
 
