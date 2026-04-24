@@ -13,8 +13,9 @@ PRODUCT_NAME = "I2S Amplifier"
 OVERLAY = "googlevoicehat-soundcard"
 # ALSA card id registered by the overlay above (see /proc/asound/cards).
 # Binding asound.conf by name rather than numeric index keeps routing
-# correct when HDMI/USB audio pushes the I2S card off card 0.
-CARD_NAME = "sndrpigooglevoicehat"
+# correct when HDMI/headphones/USB audio pushes the I2S card off card 0.
+# Note: the kernel truncates ALSA card short names to 15 chars.
+CARD_NAME = "sndrpigooglevoi"
 
 def driver_loaded(driver_name):
     return shell.run_command(f"lsmod | grep -q '{driver_name}'", suppress_message=True)
