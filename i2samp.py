@@ -50,6 +50,9 @@ def main():
         shell.write_text_file(config, f"dtoverlay={OVERLAY}")
         reboot = True
 
+    print(f"\nDisabling built-in audio in {config}")
+    shell.pattern_replace(config, "^dtparam=audio=on", "#dtparam=audio=on")
+
     if os.path.exists(BLACKLIST):
         print("\nCommenting out Blacklist entry in", BLACKLIST)
         shell.pattern_replace(BLACKLIST, "^blacklist[[:space:]]*snd_soc_max98357a.*", "#blacklist snd_soc_max98357a")
