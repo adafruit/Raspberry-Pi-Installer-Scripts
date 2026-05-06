@@ -16,7 +16,9 @@ CARD_NAME_FALLBACK = "sndrpigooglevoi"
 
 def get_card_name(overlay):
     """Load overlay at runtime and discover the ALSA card id from aplay -l."""
-    subprocess.run(["dtoverlay", overlay], check=False)
+    active = subprocess.run(["dtoverlay", "-l"], capture_output=True, text=True)
+    if overlay not in active.stdout:
+        subprocess.run(["dtoverlay", overlay], check=False)
     try:
         output = subprocess.check_output(["aplay", "-l"], stderr=subprocess.DEVNULL).decode()
         for line in output.splitlines():
