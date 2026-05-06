@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 try:
     from adafruit_shell import Shell
@@ -11,6 +12,21 @@ shell = Shell()
 BLACKLIST = "/etc/modprobe.d/raspi-blacklist.conf"
 PRODUCT_NAME = "I2S Amplifier"
 OVERLAY = "googlevoicehat-soundcard"
+CARD_NAME_FALLBACK = "sndrpigooglevoi"
+
+def get_card_name(overlay):
+    """Load overlay at runtime and discover the ALSA card id from aplay -l."""
+    active = subprocess.run(["dtoverlay", "-l"], capture_output=True, text=True)
+    if overlay not in active.stdout:
+        subprocess.run(["dtoverlay", overlay], check=False)
+    try:
+        output = subprocess.check_output(["aplay", "-l"], stderr=subprocess.DEVNULL).decode()
+        for line in output.splitlines():
+            if "googlevoice" in line.lower():
+                return line.split(":")[1].strip().split(" ")[0]
+    except Exception:
+        pass
+    return CARD_NAME_FALLBACK
 
 def driver_loaded(driver_name):
     return shell.run_command(f"lsmod | grep -q '{driver_name}'", suppress_message=True)
@@ -44,6 +60,13 @@ def main():
     else:
         shell.write_text_file(config, f"dtoverlay={OVERLAY}")
         reboot = True
+
+    print(f"\nLoading overlay and detecting ALSA card name...")
+    card_name = get_card_name(OVERLAY)
+    print(f"Card name: {card_name}")
+
+    print(f"\nDisabling built-in audio in {config}")
+    shell.pattern_replace(config, "^dtparam=audio=on", "#dtparam=audio=on")
 
     if os.path.exists(BLACKLIST):
         print("\nCommenting out Blacklist entry in", BLACKLIST)
@@ -95,7 +118,7 @@ pcm.!default {
     type             plug
     slave.pcm       "softvol"
 }
-""")
+""".replace("card 0", f'card "{card_name}"'))
     shell.move("~/asound.conf", "/etc/asound.conf")
 
 
