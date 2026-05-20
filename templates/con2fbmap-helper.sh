@@ -1,25 +1,107 @@
 #!/bin/bash
 
-# Wait for TFT framebuffer to be ready
-echo "Waiting for SPI TFT framebuffer..."
+# Map the Linux console (tty1) to the SPI TFT framebuffer.
+#
+# Background: when vc4-kms-v3d (HDMI) and the SPI TFT DRM driver
+# (ili9341 / hx8357 / mipi-dbi-spi) both load at boot, they race for
+# DRM minor / framebuffer numbers. The SPI display can land on either
+# /dev/fb0 or /dev/fb1 depending on probe order. Greping dmesg for a
+# fixed fb number is brittle (issue #365), so we discover the SPI TFT
+# framebuffer by walking /sys/class/graphics/fb*.
+#
+# After remapping, we force a console refresh so whatever was last
+# drawn on the old framebuffer gets re-rendered on the SPI display.
 
-# Wait up to 30 seconds for /dev/fb0 or /dev/fb1 to appear
-for i in {1..300}; do
-    for fbdev in 0 1; do
-        if [ -e /dev/fb$fbdev ]; then
-            echo "Found /dev/fb$fbdev, checking if it's {display_type}..."
+set -u
 
-            # Check if it's actually the ili9341 device
-            if dmesg | grep -q "{display_type}.*fb$fbdev"; then
-                echo "{display_type} framebuffer ready, mapping console..."
-                con2fbmap 1 $fbdev
-                echo "Console mapped to framebuffer $fbdev"
-                exit 0
-            fi
+DISPLAY_TYPE="{display_type}"
+TIMEOUT_DECISECONDS=300   # 30 seconds (loop sleeps 0.1s)
+
+echo "Waiting for SPI TFT framebuffer (display_type=${DISPLAY_TYPE})..."
+
+# Return 0 (and echo the fb number) if /sys/class/graphics/$1 looks
+# like the SPI TFT we installed for.
+is_spi_tft_fb() {
+    local fbpath="$1"
+    local fbname
+    local devpath
+
+    # Read the framebuffer driver name, e.g. "ili9341drmfb", "hx8357drmfb",
+    # "mipi_dbi", "vc4drmfb", "simple-framebuffer".
+    fbname="$(cat "${fbpath}/name" 2>/dev/null || true)"
+
+    # Resolve the underlying device path (DRM card → parent device).
+    devpath="$(readlink -f "${fbpath}/device" 2>/dev/null || true)"
+
+    # 1) Name-based match. Works for ili9341, hx8357d, st7789, etc. The
+    #    fbdev name varies by driver: DRM tinydrm uses "<name>drmfb"
+    #    (e.g. "ili9341drmfb"); the older fbtft staging driver uses
+    #    "fb_<name>" (e.g. "fb_ili9341"). Accept either.
+    if [ -n "${fbname}" ]; then
+        if [[ "${fbname}" == *"${DISPLAY_TYPE}"* ]]; then
+            return 0
+        fi
+    fi
+
+    # 2) Device-path match. For panel-mipi-dbi-spi the fbdev name is
+    #    "mipi_dbi" which does not contain the configured display_type,
+    #    but the device path under sysfs lives below the SPI controller
+    #    (e.g. .../soc/.../spi@.../spi0.0/...). Match any SPI slave on
+    #    spi0.0, which is where the installer wires SPI TFT panels.
+    if [ -n "${devpath}" ] && [[ "${devpath}" == *"/spi0.0/"* ]]; then
+        # Belt-and-braces: exclude framebuffers that are obviously not
+        # the SPI TFT (e.g. vc4drmfb, simple-framebuffer). Those should
+        # not have spi0.0 in their devpath, but guard anyway.
+        if [[ "${fbname}" != "vc4drmfb" && "${fbname}" != "simple-framebuffer" ]]; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+found_fb=""
+
+for ((i = 1; i <= TIMEOUT_DECISECONDS; i++)); do
+    for fbpath in /sys/class/graphics/fb*; do
+        [ -e "${fbpath}" ] || continue
+        fbnum="${fbpath##*/fb}"
+        # Only accept numeric fb entries (skip e.g. /sys/class/graphics/fbcon).
+        case "${fbnum}" in
+            ''|*[!0-9]*) continue ;;
+        esac
+        [ -e "/dev/fb${fbnum}" ] || continue
+
+        if is_spi_tft_fb "${fbpath}"; then
+            found_fb="${fbnum}"
+            break 2
         fi
     done
     sleep 0.1
 done
 
-echo "Timeout waiting for SPI TFT framebuffer"
-exit 1
+if [ -z "${found_fb}" ]; then
+    echo "Timeout waiting for SPI TFT framebuffer (display_type=${DISPLAY_TYPE})"
+    echo "Available framebuffers:"
+    for fbpath in /sys/class/graphics/fb*; do
+        [ -e "${fbpath}/name" ] || continue
+        fbname="$(cat "${fbpath}/name" 2>/dev/null || true)"
+        devpath="$(readlink -f "${fbpath}/device" 2>/dev/null || true)"
+        echo "  ${fbpath}: name='${fbname}' device='${devpath}'"
+    done
+    exit 1
+fi
+
+echo "SPI TFT framebuffer ready on /dev/fb${found_fb}, mapping console..."
+con2fbmap 1 "${found_fb}"
+echo "Console mapped to framebuffer ${found_fb}"
+
+# Force a redraw of tty1. con2fbmap only updates the routing table;
+# without this, getty's earlier output stays on the old framebuffer and
+# the SPI display keeps showing whatever was on it at power-on. ESC c
+# resets the terminal which prompts fbcon to repaint the active console.
+if [ -w /dev/tty1 ]; then
+    printf '\033c' > /dev/tty1 2>/dev/null || true
+fi
+
+exit 0
