@@ -72,8 +72,12 @@ selectN() {
 	done
 }
 
-SYS_TYPES=(Pi\ 3\ /\ Pi\ Zero\ W All\ other\ models)
-WATCHDOG_MODULES=(bcm2835_wdog bcm2708_wdog)
+# Modern Raspberry Pi kernels expose a single watchdog driver, bcm2835_wdt,
+# for every BCM283x / BCM2711 / BCM2712 SoC (Pi 1 through Pi 5, including
+# all Zero variants). The legacy bcm2835_wdog and bcm2708_wdog names are
+# gone, so the per-model selector that used to pick between them is no
+# longer needed.
+WATCHDOG_MODULE=bcm2835_wdt
 OPTION_NAMES=(NO YES)
 
 echo -n "Enable boot-time read/write jumper? [y/N] "
@@ -98,10 +102,6 @@ echo -n "Enable kernel panic watchdog? [y/N] "
 read
 if [[ "$REPLY" =~ (yes|y|Y)$ ]]; then
 	INSTALL_WATCHDOG=1
-	echo "Target system type:"
-	selectN "${SYS_TYPES[0]}" \
-		"${SYS_TYPES[1]}"
-	WD_TARGET=$?
 fi
 
 # VERIFY SELECTIONS BEFORE CONTINUING --------------------------------------
@@ -118,7 +118,7 @@ else
 	echo "Install GPIO-halt: NO"
 fi
 if [ $INSTALL_WATCHDOG -eq 1 ]; then
-	echo "Enable watchdog: YES (${SYS_TYPES[WD_TARGET-1]})"
+	echo "Enable watchdog: YES"
 else
 	echo "Enable watchdog: NO"
 fi
@@ -221,10 +221,8 @@ fi
 # Install watchdog if requested
 if [ $INSTALL_WATCHDOG -ne 0 ]; then
 	apt-get install -y --force-yes watchdog
-	# $MODULE is specific watchdog module name
-	MODULE=${WATCHDOG_MODULES[($WD_TARGET-1)]}
 	# Add to /etc/modules, update watchdog config file
-	append1 /etc/modules $MODULE $MODULE
+	append1 /etc/modules $WATCHDOG_MODULE $WATCHDOG_MODULE
 	replace /etc/watchdog.conf "#watchdog-device" "watchdog-device"
 	replace /etc/watchdog.conf "#max-load-1" "max-load-1"
 	# Start watchdog at system start and start right away
