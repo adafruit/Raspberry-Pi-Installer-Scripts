@@ -126,8 +126,15 @@ pcm.!default {
     shell.write_text_file("/etc/systemd/system/aplay.service", """
 [Unit]
 Description=Invoke aplay from /dev/zero at system start.
+After=sound.target
+Wants=sound.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
 
 [Service]
+Restart=on-failure
+RestartSec=5s
+
 ExecStart=/usr/bin/aplay -D default -t raw -r 44100 -c 2 -f S16_LE /dev/zero
 
 [Install]
