@@ -396,6 +396,26 @@ def uninstall_etc_modules():
     shell.pattern_replace("/etc/modules", 'spi-bcm2835')
     shell.pattern_replace("/etc/modules", 'flexfb')
     shell.pattern_replace("/etc/modules", 'fbtft_device')
+    # Drop any prior pitft early-load list; install_early_modules() will
+    # re-create it for MIPI installs.
+    shell.run_command('rm -f /etc/modules-load.d/pitft.conf')
+    return True
+
+def install_early_modules():
+    """Force-load SPI + DRM MIPI modules at boot.
+
+    On 32-bit Pi OS the panel-mipi-dbi-spi driver can probe 30+ seconds into
+    boot, after getty has already painted to the firmware framebuffer at the
+    wrong resolution. Listing the relevant modules in modules-load.d gets
+    them loaded by systemd-modules-load.service at early userspace so the
+    SPI panel claims fb0 before the console is drawn.
+
+    See: https://github.com/adafruit/Raspberry-Pi-Installer-Scripts/issues/341
+    """
+    if not use_mipi_driver():
+        return True
+    print("Forcing early load of SPI + DRM MIPI panel modules...")
+    shell.write_templated_file("/etc/modules-load.d/", "templates/pitft.conf")
     return True
 
 def use_mipi_driver(config = None):
@@ -483,6 +503,10 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
         overlay += f"\ndtparam={viewport}"
         if "gpio" in mipi_data:
             overlay += f"\ndtparam={mipi_data['gpio']}"
+        # Disable composite TV-out fb so it cannot interleave with the SPI
+        # panel's framebuffer allocation on 32-bit Pi OS (Pi Zero / Pi 1 /
+        # CM1 default this to 1). See issue #341.
+        overlay += "\nenable_tvout=0"
 
     if tinydrm_install: # Use overlay params for Wayland
         overlay += ",drm"
@@ -1015,6 +1039,11 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
     use_tinydrm = install_type != "console"
     if not update_configtxt(tinydrm_install=use_tinydrm):
         shell.bail(f"Unable to update {boot_dir}/config.txt")
+
+    if use_mipi_driver():
+        shell.info("Configuring early module load for SPI MIPI panel...")
+        if not install_early_modules():
+            shell.bail("Unable to write /etc/modules-load.d/pitft.conf")
 
     if "touchscreen" in pitft_config:
         shell.info("Updating SysFS rules for Touchscreen...")
