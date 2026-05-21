@@ -44,11 +44,16 @@ is_spi_tft_fb() {
     fi
 
     # 2) Device-path match. For panel-mipi-dbi-spi the fbdev name is
-    #    "mipi_dbi" which does not contain the configured display_type,
-    #    but the device path under sysfs lives below the SPI controller
-    #    (e.g. .../soc/.../spi@.../spi0.0/...). Match any SPI slave on
+    #    "panel-mipi-dbid" / "mipi_dbi" which does not contain the
+    #    configured display_type, but the device path under sysfs lives
+    #    below the SPI controller (e.g. .../soc/.../spi@.../spi0.0
+    #    or .../soc/.../spi@.../spi0.0/...). Match any SPI slave on
     #    spi0.0, which is where the installer wires SPI TFT panels.
-    if [ -n "${devpath}" ] && [[ "${devpath}" == *"/spi0.0/"* ]]; then
+    #    Accept both the bare leaf path (.../spi0.0) and any child path
+    #    (.../spi0.0/...); earlier versions required a trailing slash
+    #    and missed the leaf case used by panel-mipi-dbi-spi.
+    if [ -n "${devpath}" ] && \
+       { [[ "${devpath}" == *"/spi0.0" ]] || [[ "${devpath}" == *"/spi0.0/"* ]]; }; then
         # Belt-and-braces: exclude framebuffers that are obviously not
         # the SPI TFT (e.g. vc4drmfb, simple-framebuffer). Those should
         # not have spi0.0 in their devpath, but guard anyway.
@@ -102,6 +107,26 @@ echo "Console mapped to framebuffer ${found_fb}"
 # resets the terminal which prompts fbcon to repaint the active console.
 if [ -w /dev/tty1 ]; then
     printf '\033c' > /dev/tty1 2>/dev/null || true
+fi
+
+# Re-apply the configured console font, now that fbcon is attached to
+# the SPI TFT framebuffer. Background (issue #341): when fbcon first
+# attaches to the SPI panel it sizes its character grid against the
+# kernel built-in 8x8 boot font (e.g. 30 columns on a 240px panel). The
+# normal console-setup.service runs setfont *before* the SPI panel
+# probes here (it targets the dummy/vc4 console), so when the SPI panel
+# eventually takes over the console its grid never gets resized for the
+# narrower 6px-wide Terminus 6x12 font - the kernel keeps painting a
+# 30-cell grid using 6px glyphs in 8px slots, leaving the right ~25%
+# of the panel unpainted at the shell prompt.
+#
+# Re-running setupcon here, *after* con2fbmap, lands a second setfont
+# on the SPI fbcon while it is idle, which triggers the grid recompute
+# (30 cols * 8 px slot -> 40 cols * 6 px = full 240 px width).
+if command -v setupcon >/dev/null 2>&1; then
+    echo "Re-applying console font to refresh fbcon character grid..."
+    setupcon --force --save-only >/dev/null 2>&1 || true
+    setupcon --force </dev/tty1 >/dev/tty1 2>&1 || true
 fi
 
 exit 0

@@ -584,7 +584,12 @@ def install_console():
     # adding new version
     shell.pattern_replace("/etc/rc.local", '^exit 0', "# disable console blanking on PiTFT\\nsudo sh -c \"TERM=linux setterm -blank 0 >/dev/tty0\"\\nexit 0")
 
-    # Set the console font to Terminus 6x12
+    # Set the console font to Terminus 6x12. 6px-wide glyphs give 40
+    # cols across a 240px PiTFT - more readable text density than 8x16's
+    # 30 cols. The grid-vs-font mismatch that used to leave the right
+    # ~25% of the panel unpainted at the shell prompt (issue #341) is
+    # handled by con2fbmap-helper.sh re-running setupcon after fbcon
+    # attaches to the SPI framebuffer.
     shell.reconfig("/etc/default/console-setup", "^.*FONTFACE.*$", "FONTFACE=\"Terminus\"")
     shell.reconfig("/etc/default/console-setup", "^.*FONTSIZE.*$", "FONTSIZE=\"6x12\"")
 
