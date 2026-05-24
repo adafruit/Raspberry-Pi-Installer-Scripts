@@ -1,0 +1,121 @@
+/*
+ * Device Tree overlay for Adafruit PiTFT 2.8" resistive touch screen
+ *
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@2 {
+		target = <&spidev0>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@3 {
+		target = <&spidev1>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@4 {
+		target = <&gpio>;
+		__overlay__ {
+			adafruit_2_4_tft_pins: adafruit_2_4_tft_pins {
+				brcm,pins = <22 23 17 12>;
+				brcm,function = <1 1 0 1>; /* out out in out*/
+				brcm,pull = <0 0 1 2>; /* none none down up */
+			};
+		};
+	};
+
+	fragment@5 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cs-gpios = <&gpio 27 1>;
+
+			adafruit_2_4_tft: adafruit_2_4_tft@0{
+				compatible = "adafruit,yx240qv29";
+				reg = <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&adafruit_2_4_tft_pins>;
+
+				spi-max-frequency = <32000000>;
+				rotation = <90>;
+				reset-gpios = <&gpio 23 0>;
+				dc-gpios = <&gpio 22 0>;
+			};
+		};
+	};
+
+	fragment@7 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "okay";
+
+			tsc2007: tsc2007@48 {
+				compatible = "ti,tsc2007";
+				reg = <0x48>;
+				touchscreen-swapped-x-y;
+				touchscreen-inverted-x;
+				touchscreen-min-x = <350>;
+				touchscreen-size-x = <3700>;
+				touchscreen-fuzz-x = <4>;
+				touchscreen-min-y = <320>;
+				touchscreen-size-y = <3700>;
+				touchscreen-fuzz-y = <4>;
+				touchscreen-min-pressure = <1000>;
+				touchscreen-max-pressure = <3700>;
+				touchscreen-fuzz-pressure = <4>;
+				touchscreen-x-plate-ohms = <180>;
+				
+				panel = <&adafruit_2_4_tft>;
+				pinctrl-0 = <&adafruit_2_4_tft_pins>;
+				interrupt-parent = <&gpio>;
+				interrupts = <17 2>;
+				gpios = <&gpio 17 1>;
+				
+			};
+		};
+	};
+
+	fragment@8 {
+		target-path = "/soc";
+		__overlay__ {
+			backlight: backlight {
+				compatible = "gpio-backlight";
+				pinctrl-0 = <&adafruit_2_4_tft_pins>;
+				gpios = <&gpio 12 2>;
+				default-on;
+			};
+		};
+	};
+
+	__overrides__ {
+		speed =     <&adafruit_2_4_tft>,"spi-max-frequency:0";
+		rotate =    <&adafruit_2_4_tft>,"rotation:0";
+		fps =       <&adafruit_2_4_tft>,"fps:0";
+		debug =     <&adafruit_2_4_tft>,"debug:0";
+		xohms =     <&tsc2007>,"touchscreen-x-plate-ohms;0";
+		swapxy =    <&tsc2007>,"touchscreen-swapped-x-y?";
+	};
+
+};
