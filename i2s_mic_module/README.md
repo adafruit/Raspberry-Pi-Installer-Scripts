@@ -1,3 +1,10 @@
+<!--
+SPDX-FileCopyrightText: 2020 Carter Nelson for Adafruit Industries
+SPDX-FileCopyrightText: 2018 Huan Truong <htruong@tnhh.net>
+
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+
 **Driver for the Adafruit I2S MEMS Microphone**
 
 [Product learn page on Adafruit](https://learn.adafruit.com/adafruit-i2s-mems-microphone-breakout/overview).
