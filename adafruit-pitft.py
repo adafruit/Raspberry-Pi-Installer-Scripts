@@ -595,7 +595,7 @@ def install_console():
 
     print("Setting raspi-config to boot to console w/o login...")
     shell.chdir(target_homedir)
-    shell.run_command("raspi-config nonint do_boot_behaviour B2")
+    shell.run_raspi_config("do_boot_behaviour B2")
 
     # remove fbcp
     shell.pattern_replace("/etc/rc.local", "^.*fbcp.*$")
@@ -608,10 +608,10 @@ def uninstall_console():
     if is_desktop:
         print("Restoring Desktop Environment...")
         shell.run_command("apt-get -y install rpd-plym-splash")     # Install Splash Screen
-        shell.run_command("raspi-config nonint do_boot_splash 0")   # Enable Splash Screen
+        shell.run_raspi_config("do_boot_splash 0")                  # Enable Splash Screen
         if not shell.is_minimum_version("trixie"):
             shell.run_command("apt-get -y install raspberrypi-ui-mods") # Reinstall Raspberry Pi OS UI mods
-        shell.run_command("raspi-config nonint do_boot_target B2")  # Boot to Desktop
+        shell.run_raspi_config("do_boot_target B2")                 # Boot to Desktop
 
     if shell.exists("/etc/systemd/system/con2fbmap.service"):
         print("Removing console fbcon map service...")
@@ -678,10 +678,10 @@ def install_mirror():
     # if desktop environment is installed...
     if is_desktop:
         print("Setting raspi-config to boot to desktop w/o login...")
-        shell.run_command("raspi-config nonint do_boot_behaviour B4")
+        shell.run_raspi_config("do_boot_behaviour B4")
 
     # Disable overscan compensation (use full screen):
-    shell.run_command("raspi-config nonint do_overscan 1")
+    shell.run_raspi_config("do_overscan 1")
     # Set up HDMI parameters:
     print("Configuring boot/config.txt for forced HDMI")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
@@ -789,7 +789,7 @@ def uninstall_fbcp():
     if shell.exists("/etc/systemd/system/fbcp.service"):
         shell.run_command("sudo systemctl disable fbcp.service")
     # Set up HDMI parameters:
-    shell.run_command("raspi-config nonint do_overscan 0")
+    shell.run_raspi_config("do_overscan 0")
     print("Configuring boot/config.txt for default HDMI")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=0")
     shell.pattern_replace(f"{boot_dir}/config.txt", "^.*#.*dtoverlay=vc4-kms-v3d.*$", "dtoverlay=vc4-kms-v3d")

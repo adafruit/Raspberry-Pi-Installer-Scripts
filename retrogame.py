@@ -77,7 +77,7 @@ Run time <1 minute. Reboot recommended.
         if CONFIG_NAME == "bonnet":
             # If Bonnet, make sure I2C is enabled.  Call the I2C
             # setup function in raspi-config (noninteractive):
-            shell.run_command("raspi-config nonint do_i2c 0")
+            shell.run_raspi_config("do_i2c 0")
 
         # Start on boot
         if shell.run_command("grep retrogame /etc/rc.local", suppress_message=True):
