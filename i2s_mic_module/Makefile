@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 Carter Nelson for Adafruit Industries
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 MOD_NAME	:= snd-i2smic-rpi
 
 ifneq ($(KERNELRELEASE),)
