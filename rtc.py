@@ -127,7 +127,7 @@ def main():
         if i2creq == "yes":
             print()
             if shell.prompt("Hardware requires I2C, enable now?", force_arg="y", default="n"):
-                shell.run_command("sudo raspi-config nonint do_i2c 0")
+                shell.run_raspi_config("do_i2c 0")
 
         if not dt_check():
             shell.bail(

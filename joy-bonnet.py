@@ -83,11 +83,11 @@ Updating package index files...""")
     print("Configuring system...")
 
     # Enable I2C using raspi-config
-    shell.run_command("sudo raspi-config nonint do_i2c 0")
+    shell.run_raspi_config("do_i2c 0")
 
     # Disable overscan compensation (use full screen):
     if disable_overscan:
-        shell.run_command("sudo raspi-config nonint do_overscan 1")
+        shell.run_raspi_config("do_overscan 1")
 
     if install_halt:
         if shell.pattern_search("/etc/rc.local", "gpio-halt"):

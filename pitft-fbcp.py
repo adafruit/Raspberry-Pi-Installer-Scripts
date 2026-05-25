@@ -186,7 +186,7 @@ TFT MADCTL rotate: {selected_tftrotate['label']}
     print("Configuring PiTFT...")
 
     # Enable SPI using raspi-config
-    shell.run_command("raspi-config nonint do_spi 0")
+    shell.run_raspi_config("do_spi 0")
 
     # Set up HDMI rotation
     shell.reconfig(f"{boot_config}", "^.*display_rotate.*$", f"display_rotate={selected_fbrotate['value']}")

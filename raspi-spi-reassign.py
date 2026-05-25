@@ -51,14 +51,14 @@ def valid_options(ce0_option, ce1_option):
 
 def disable_spi():
     print("Disabling SPI")
-    shell.run_command("sudo raspi-config nonint do_spi 1")
+    shell.run_raspi_config("do_spi 1")
 
 def enable_spi():
     print("Enabling SPI")
-    shell.run_command("sudo raspi-config nonint do_spi 0")
+    shell.run_raspi_config("do_spi 0")
 
 def spi_disabled():
-    return shell.run_command("sudo raspi-config nonint get_spi", suppress_message=True, return_output=True).strip() == "1"
+    return shell.run_raspi_config("get_spi", suppress_message=True, return_output=True).strip() == "1"
 
 def remove_custom():
     shell.pattern_replace(f"{boot_dir}/config.txt", 'dtoverlay=spi0-[0-2]cs,cs.*?\n', multi_line=True)
