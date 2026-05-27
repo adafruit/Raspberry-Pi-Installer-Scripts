@@ -2,80 +2,94 @@
 #
 # SPDX-License-Identifier: MIT
 
-import os
+import subprocess
 
 try:
     from adafruit_shell import Shell
+    from clint.textui import colored
 except ImportError:
     raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
 
 shell = Shell()
 
+PRODUCT_NAME = "I2S Microphone"
+OVERLAY = "googlevoicehat-soundcard"
+CARD_NAME_FALLBACK = "sndrpigooglevoi"
+
+
+def get_card_name(overlay):
+    """Load overlay at runtime and discover the ALSA card id from arecord -l."""
+    active = subprocess.run(["dtoverlay", "-l"], capture_output=True, text=True)
+    if overlay not in active.stdout:
+        subprocess.run(["dtoverlay", overlay], check=False)
+    try:
+        output = subprocess.check_output(["arecord", "-l"], stderr=subprocess.DEVNULL).decode()
+        for line in output.splitlines():
+            if "googlevoice" in line.lower():
+                # Line looks like: "card 1: sndrpigooglevoi [snd_rpi_..."
+                return line.split(":")[1].strip().split(" ")[0]
+    except Exception:
+        pass
+    return CARD_NAME_FALLBACK
+
+
 def main():
+    reboot = False
     shell.clear()
-    boot_config = shell.get_boot_config()
-    print("""This script downloads and installs
-I2S microphone support.
-""")
     if not shell.is_raspberry_pi():
         shell.bail("Non-Raspberry Pi board detected.")
-    pi_model = shell.get_board_model()
-    print("{} detected.\n".format(pi_model))
-    if pi_model in ("RASPBERRY_PI_ZERO", "RASPBERRY_PI_ZERO_W", "RASPBERRY_PI_B_REV2"):
-        pimodel_select = 0
-    elif pi_model in ("RASPBERRY_PI_2B", "RASPBERRY_PI_3B", "RASPBERRY_PI_CM3_PLUS", "RASPBERRY_PI_3B_PLUS", "RASPBERRY_PI_3A_PLUS", "RASPBERRY_PI_ZERO_2_W"):
-        pimodel_select = 1
-    elif pi_model in ("RASPBERRY_PI_4B", "RASPBERRY_PI_CM4", "RASPBERRY_PI_400"):
-        pimodel_select = 2
+    print("\nThis script will install everything needed to use\n"
+        f"an {PRODUCT_NAME}.\n")
+    print(colored.red("--- Warning ---"))
+    print("\nAlways be careful when running scripts and commands\n"
+        "copied from the internet. Ensure they are from a\n"
+        "trusted source.\n")
+    if not shell.prompt("Do you wish to continue?"):
+        print("\nAborting...")
+        shell.exit()
+
+    print("\nChecking hardware requirements...")
+
+    # Locate boot config
+    config = shell.get_boot_config()
+    if config is None:
+        shell.bail("No Device Tree Detected, not supported")
+
+    print(f"\nAdding Device Tree Entry to {config}")
+
+    if shell.pattern_search(config, f"^dtoverlay={OVERLAY}$"):
+        print("dtoverlay already active")
     else:
-        shell.bail("Unsupported Pi board detected.")
+        shell.write_text_file(config, f"dtoverlay={OVERLAY}")
+        reboot = True
 
-    auto_load = (
-        not shell.argument_exists('noautoload') and
-        shell.prompt("Auto load module at boot?", force_arg="autoload"))
+    print("\nLoading overlay and detecting ALSA card name...")
+    card_name = get_card_name(OVERLAY)
+    print(f"Card name: {card_name}")
 
-    print("""
-Installing...""")
+    print("\n" + colored.green("All done!"))
+    print(f"""
+After rebooting, you can list capture devices with:
 
-    # Get needed packages
-    shell.run_command("apt-get -y install git raspberrypi-kernel-headers")
+    arecord -l
 
-    # Clone the repo
-    shell.run_command("git clone https://github.com/adafruit/Raspberry-Pi-Installer-Scripts.git")
+And record a mono WAV with:
 
-    # Build and install the module
-    shell.chdir("Raspberry-Pi-Installer-Scripts/i2s_mic_module")
-    shell.run_command("make clean")
-    shell.run_command("make")
-    shell.run_command("make install")
+    arecord -D plughw:{card_name} -c1 -r 48000 -f S32_LE -t wav -V mono -v test.wav
 
-    # Setup auto load at boot if selected
-    if auto_load:
-        shell.write_text_file(
-            "/etc/modules-load.d/snd-i2smic-rpi.conf",
-            "snd-i2smic-rpi"
-        )
-        shell.write_text_file(
-            "/etc/modprobe.d/snd-i2smic-rpi.conf",
-            "options snd-i2smic-rpi rpi_platform_generation={}".format(pimodel_select)
-        )
+Or stereo (two mics, one wired SEL=GND, one wired SEL=3.3V):
 
-    # Enable I2S overlay
-    shell.run_command(f"sed -i -e 's/#dtparam=i2s/dtparam=i2s/g' {boot_config}")
+    arecord -D plughw:{card_name} -c2 -r 48000 -f S32_LE -t wav -V stereo -v test.wav
 
-    # Done
-    print("""DONE.
-
-Settings take effect on next boot.
+See the learn guide for full wiring and volume-control instructions:
+  https://learn.adafruit.com/adafruit-i2s-mems-microphone-breakout/raspberry-pi-wiring-test
 """)
-    if not shell.argument_exists('noreboot'):
+
+    if reboot and not shell.argument_exists('noreboot'):
         shell.prompt_reboot(force_arg="reboot")
+
 
 # Main function
 if __name__ == "__main__":
     shell.require_root()
-    # Probably not necessary for now because the Pi 5 doesn't work anyway
-    if shell.is_raspberry_pi_os() and shell.is_kernel_userspace_mismatched() and shell.is_pi5_or_newer():
-        shell.bail("Unable to proceed on Pi 5 or newer boards with a with a 32-bit OS. Please reinstall with a 64-bit OS.")
-    shell.check_kernel_userspace_mismatch()
     main()
