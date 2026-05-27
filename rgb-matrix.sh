@@ -218,7 +218,7 @@ echo "Updating package index files..."
 apt-get update
 
 echo "Downloading prerequisites..."
-apt-get install -y python3-dev python3-pillow cython3
+apt-get install -y python3-dev python3-pillow cython3 python3-setuptools
 
 echo "Downloading RGB matrix software..."
 curl -L $GITUSER/$REPO/archive/$COMMIT.zip -o $REPO-$COMMIT.zip
