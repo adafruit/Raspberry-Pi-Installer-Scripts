@@ -18,19 +18,29 @@ CARD_NAME_FALLBACK = "sndrpigooglevoi"
 
 
 def get_card_name(overlay):
-    """Load overlay at runtime and discover the ALSA card id from arecord -l."""
-    active = subprocess.run(["dtoverlay", "-l"], capture_output=True, text=True)
-    if overlay not in active.stdout:
-        subprocess.run(["dtoverlay", overlay], check=False)
+    """Try to load the overlay at runtime and discover the ALSA card id
+    from arecord -l. Returns (card_name, detected) where detected is True
+    only when the name was read from a live arecord -l line; otherwise
+    the documented in-tree default is returned and detected is False.
+    """
+    try:
+        active = subprocess.run(["dtoverlay", "-l"], capture_output=True, text=True)
+        if overlay not in active.stdout:
+            subprocess.run(["dtoverlay", overlay], check=False)
+    except FileNotFoundError:
+        print("  (dtoverlay command not found; skipping runtime overlay load)")
     try:
         output = subprocess.check_output(["arecord", "-l"], stderr=subprocess.DEVNULL).decode()
         for line in output.splitlines():
             if "googlevoice" in line.lower():
                 # Line looks like: "card 1: sndrpigooglevoi [snd_rpi_..."
-                return line.split(":")[1].strip().split(" ")[0]
-    except Exception:
-        pass
-    return CARD_NAME_FALLBACK
+                return line.split(":")[1].strip().split(" ")[0], True
+        print("  (no googlevoicehat card present yet — it will appear after reboot)")
+    except FileNotFoundError:
+        print("  (arecord not installed; install 'alsa-utils' to record audio)")
+    except Exception as exc:
+        print(f"  (could not parse arecord -l output: {exc})")
+    return CARD_NAME_FALLBACK, False
 
 
 def main():
@@ -64,8 +74,12 @@ def main():
         reboot = True
 
     print("\nLoading overlay and detecting ALSA card name...")
-    card_name = get_card_name(OVERLAY)
-    print(f"Card name: {card_name}")
+    card_name, detected = get_card_name(OVERLAY)
+    if detected:
+        print(f"Card name: {card_name}")
+    else:
+        print(f"Card name (default for this overlay): {card_name}")
+        print("  After reboot, run 'arecord -l' to confirm the actual card id.")
 
     print("\n" + colored.green("All done!"))
     print(f"""
