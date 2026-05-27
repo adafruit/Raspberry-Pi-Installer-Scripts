@@ -510,8 +510,14 @@ def update_configtxt(rotation_override=None, tinydrm_install=False):
 
     if tinydrm_install: # Use overlay params for Wayland
         overlay += ",drm"
-        if "overlay_params" in pitft_config and pitftrot in pitft_config["overlay_params"] and pitft_config["overlay_params"][pitftrot] is not None:
-            overlay += "," + pitft_config["overlay_params"][pitftrot]
+        # overlay_params lives under the touchscreen sub-dict (the lookup
+        # used to read it from the top level of pitft_config, which never
+        # had the key — see issue #340).
+        touch_cfg = pitft_config.get("touchscreen", {})
+        params_by_rot = touch_cfg.get("overlay_params", {})
+        rot_params = params_by_rot.get(pitftrot)
+        if rot_params:
+            overlay += "," + rot_params
     config_text_base = shell.load_template("templates/config_text_base.txt", date=shell.date(), overlay=overlay)
     if config_text_base is None:
         shell.bail("Unable to load config_text_base template!")
