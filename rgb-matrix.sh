@@ -26,6 +26,16 @@ if [ $HAS_PYTHON2 ] && ! [ $HAS_PYTHON3 ]; then
 	exit 0
 fi
 
+NUM_CORES=$(nproc --all)
+# Reserve the highest-numbered core (isolcpus is 0-indexed)
+ISOLCPU_CMD="isolcpus=$((NUM_CORES - 1))"
+
+# Boot config locations. Bookworm and later use /boot/firmware/;
+# pre-Bookworm releases use /boot/.
+CMDLINE_FILE=/boot/firmware/cmdline.txt
+if [ ! -f "$CMDLINE_FILE" ]; then
+	CMDLINE_FILE=/boot/cmdline.txt
+fi
 
 clear
 
@@ -52,6 +62,7 @@ fi
 INTERFACE_TYPE=0
 INSTALL_RTC=0
 QUALITY_MOD=0
+ISOL_CPU=0
 #SLOWDOWN_GPIO=5
 #MATRIX_SIZE=3
 
@@ -92,6 +103,11 @@ INTERFACES=( \
 QUALITY_OPTS=( \
   "Quality (disables sound, requires soldering on single matrix Bonnet/HAT)" \
   "Convenience (sound on, no soldering)" \
+)
+
+ISOLCPUS_OPTS=( \
+  "Do not reserve a core for driving the display" \
+  "Reserve a core for driving the display (recommended)" \
 )
 
 #SLOWDOWN_OPTS=( \
@@ -173,6 +189,17 @@ echo "What is thy bidding?"
 selectN "${QUALITY_OPTS[@]}"
 QUALITY_MOD=$?
 
+if [ "$NUM_CORES" -ge 2 ]; then
+	echo
+	echo "Your Pi has ${NUM_CORES} CPU cores. You can dedicate one"
+	echo "to driving the display. This reduces flicker when the"
+	echo "system is busy with other work, at the cost of one core"
+	echo "being unavailable for general use. This is the upstream"
+	echo "recommendation from hzeller/rpi-rgb-led-matrix."
+	selectN "${ISOLCPUS_OPTS[@]}"
+	ISOL_CPU=$?
+fi
+
 # VERIFY SELECTIONS BEFORE CONTINUING --------------------------------------
 
 echo
@@ -186,6 +213,9 @@ echo "Optimize: ${QUALITY_OPTS[$QUALITY_MOD]}"
 if [ $QUALITY_MOD -eq 0 ]; then
 	echo "Reminder: you must SOLDER a wire between GPIO4"
 	echo "and GPIO18, and internal sound is DISABLED!"
+fi
+if [ "$NUM_CORES" -ge 2 ]; then
+	echo "Isolate CPU for display driving: ${ISOLCPUS_OPTS[$ISOL_CPU]}"
 fi
 echo
 echo -n "CONTINUE? [y/n] "
@@ -258,6 +288,18 @@ if [ $QUALITY_MOD -eq 0 ]; then
 else
 	# Remove from blacklist
 	rm -f /etc/modprobe.d/blacklist-rgb-matrix.conf
+fi
+
+# Strip any previously-added isolcpus=N token first so the add path is
+# idempotent (e.g. re-running the installer, or moving the SD card from a
+# 4-core Pi to a 2-core Pi where the desired N differs). cmdline.txt is a
+# single line; collapse any doubled spaces left behind and trim trailing
+# whitespace.
+sed -i -E -e 's/(^| )isolcpus=[0-9]+( |$)/\1\2/g' -e 's/  +/ /g' -e 's/ $//' "$CMDLINE_FILE"
+if [ $ISOL_CPU -eq 1 ]; then
+	# Reserve a core for the matrix driver (upstream recommendation).
+	# Append the isolcpus=N token with a leading space.
+	sed -i "s/\$/ ${ISOLCPU_CMD}/" "$CMDLINE_FILE"
 fi
 
 # PROMPT FOR REBOOT --------------------------------------------------------
