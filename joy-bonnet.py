@@ -19,7 +19,7 @@ Notes on modernization (2026):
     via a systemd unit (joy-bonnet.service) instead of editing
     /etc/rc.local.
   - The boot partition moved from /boot to /boot/firmware on
-    Bookworm. We detect and prefer /boot/firmware when present.
+    Bookworm. shell.get_boot_config() detects the active path.
   - On Pi 5 the legacy RPi.GPIO library does not support the RP1
     GPIO controller, so we install python3-rpi-lgpio (a drop-in
     replacement) instead of python3-rpi.gpio.
@@ -41,42 +41,14 @@ shell.group = "JOY"
 JOY_BONNET_URL = (
     "https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/joyBonnet.py"
 )
-GPIO_HALT_URL = (
-    "https://github.com/adafruit/Adafruit-GPIO-Halt/archive/master.zip"
-)
-SERVICE_PATH = "/etc/systemd/system/joy-bonnet.service"
-GPIO_HALT_SERVICE_PATH = "/etc/systemd/system/gpio-halt.service"
-UDEV_RULE_PATH = "/etc/udev/rules.d/10-retrogame.rules"
-
-
-def get_boot_dir():
-    """Return the Raspberry Pi boot partition path.
-
-    On Bookworm and newer the boot partition is mounted at
-    /boot/firmware. On older releases (Bullseye and earlier) it is
-    mounted at /boot. Detect by looking for config.txt.
-    """
-    if os.path.exists("/boot/firmware/config.txt"):
-        return "/boot/firmware"
-    return "/boot"
-
-
-def check_systemd():
-    """Bail unless systemd is the active init system."""
-    shell.info("Checking init system...")
-    if shell.run_command("which systemctl", suppress_message=True) and shell.run_command(
-        "systemctl | grep '\\-\\.mount'", suppress_message=True
-    ):
-        print("Found systemd, OK!")
-        return
-    if os.path.isfile("/etc/init.d/cron") and not os.path.islink("/etc/init.d/cron"):
-        shell.bail("Found sysvinit, but we require systemd")
-    shell.bail("Unrecognised init system; this script requires systemd")
+GPIO_HALT_URL = "https://github.com/adafruit/Adafruit-GPIO-Halt/archive/master.zip"
 
 
 def write_joy_bonnet_service(boot_dir):
     """Install (or overwrite) the joy-bonnet.service systemd unit."""
-    contents = f"""[Unit]
+    shell.write_text_file(
+        "/etc/systemd/system/joy-bonnet.service",
+        f"""[Unit]
 Description=Adafruit Joy Bonnet keypress daemon
 After=multi-user.target
 
@@ -91,15 +63,18 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-"""
-    shell.write_text_file(SERVICE_PATH, contents, append=False)
+""",
+        append=False,
+    )
     shell.run_command("systemctl daemon-reload")
     shell.run_command("systemctl enable joy-bonnet.service")
 
 
 def write_gpio_halt_service(halt_pin):
     """Install (or overwrite) the gpio-halt.service systemd unit."""
-    contents = f"""[Unit]
+    shell.write_text_file(
+        "/etc/systemd/system/gpio-halt.service",
+        f"""[Unit]
 Description=Adafruit GPIO Halt button daemon (BCM GPIO {halt_pin})
 After=multi-user.target
 
@@ -113,8 +88,9 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
-"""
-    shell.write_text_file(GPIO_HALT_SERVICE_PATH, contents, append=False)
+""",
+        append=False,
+    )
     shell.run_command("systemctl daemon-reload")
     shell.run_command("systemctl enable gpio-halt.service")
 
@@ -152,29 +128,24 @@ EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN.
                 break
             print("Please enter a valid BCM GPIO number (0-27).")
     print("\n")
-    if disable_overscan:
-        print("Overscan: disable.")
-    else:
-        print("Overscan: keep current setting.")
-
-    if install_halt:
-        print("Install GPIO-halt: YES (GPIO{})".format(halt_pin))
-    else:
-        print("Install GPIO-halt: NO")
+    print(f"Overscan: {'disable' if disable_overscan else 'keep current setting'}.")
+    print(f"Install GPIO-halt: {'YES (GPIO%d)' % halt_pin if install_halt else 'NO'}")
 
     if not shell.prompt("CONTINUE?", default='n'):
         print("Canceled.")
         shell.exit()
 
     # START INSTALL ------------------------------------------------------------
-    check_systemd()
+    boot_config = shell.get_boot_config()
+    if boot_config is None:
+        shell.bail("Could not find Raspberry Pi boot config (config.txt)")
+    boot_dir = os.path.dirname(boot_config)
 
-    print("""
-Starting installation...
-Updating package index files...""")
-    shell.run_command('apt-get update', suppress_message=True)
+    print("\nStarting installation...")
+    shell.info("Updating package index files...")
+    shell.run_command("apt-get update", suppress_message=True)
 
-    print("Installing Python libraries via apt...")
+    shell.info("Installing Python libraries via apt...")
     # On Bookworm+, the system Python is externally managed (PEP 668),
     # so we install via apt. python3-evdev and python3-smbus are both
     # packaged in Bookworm and Trixie.
@@ -186,17 +157,10 @@ Updating package index files...""")
     #     lgpio. It declares Conflicts/Provides against python3-rpi.gpio,
     #     so apt enforces that only one is installed.
     #   - Pi 4 and earlier use python3-rpi.gpio.
-    if shell.is_pi5_or_newer():
-        print("Detected Pi 5 or newer: using python3-rpi-lgpio.")
-        gpio_pkg = "python3-rpi-lgpio"
-    else:
-        gpio_pkg = "python3-rpi.gpio"
-    shell.run_command(
-        f"apt-get install -y python3-evdev python3-smbus {gpio_pkg}"
-    )
+    gpio_pkg = "python3-rpi-lgpio" if shell.is_pi5_or_newer() else "python3-rpi.gpio"
+    shell.run_command(f"apt-get install -y python3-evdev python3-smbus {gpio_pkg}")
 
-    boot_dir = get_boot_dir()
-    print(f"Installing joyBonnet.py in {boot_dir}...")
+    shell.info(f"Installing joyBonnet.py in {boot_dir}...")
     shell.chdir("/tmp")
     shell.run_command(f"curl -fLO {JOY_BONNET_URL}")
     # Moving between filesystems requires copy-and-delete:
@@ -204,7 +168,7 @@ Updating package index files...""")
     shell.remove("joyBonnet.py")
 
     if install_halt:
-        print("Installing gpio-halt in /usr/local/bin...")
+        shell.info("Installing gpio-halt in /usr/local/bin...")
         shell.chdir("/tmp")
         shell.run_command(f"curl -fLO {GPIO_HALT_URL}")
         shell.run_command("unzip -u master.zip")
@@ -217,7 +181,7 @@ Updating package index files...""")
 
     # CONFIG -------------------------------------------------------------------
 
-    print("Configuring system...")
+    shell.info("Configuring system...")
 
     # Enable I2C using raspi-config
     shell.run_raspi_config("do_i2c 0")
@@ -227,29 +191,24 @@ Updating package index files...""")
         shell.run_raspi_config("do_overscan 1")
 
     # Auto-start joyBonnet.py on boot via systemd
-    print("Installing joy-bonnet.service systemd unit...")
+    shell.info("Installing joy-bonnet.service systemd unit...")
     write_joy_bonnet_service(boot_dir)
 
     if install_halt:
-        print("Installing gpio-halt.service systemd unit...")
+        shell.info("Installing gpio-halt.service systemd unit...")
         write_gpio_halt_service(halt_pin)
 
     # Add udev rule (will overwrite if present)
     shell.write_text_file(
-        UDEV_RULE_PATH,
+        "/etc/udev/rules.d/10-retrogame.rules",
         'SUBSYSTEM=="input", ATTRS{name}=="retrogame", ENV{ID_INPUT_KEYBOARD}="1"',
         append=False,
     )
 
-    # PROMPT FOR REBOOT --------------------------------------------------------
-    print("""DONE.
-
-Settings take effect on next boot.
-""")
+    print("\nDONE.\nSettings take effect on next boot.\n")
     shell.prompt_reboot()
 
 
-# Main function
 if __name__ == "__main__":
     shell.require_root()
     main()
