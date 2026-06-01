@@ -32,7 +32,7 @@ try:
 except ImportError:
     raise RuntimeError(
         "The library 'adafruit_shell' was not found. To install, try typing: "
-        "sudo pip3 install --break-system-packages adafruit-python-shell"
+        "sudo pip3 install adafruit-python-shell"
     )
 
 shell = Shell()
@@ -54,6 +54,7 @@ After=multi-user.target
 
 [Service]
 Type=simple
+WorkingDirectory={boot_dir}
 ExecStartPre=/sbin/modprobe uinput
 ExecStart=/usr/bin/python3 {boot_dir}/joyBonnet.py
 Restart=on-failure
@@ -169,6 +170,9 @@ EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN.
 
     if install_halt:
         shell.info("Installing gpio-halt in /usr/local/bin...")
+        # Pi OS Lite ships without unzip or a compiler toolchain; pull
+        # them in before downloading/building.
+        shell.run_command("apt-get install -y unzip build-essential")
         shell.chdir("/tmp")
         shell.run_command(f"curl -fLO {GPIO_HALT_URL}")
         shell.run_command("unzip -u master.zip")
@@ -204,6 +208,22 @@ EXISTING INSTALLATION, IF ANY, WILL BE OVERWRITTEN.
         'SUBSYSTEM=="input", ATTRS{name}=="retrogame", ENV{ID_INPUT_KEYBOARD}="1"',
         append=False,
     )
+
+    # Clean up any legacy rc.local autostart lines from older installs.
+    # /etc/rc.local is gone on Bookworm/Trixie but may still exist on
+    # systems upgraded from Bullseye. Without this, the systemd unit
+    # and the rc.local entry would both launch joyBonnet.py and gpio-halt
+    # at boot, causing duplicate uinput devices or pin contention.
+    # multi_line=True runs the regex against the whole file (DOTALL),
+    # so we use [^\n] instead of . to keep matches line-scoped, and
+    # consume the trailing newline so no blank line is left behind.
+    if shell.exists("/etc/rc.local"):
+        shell.pattern_replace(
+            "/etc/rc.local", r"[^\n]*joyBonnet\.py[^\n]*\n", multi_line=True
+        )
+        shell.pattern_replace(
+            "/etc/rc.local", r"[^\n]*gpio-halt[^\n]*\n", multi_line=True
+        )
 
     print("\nDONE.\nSettings take effect on next boot.\n")
     shell.prompt_reboot()
