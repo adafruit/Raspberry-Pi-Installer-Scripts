@@ -4,9 +4,12 @@ Adafruit Raspberry Pi Joy Bonnet Setup Script
 
 Converted to Python by Melissa LeBlanc-Williams for Adafruit Industries
 
-Target hardware: Raspberry Pi Zero, Pi Zero W, Pi Zero 2 W.
-Target OS:      Raspberry Pi OS (Bookworm or newer; 32-bit recommended
-                for full Pi Zero family compatibility).
+Target hardware: All Raspberry Pi models (Pi Zero / Zero W /
+                Zero 2 W / 3 / 4 / 5 etc.). The Joy Bonnet itself
+                is most commonly paired with the Pi Zero series
+                (AdaBox 005), but the install script works on any
+                Raspberry Pi that can host the bonnet.
+Target OS:      Raspberry Pi OS (Bookworm or newer).
 
 Notes on modernization (2026):
   - PEP 668 / Bookworm: Python libraries are installed via apt
@@ -17,6 +20,9 @@ Notes on modernization (2026):
     /etc/rc.local.
   - The boot partition moved from /boot to /boot/firmware on
     Bookworm. We detect and prefer /boot/firmware when present.
+  - On Pi 5 the legacy RPi.GPIO library does not support the RP1
+    GPIO controller, so we install python3-rpi-lgpio (a drop-in
+    replacement) instead of python3-rpi.gpio.
 """
 
 import os
@@ -116,11 +122,13 @@ WantedBy=multi-user.target
 def main():
     shell.clear()
     print("""This script installs software for the Adafruit
-Joy Bonnet for Raspberry Pi (Pi Zero, Zero W, Zero 2 W).
+Joy Bonnet for Raspberry Pi.
 Steps include:
 - Update package index files (apt-get update).
 - Install Python libraries via apt (python3-evdev,
-  python3-smbus).
+  python3-smbus, and a Pi-model-appropriate GPIO library:
+  python3-rpi.gpio on Pi 4 and earlier, python3-rpi-lgpio
+  on Pi 5 and newer).
 - Install joyBonnet.py in the boot partition and
   configure a systemd unit to auto-start it at boot.
 - Enable I2C bus.
@@ -170,8 +178,21 @@ Updating package index files...""")
     # On Bookworm+, the system Python is externally managed (PEP 668),
     # so we install via apt. python3-evdev and python3-smbus are both
     # packaged in Bookworm and Trixie.
+    #
+    # GPIO library choice:
+    #   - Pi 5 (and newer) use the RP1 GPIO controller, which the legacy
+    #     RPi.GPIO package does not support. python3-rpi-lgpio is a
+    #     drop-in replacement that routes the same RPi.GPIO API through
+    #     lgpio. It declares Conflicts/Provides against python3-rpi.gpio,
+    #     so apt enforces that only one is installed.
+    #   - Pi 4 and earlier use python3-rpi.gpio.
+    if shell.is_pi5_or_newer():
+        print("Detected Pi 5 or newer: using python3-rpi-lgpio.")
+        gpio_pkg = "python3-rpi-lgpio"
+    else:
+        gpio_pkg = "python3-rpi.gpio"
     shell.run_command(
-        'apt-get install -y python3-evdev python3-smbus'
+        f"apt-get install -y python3-evdev python3-smbus {gpio_pkg}"
     )
 
     boot_dir = get_boot_dir()
