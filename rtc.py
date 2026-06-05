@@ -131,18 +131,19 @@ def main():
     shell.run_command("sudo apt-get -y remove fake-hwclock")
     shell.run_command("sudo update-rc.d -f fake-hwclock remove")
 
-    if not shell.exists("/lib/udev/hwclock-set"):
-        shell.bail("Couldn't find /lib/udev/hwclock-set")
-
-    shell.warn("Configuring HW Clock")
-    # Comment out the three-line block guarded by the systemd-running check
-    # in /lib/udev/hwclock-set so the kernel hwclock sync runs on systemd
-    # systems too (otherwise the RTC time isn't picked up at boot). Sed
-    # range address (`/pat/,+2`) has no clean pattern_replace equivalent,
-    # so shell out to the real sed.
-    shell.run_command(
-        r"sudo sed --in-place '/if \[ -e \/run\/systemd\/system \] ; then/,+2 s/^#*/#/' /lib/udev/hwclock-set"
-    )
+    if shell.exists("/lib/udev/hwclock-set"):
+        shell.warn("Configuring HW Clock")
+        # Comment out the systemd-guarded block so the kernel hwclock sync runs.
+        shell.run_command(
+            r"sudo sed --in-place '/if \[ -e \/run\/systemd\/system \] ; then/,+2 s/^#*/#/' /lib/udev/hwclock-set"
+        )
+    else:
+        # Trixie+ util-linux dropped hwclock-set; systemd reads the kernel RTC directly.
+        print(
+            "Skipping hwclock-set configuration: /lib/udev/hwclock-set\n"
+            "not present (modern util-linux). systemd will sync the\n"
+            "system clock from the kernel RTC at boot."
+        )
 
     shell.prompt_reboot()
 
