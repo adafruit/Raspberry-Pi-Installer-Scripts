@@ -121,6 +121,22 @@ pcm.!default {
 """.replace("card 0", f'card "{card_name}"'))
     shell.move("~/asound.conf", "/etc/asound.conf")
 
+    # Prime the softvol PCM control and persist it.
+    #
+    # The asound.conf above declares a softvol control named "PCM" on
+    # card <card_name>, but ALSA only materializes a softvol control once
+    # a stream has actually flowed through the softvol PCM device. On a
+    # brand-new install, the control therefore doesn't exist yet and
+    # `amixer -c <card> set PCM ...` fails with "Unable to find simple
+    # control 'PCM',0" (or, on older alsa-utils, "amixer: Invalid
+    # command!"). See adafruit/Raspberry-Pi-Installer-Scripts#370.
+    #
+    # Touching the softvol device once via amixer registers the control,
+    # and `alsactl store` writes it to /var/lib/alsa/asound.state so the
+    # systemd alsa-restore service re-creates it on every boot.
+    print("Priming softvol PCM control...")
+    shell.run_command(f"amixer -D 'plug:softvol' sset PCM 100% > /dev/null 2>&1")
+    shell.run_command("sudo alsactl store")
 
     print("Installing aplay systemd unit")
     shell.write_text_file("/etc/systemd/system/aplay.service", """
@@ -157,6 +173,14 @@ WantedBy=multi-user.target""", append=False)
             shell.run_command("speaker-test -l5 -c2 -t wav")
     print("\n" + colored.green("All done!"))
     print("\nEnjoy your new $productname!")
+    print(
+        "\nTo adjust volume, use:\n"
+        f"    amixer -c {card_name} sset PCM <percent>%\n"
+        f"    e.g. amixer -c {card_name} sset PCM 80%\n"
+        "\nNote: bare `amixer sset PCM ...` (without -c) will NOT work,\n"
+        "because the softvol control lives on the I2S card, not the\n"
+        "default ctl device.\n"
+    )
     if reboot:
         shell.prompt_reboot()
 
