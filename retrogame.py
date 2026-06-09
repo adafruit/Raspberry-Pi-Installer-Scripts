@@ -1,20 +1,61 @@
+# SPDX-FileCopyrightText: 2024 Melissa LeBlanc-Williams for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 """
 Adafruit Retrogame Setup Script
-(C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike
 
-Converted to Python by Melissa LeBlanc-Williams for Adafruit Industries
+Downloads and installs the retrogame GPIO-to-keypress utility plus one
+of several pre-baked configuration files, and sets up a systemd unit
+to auto-start retrogame at boot.
 
-Note: Currently Untested
+Notes on modernization (2026):
+  - rc.local is deprecated on Bookworm/Trixie. Autostart uses a
+    retrogame.service systemd unit instead of editing /etc/rc.local.
+  - The udev rule string is now a plain (non-raw) string so the
+    double-quotes inside the rule aren't backslash-escaped, which is
+    invalid udev syntax and broke the rule on the previous version.
 """
 
-try:
-    from adafruit_shell import Shell
-except ImportError:
-    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
 import os
 
+from adafruit_shell import Shell
+
 shell = Shell()
-shell.group="Retrogame"
+shell.group = "Retrogame"
+
+RETROGAME_URL = (
+    "https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/retrogame"
+)
+RETROGAME_CFG_BASE = (
+    "https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/configs"
+)
+
+
+def write_retrogame_service():
+    """Install (or overwrite) the retrogame.service systemd unit."""
+    shell.write_text_file(
+        "/etc/systemd/system/retrogame.service",
+        """[Unit]
+Description=Adafruit Retrogame GPIO-to-keypress daemon
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/retrogame
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+""",
+        append=False,
+    )
+    shell.run_command("systemctl daemon-reload")
+    shell.run_command("systemctl enable retrogame.service")
+
 
 def main():
     shell.clear()
@@ -25,7 +66,7 @@ one of several configuration files.
 Run time <1 minute. Reboot recommended.
 """)
 
-    # Grouped by config name and menu label
+    # Grouped by config name and menu label.
     config = {
         "pigrrl2": "PiGRRL 2 controls",
         "pocket": "Pocket PiGRRL",
@@ -34,65 +75,73 @@ Run time <1 minute. Reboot recommended.
         "2button": "Two buttons + joystick",
         "6button": "Six buttons + joystick",
         "bonnet": "Adafruit Arcade Bonnet",
-        "cupcade-orig": "Cupcade (gen 1 & 2 only)"
+        "cupcade-orig": "Cupcade (gen 1 & 2 only)",
     }
 
-    RETROGAME_SELECT = shell.select_n(
-        "Select configuration:", list(config.values()) + ["Quit without installing"]
+    retrogame_select = shell.select_n(
+        "Select configuration:",
+        list(config.values()) + ["Quit without installing"],
     )
 
-    if RETROGAME_SELECT <= len(config):
-        CONFIG_NAME = list(config.keys())[RETROGAME_SELECT-1]
+    if retrogame_select > len(config):
+        return
+    config_name = list(config.keys())[retrogame_select - 1]
 
-        if shell.exists("/boot/retrogame.cfg"):
-            print("/boot/retrogame.cfg already exists.\n"
-                  "Continuing will overwrite file.\n")
-            if not shell.prompt("CONTINUE?", default='n'):
-                print("Canceled.")
-                shell.exit()
+    if shell.exists("/boot/retrogame.cfg"):
+        print("/boot/retrogame.cfg already exists.\n"
+              "Continuing will overwrite file.\n")
+        if not shell.prompt("CONTINUE?", default="n"):
+            print("Canceled.")
+            shell.exit()
 
-        print("Downloading, installing retrogame...", end="")
-        # Download to tmpfile because might already be running
-        if shell.run_command("curl -f -s -o /tmp/retrogame https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/retrogame"):
-            shell.move("/tmp/retrogame", "/usr/local/bin/")
-            os.chmod("/usr/local/bin/retrogame", 0o755)
-            print("OK")
-        else:
-            print("ERROR")
-
-        print("Downloading, installing retrogame.cfg...", end="")
-        if shell.run_command(f"curl -f -s -o /boot/retrogame.cfg https://raw.githubusercontent.com/adafruit/Adafruit-Retrogame/master/configs/retrogame.cfg.{CONFIG_NAME}"):
-            print("OK")
-        else:
-            print("ERROR")
-
-        print("Performing other system configuration...", end="")
-
-        # Add udev rule (will overwrite if present)
-        shell.write_text_file("/etc/udev/rules.d/10-retrogame.rules", (
-            r"SUBSYSTEM==\"input\", ATTRS{name}==\"retrogame\", "
-            r"ENV{ID_INPUT_KEYBOARD}=\"1\""
-        ))
-
-        if CONFIG_NAME == "bonnet":
-            # If Bonnet, make sure I2C is enabled.  Call the I2C
-            # setup function in raspi-config (noninteractive):
-            shell.run_raspi_config("do_i2c 0")
-
-        # Start on boot
-        if shell.run_command("grep retrogame /etc/rc.local", suppress_message=True):
-            # retrogame already in rc.local, but make sure correct:
-            shell.pattern_replace("/etc/rc.local", "^.*retrogame.*$", "/usr/local/bin/retrogame &")
-        else:
-            # Insert retrogame into rc.local before final 'exit 0'
-            shell.pattern_replace("/etc/rc.local", "^exit 0", "/usr/local/bin/retrogame &\nexit 0")
-
+    print("Downloading, installing retrogame...", end="")
+    # Download to tmpfile because the daemon might already be running.
+    if shell.run_command(f"curl -f -s -o /tmp/retrogame {RETROGAME_URL}"):
+        shell.move("/tmp/retrogame", "/usr/local/bin/retrogame")
+        os.chmod("/usr/local/bin/retrogame", 0o755)
         print("OK")
+    else:
+        print("ERROR")
 
-        shell.prompt_reboot()
-        print("Done")
+    print("Downloading, installing retrogame.cfg...", end="")
+    if shell.run_command(
+        f"curl -f -s -o /boot/retrogame.cfg {RETROGAME_CFG_BASE}/retrogame.cfg.{config_name}"
+    ):
+        print("OK")
+    else:
+        print("ERROR")
 
-# Main function
+    print("Performing other system configuration...", end="")
+
+    # Add udev rule (will overwrite if present). Plain string, no raw prefix:
+    # raw strings keep the backslashes in front of the inner quotes, which is
+    # invalid udev syntax and silently breaks the rule.
+    shell.write_text_file(
+        "/etc/udev/rules.d/10-retrogame.rules",
+        'SUBSYSTEM=="input", ATTRS{name}=="retrogame", ENV{ID_INPUT_KEYBOARD}="1"',
+        append=False,
+    )
+
+    if config_name == "bonnet":
+        # Arcade Bonnet uses an MCP23017 over I2C; make sure I2C is on.
+        shell.run_raspi_config("do_i2c 0")
+
+    # Auto-start retrogame at boot via systemd unit.
+    write_retrogame_service()
+
+    # Clean up any legacy rc.local autostart line from older installs so we
+    # don't double-launch retrogame alongside the systemd unit.
+    if shell.exists("/etc/rc.local"):
+        shell.pattern_replace(
+            "/etc/rc.local", r"[^\n]*retrogame[^\n]*\n", multi_line=True
+        )
+
+    print("OK")
+
+    shell.prompt_reboot()
+    print("Done")
+
+
 if __name__ == "__main__":
     shell.require_root()
     main()
