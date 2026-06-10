@@ -15,6 +15,10 @@
 #   - Uses xinit to launch eyes.py (pi3d requires EGL; dispmanx is gone)
 #   - Uses rpi-lgpio on Pi 5 (RP1 GPIO controller, RPi.GPIO not supported)
 #   - Autostart via systemd units (rc.local is deprecated in Trixie)
+#   - On Pi 5, installs spi1-rp1-eyes overlay to fix SPI1 data-pin
+#     muxing (the stock spi1-3cs overlay uses legacy brcm,pins format
+#     that the RP1 pinctrl driver ignores, so the right-eye TFT stays
+#     black until this overlay re-points SPI1 at rp1_spi1_gpio19)
 
 if [ $(id -u) -ne 0 ]; then
     echo "Installer must be run as root."
@@ -144,6 +148,7 @@ apt-get install -y \
     build-essential \
     python3-venv python3-dev python3-full \
     libx11-dev libxext-dev \
+    device-tree-compiler \
     git curl unzip
 
 # Python GPIO library: Pi 5 uses the RP1 controller; RPi.GPIO does not
@@ -277,8 +282,35 @@ fi
 if [ $SCREEN_SELECT -ne 4 ]; then
     raspi-config nonint do_spi 0
     reconfig  "$CONFIG_TXT"  "^.*dtparam=spi1.*$"   "dtparam=spi1=on"
-    reconfig  "$CONFIG_TXT"  "^.*dtoverlay=spi1.*$"  "dtoverlay=spi1-3cs"
+    # Match the spi1-3cs line specifically so we don't clobber the
+    # spi1-rp1-eyes overlay line we may also need on Pi 5.
+    reconfig  "$CONFIG_TXT"  "^.*dtoverlay=spi1-3cs.*$"  "dtoverlay=spi1-3cs"
     reconfig2 "$CMDLINE_TXT" "spidev\.bufsiz=[^ ]*"  "spidev.bufsiz=8192"
+
+    # On Pi 5, the stock spi1-3cs overlay's data-pin pinctrl is in the
+    # legacy brcm,pins format which the RP1 driver ignores. Without an
+    # additional overlay, GPIO19/20/21 never get muxed to SPI1, so the
+    # right-eye TFT receives clocking CS but no usable data and stays
+    # black. spi1-rp1-eyes re-points the SPI1 controller's pinctrl-0
+    # at the base DTB's correct rp1_spi1_gpio19 node. See issue #295.
+    if [ $IS_PI5 -eq 1 ]; then
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        SPI1_DTS="${SCRIPT_DIR}/overlays/spi1-rp1-eyes-overlay.dts"
+        SPI1_DTBO="/boot/firmware/overlays/spi1-rp1-eyes.dtbo"
+        if [ -f "$SPI1_DTS" ]; then
+            echo "Pi 5: compiling spi1-rp1-eyes overlay (fixes SPI1 data-pin muxing)..."
+            dtc --warning no-unit_address_vs_reg -I dts -O dtb \
+                -o "$SPI1_DTBO" "$SPI1_DTS"
+            # Append spi1-rp1-eyes line if not already present. Must
+            # come AFTER spi1-3cs so its pinctrl-0 assignment wins.
+            if ! grep -q "^dtoverlay=spi1-rp1-eyes" "$CONFIG_TXT"; then
+                echo "dtoverlay=spi1-rp1-eyes" >> "$CONFIG_TXT"
+            fi
+        else
+            echo "WARNING: ${SPI1_DTS} not found."
+            echo "The right-eye display will not work on Pi 5 without it."
+        fi
+    fi
 fi
 
 # USB Ethernet gadget (Pi Zero)

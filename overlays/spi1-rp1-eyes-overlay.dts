@@ -1,0 +1,55 @@
+/dts-v1/;
+/plugin/;
+
+/*
+ * spi1-rp1-eyes: fix SPI1 data-pin muxing on Raspberry Pi 5 (RP1)
+ * for the Adafruit Animated Snake Eyes Bonnet.
+ *
+ * Background
+ * ----------
+ * On Pi 3B / Pi 4 (BCM283x), the stock `spi1-3cs` overlay correctly
+ * mux GPIO19 / GPIO20 / GPIO21 to the SPI1 controller as MISO / MOSI
+ * / SCLK using the legacy `brcm,pins` / `brcm,function` pinctrl
+ * format.
+ *
+ * On Pi 5 (RP1), that legacy pinctrl format is silently ignored by
+ * the RP1 pinctrl driver. The result is that `spi1-3cs` brings up
+ * the SPI1 chip-selects (CE0/CE1/CE2 on GPIO18/17/16, which are
+ * plain GPIOs) but never muxes the MOSI / SCLK data pins, so the
+ * right-eye TFT receives a clocking CS but no usable data and the
+ * panel stays permanently black.
+ *
+ * Fix
+ * ---
+ * The Pi 5 base device tree already contains a correct RP1-native
+ * pinctrl node for SPI1 (`rp1_spi1_gpio19`, function = "spi1",
+ * pins = "gpio19", "gpio20", "gpio21"). This overlay simply
+ * re-points the SPI1 controller's `pinctrl-0` at that node,
+ * replacing `spi1-3cs`'s broken legacy entry.
+ *
+ * Apply order in /boot/firmware/config.txt — this overlay MUST be
+ * loaded AFTER `spi1-3cs`, so that its `pinctrl-0` assignment wins:
+ *
+ *     dtparam=spi1=on
+ *     dtoverlay=spi1-3cs
+ *     dtoverlay=spi1-rp1-eyes
+ *
+ * Safe to load on Pi 3B / Pi 4 as well: the `rp1_spi1_gpio19` label
+ * is only present in the RP1/Pi-5 DTB, so dtoverlay will simply
+ * skip this overlay's fixup on older Pis where the legacy
+ * `spi1-3cs` pinctrl already works correctly.
+ *
+ * Issue: https://github.com/adafruit/Raspberry-Pi-Installer-Scripts/issues/295
+ */
+
+/ {
+	compatible = "brcm,bcm2712";
+
+	fragment@0 {
+		target = <&spi1>;
+		__overlay__ {
+			pinctrl-names = "default";
+			pinctrl-0 = <&rp1_spi1_gpio19>;
+		};
+	};
+};
