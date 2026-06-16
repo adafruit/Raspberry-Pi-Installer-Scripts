@@ -4,10 +4,15 @@
 
 # INSTALLER SCRIPT FOR ADAFRUIT SPECTRO PROJECT
 
+import os
+import sys
+
 try:
     from adafruit_shell import Shell
 except ImportError:
-    raise RuntimeError("The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell")
+    raise RuntimeError(
+        "The library 'adafruit_shell' was not found. To install, try typing: sudo pip3 install adafruit-python-shell"
+    )
 
 shell = Shell()
 shell.group = "SPECTRO"
@@ -29,6 +34,9 @@ def write_spectro_service():
     /etc/rc.local is deprecated on Bookworm/Trixie, so selector.py is
     auto-started from a systemd unit instead.
     """
+    # Use the same interpreter that ran the installer so the service picks
+    # up modules installed into the active venv, not the system python3.
+    python_bin = sys.executable or "/usr/bin/python3"
     shell.write_text_file(
         "/etc/systemd/system/spectro.service",
         f"""[Unit]
@@ -39,7 +47,7 @@ After=multi-user.target
 Type=simple
 User=pi
 WorkingDirectory={SPECTRO_DIR}
-ExecStart=/usr/bin/python3 {SPECTRO_DIR}/selector.py
+ExecStart={python_bin} {SPECTRO_DIR}/selector.py
 Restart=on-failure
 RestartSec=2
 StandardOutput=journal
@@ -91,9 +99,7 @@ def main():
     )
     slowdown_gpio = shell.select_n("GPIO slowdown setting:", SLOWDOWN_OPTS) - 1
 
-    enable_mic = shell.prompt(
-        "\nOPTIONAL: Enable USB microphone support?", default="n"
-    )
+    enable_mic = shell.prompt("\nOPTIONAL: Enable USB microphone support?", default="n")
     enable_accel = shell.prompt(
         "OPTIONAL: Enable LIS3DH accelerometer support?", default="n"
     )
@@ -153,14 +159,19 @@ def main():
         )
 
     print("Downloading Spectro software...")
+    # Download/extract into ~pi and install to SPECTRO_DIR explicitly, so the
+    # systemd unit's path is correct no matter where the installer is run.
+    shell.chdir(os.path.expanduser("~pi"))
     shell.run_command(
         "curl -L https://github.com/adafruit/Adafruit_Spectro_Pi/archive/master.zip "
         "-o Adafruit_Spectro_Pi.zip"
     )
     shell.run_command("unzip -q -o Adafruit_Spectro_Pi.zip")
     shell.remove("Adafruit_Spectro_Pi.zip")
-    shell.run_command("mv Adafruit_Spectro_Pi-master Adafruit_Spectro_Pi")
-    shell.run_command("chown -R pi:pi Adafruit_Spectro_Pi")
+    if shell.exists(SPECTRO_DIR):
+        shell.remove(SPECTRO_DIR)
+    shell.run_command(f"mv Adafruit_Spectro_Pi-master {SPECTRO_DIR}")
+    shell.run_command(f"chown -R pi:pi {SPECTRO_DIR}")
 
     # CONFIG ---------------------------------------------------------------
 
@@ -183,8 +194,13 @@ def main():
         # Enable I2C for accelerometer
         shell.run_raspi_config("do_i2c 0")
 
-    # Make default GIFs directory
-    shell.run_command("mkdir /boot/gifs")
+    # Make default GIFs directory on the active boot partition (/boot on
+    # older OSes, /boot/firmware on Bookworm/Trixie).
+    config = shell.get_boot_config()
+    if config is None:
+        shell.bail("No Device Tree Detected, not supported")
+    boot_dir = os.path.dirname(config)
+    shell.run_command(f"mkdir -p {boot_dir}/gifs")
 
     # Set up LED columns, rows and slowdown in selector.py script
     flags = (
@@ -192,15 +208,21 @@ def main():
         f'"--led-rows={MATRIX_HEIGHTS[matrix_size]}", '
         f'"--led-slowdown-gpio={SLOWDOWN_OPTS[slowdown_gpio]}"]'
     )
-    shell.pattern_replace("./Adafruit_Spectro_Pi/selector.py", "^FLAGS.*$", flags)
+    shell.pattern_replace(f"{SPECTRO_DIR}/selector.py", "^FLAGS.*$", flags)
 
     # Force HDMI out so /dev/fb0 exists
-    config = shell.get_boot_config()
     shell.reconfig(config, "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
 
     # Auto-start selector.py on boot via a systemd service
     print("Installing spectro.service systemd unit...")
     write_spectro_service()
+
+    # Clean up any legacy rc.local autostart line from older spectro.sh
+    # installs so we don't double-launch selector.py alongside the unit.
+    if shell.exists("/etc/rc.local"):
+        shell.pattern_replace(
+            "/etc/rc.local", r"[^\n]*selector\.py[^\n]*\n", multi_line=True
+        )
 
     # PROMPT FOR REBOOT ----------------------------------------------------
 
