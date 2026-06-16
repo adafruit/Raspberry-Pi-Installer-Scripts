@@ -35,11 +35,61 @@ def get_card_name(overlay):
 def driver_loaded(driver_name):
     return shell.run_command(f"lsmod | grep -q '{driver_name}'", suppress_message=True)
 
-def main():
+def uninstall():
+    """Reverse everything the installer does, leaving the system as it was."""
+    print(f"\nThis will remove {PRODUCT_NAME} support and restore the\n"
+        "built-in audio configuration.\n")
+    if not shell.prompt("Uninstall the I2S Amplifier driver?", default="n"):
+        print("\nAborting...")
+        shell.exit()
+
     reboot = False
-    shell.clear()
-    if not shell.is_raspberry_pi():
-        shell.bail("Non-Raspberry Pi board detected.")
+    config = shell.get_boot_config()
+    if config is None:
+        shell.bail("No Device Tree Detected, not supported")
+
+    print("\nStopping and removing aplay systemd unit...")
+    shell.run_command("sudo systemctl stop aplay", suppress_message=True)
+    shell.run_command("sudo systemctl disable aplay", suppress_message=True)
+    shell.remove("/etc/systemd/system/aplay.service")
+    shell.run_command("sudo systemctl daemon-reload")
+
+    print(f"Removing Device Tree overlay from {config}")
+    if shell.pattern_search(config, f"^dtoverlay={OVERLAY}$"):
+        shell.pattern_replace(config, f"^dtoverlay={OVERLAY}$")
+        reboot = True
+
+    print(f"Re-enabling built-in audio in {config}")
+    if shell.pattern_search(config, "^#dtparam=audio=on"):
+        shell.pattern_replace(config, "^#dtparam=audio=on", "dtparam=audio=on")
+        reboot = True
+
+    if os.path.exists(BLACKLIST):
+        print(f"Restoring Blacklist entries in {BLACKLIST}")
+        # Only un-comment the exact forms the installer normalizes to, so we
+        # never touch lines the user commented out themselves before install.
+        shell.pattern_replace(BLACKLIST, "^#blacklist snd_soc_max98357a_i2c$", "blacklist snd_soc_max98357a_i2c")
+        shell.pattern_replace(BLACKLIST, "^#blacklist snd_soc_max98357a$", "blacklist snd_soc_max98357a")
+
+    print("Restoring sound configuration")
+    if os.path.exists("/etc/asound.conf.old"):
+        # We created /etc/asound.conf, so it's ours to remove. Restore the
+        # original that the installer set aside as .old.
+        shell.remove("/etc/asound.conf")
+        shell.move("/etc/asound.conf.old", "/etc/asound.conf")
+    elif os.path.exists("/etc/asound.conf"):
+        # No saved original means the installer created asound.conf from
+        # scratch; remove it so ALSA falls back to its defaults.
+        shell.remove("/etc/asound.conf")
+
+    print("\n" + colored.green("All done!"))
+    print(f"\n{PRODUCT_NAME} support has been removed.")
+    if reboot:
+        shell.prompt_reboot()
+    shell.exit()
+
+def install():
+    reboot = False
     print("\nThis script will install everything needed to use\n"
         f"{PRODUCT_NAME}.\n")
     print(colored.red("--- Warning ---"))
@@ -187,6 +237,23 @@ WantedBy=multi-user.target""", append=False)
     )
     if reboot:
         shell.prompt_reboot()
+
+def main():
+    shell.clear()
+    if not shell.is_raspberry_pi():
+        shell.bail("Non-Raspberry Pi board detected.")
+
+    selection = shell.select_n(
+        f"What would you like to do with the {PRODUCT_NAME} driver?",
+        ["Install", "Uninstall", "Quit"],
+    )
+    if selection == 1:
+        install()
+    elif selection == 2:
+        uninstall()
+    else:
+        print("\nAborting...")
+        shell.exit()
 
 # Main function
 if __name__ == "__main__":
