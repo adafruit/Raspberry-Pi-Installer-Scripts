@@ -48,6 +48,41 @@ ISOLCPUS_OPTS = (
 )
 
 
+def in_virtualenv():
+    """True if the running interpreter is a virtual environment."""
+    return sys.prefix != getattr(sys, "base_prefix", sys.prefix)
+
+
+def externally_managed():
+    """True if this interpreter is PEP 668 externally-managed (Bookworm+)."""
+    stdlib = os.path.dirname(os.__file__)
+    return os.path.exists(os.path.join(stdlib, "EXTERNALLY-MANAGED"))
+
+
+def check_pip_environment():
+    """Bail early if `pip install .` would fail on a PEP 668 system python.
+
+    On Bookworm/Trixie the system interpreter is externally managed, so
+    installing the rgbmatrix bindings into it fails with
+    'externally-managed-environment'. The supported flow is to run this
+    installer from an activated virtual environment, e.g.:
+
+        python3 -m venv --system-site-packages env
+        source env/bin/activate
+        sudo -E env PATH=$PATH python3 rgb-matrix.py
+    """
+    if in_virtualenv() or not externally_managed():
+        return
+    shell.bail(
+        "This interpreter is externally managed (PEP 668), so the rgbmatrix\n"
+        "bindings can't be pip-installed into it. Create and activate a\n"
+        "virtual environment first, then re-run this installer inside it:\n\n"
+        "  python3 -m venv --system-site-packages env\n"
+        "  source env/bin/activate\n"
+        "  sudo -E env PATH=$PATH python3 rgb-matrix.py\n"
+    )
+
+
 def set_isolcpus(cmdline_file, reserve, isolcpu_token):
     """Idempotently set the isolcpus=N token in cmdline.txt.
 
@@ -66,6 +101,8 @@ def set_isolcpus(cmdline_file, reserve, isolcpu_token):
 
 def main():
     shell.require_root()
+    # Fail fast with clear guidance if pip would hit PEP 668 later.
+    check_pip_environment()
 
     num_cores = os.cpu_count() or 1
     # Reserve the highest-numbered core (isolcpus is 0-indexed).
