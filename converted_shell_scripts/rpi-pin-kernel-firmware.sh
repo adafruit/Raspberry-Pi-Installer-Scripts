@@ -1,4 +1,8 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2021 Melissa LeBlanc-Williams for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 # rpi-pin-kernel-firmware: Pin a specific version of the rpi kernel and firmware
 
 set -e

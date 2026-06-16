@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2020 lady ada for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 
 if [ $(id -u) -ne 0 ]; then
 	echo "Installer must be run as root."

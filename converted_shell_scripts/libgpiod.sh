@@ -1,4 +1,8 @@
 #!/bin/sh
+# SPDX-FileCopyrightText: 2018 Brennen Bearnes for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 
 # Instructions!
 # cd ~

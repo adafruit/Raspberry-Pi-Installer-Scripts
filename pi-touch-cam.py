@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Melissa LeBlanc-Williams for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 """
 Adafruit Pi Touch Cam Setup Script
 (C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike

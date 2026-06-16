@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2018 Phillip Burgess for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 
 # INSTALLER SCRIPT FOR ADAFRUIT RGB MATRIX BONNET OR HAT
 

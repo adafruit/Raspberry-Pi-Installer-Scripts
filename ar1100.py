@@ -1,4 +1,8 @@
 #!/usr/bin/python
+# SPDX-FileCopyrightText: 2024 Melissa LeBlanc-Williams for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 import usb.core
 import usb.util
 import time

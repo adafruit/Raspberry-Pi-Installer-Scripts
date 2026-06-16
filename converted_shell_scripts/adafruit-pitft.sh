@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2018 Limor "Ladyada" Fried for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 # (C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike
 #
 # Instructions!

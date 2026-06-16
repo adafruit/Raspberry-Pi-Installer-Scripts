@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2016 Phillip Burgess for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 # Adafruit Snake Eyes Bonnet installer for Raspberry Pi OS Trixie (Debian 13).
 # Supports Pi 3B, Pi 4, and Pi 5.
 #
