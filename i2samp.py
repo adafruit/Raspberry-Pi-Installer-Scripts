@@ -66,8 +66,10 @@ def uninstall():
 
     if os.path.exists(BLACKLIST):
         print(f"Restoring Blacklist entries in {BLACKLIST}")
-        shell.pattern_replace(BLACKLIST, "^#blacklist[[:space:]]*snd_soc_max98357a_i2c.*", "blacklist snd_soc_max98357a_i2c")
-        shell.pattern_replace(BLACKLIST, "^#blacklist[[:space:]]*snd_soc_max98357a.*", "blacklist snd_soc_max98357a")
+        # Only un-comment the exact forms the installer normalizes to, so we
+        # never touch lines the user commented out themselves before install.
+        shell.pattern_replace(BLACKLIST, "^#blacklist snd_soc_max98357a_i2c$", "blacklist snd_soc_max98357a_i2c")
+        shell.pattern_replace(BLACKLIST, "^#blacklist snd_soc_max98357a$", "blacklist snd_soc_max98357a")
 
     print("Restoring sound configuration")
     if os.path.exists("/etc/asound.conf.old"):
