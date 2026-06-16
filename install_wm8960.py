@@ -19,12 +19,6 @@ VERSION = "1.0"
 MARKER = "0.0.0"
 
 
-def append_if_missing(path, line):
-    """grep -q '^line$' file || echo line >> file"""
-    if not shell.pattern_search(path, f"^{line}$"):
-        shell.write_text_file(path, line, append=True)
-
-
 def install_module(src):
     """Build and install the DKMS module for every installed kernel >= 6.5."""
     marker_dir = f"/var/lib/dkms/{MODULE}/{VERSION}/{MARKER}"
@@ -92,18 +86,20 @@ def main():
     shell.copy("wm8960-soundcard.dtbo", "/boot/overlays")
 
     # Set kernel modules
-    append_if_missing("/etc/modules", "i2c-dev")
-    append_if_missing("/etc/modules", "snd-soc-wm8960")
-    append_if_missing("/etc/modules", "snd-soc-wm8960-soundcard")
+    shell.append_if_missing("/etc/modules", "i2c-dev")
+    shell.append_if_missing("/etc/modules", "snd-soc-wm8960")
+    shell.append_if_missing("/etc/modules", "snd-soc-wm8960-soundcard")
 
     # Set modprobe blacklist
-    append_if_missing("/etc/modprobe.d/raspi-blacklist.conf", "blacklist snd_bcm2835")
+    shell.append_if_missing(
+        "/etc/modprobe.d/raspi-blacklist.conf", "blacklist snd_bcm2835"
+    )
 
     # Set dtoverlays (uncomment if present, else append)
     shell.reconfig(config, "^#?dtparam=i2s=on", "dtparam=i2s=on")
     shell.reconfig(config, "^#?dtparam=i2c_arm=on", "dtparam=i2c_arm=on")
-    append_if_missing(config, "dtoverlay=i2s-mmap")
-    append_if_missing(config, "dtoverlay=wm8960-soundcard")
+    shell.append_if_missing(config, "dtoverlay=i2s-mmap")
+    shell.append_if_missing(config, "dtoverlay=wm8960-soundcard")
 
     # Install config files
     shell.run_command("mkdir -p /etc/wm8960-soundcard")
