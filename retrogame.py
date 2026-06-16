@@ -57,6 +57,49 @@ WantedBy=multi-user.target
     shell.run_command("systemctl enable retrogame.service")
 
 
+def uninstall():
+    """Remove retrogame and all files this installer creates."""
+    print("\nThis will remove retrogame, its systemd service,\nand the udev rule.\n")
+    if not shell.prompt("Uninstall retrogame?", default="n"):
+        print("Canceled.")
+        shell.exit()
+
+    print("Stopping and removing retrogame service...", end="")
+    # Tolerate an already-stopped/absent unit so uninstall stays idempotent.
+    shell.run_command("systemctl stop retrogame.service", suppress_message=True)
+    shell.run_command("systemctl disable retrogame.service", suppress_message=True)
+    shell.remove("/etc/systemd/system/retrogame.service")
+    shell.run_command("systemctl daemon-reload")
+    print("OK")
+
+    print("Removing retrogame binary...", end="")
+    shell.remove("/usr/local/bin/retrogame")
+    print("OK")
+
+    print("Removing udev rule...", end="")
+    shell.remove("/etc/udev/rules.d/10-retrogame.rules")
+    print("OK")
+
+    # Clean up any legacy rc.local autostart line from older installs.
+    if shell.exists("/etc/rc.local"):
+        shell.pattern_replace(
+            "/etc/rc.local", r"[^\n]*retrogame[^\n]*\n", multi_line=True
+        )
+
+    # The config file is user-editable; keep it by default.
+    if shell.exists("/boot/retrogame.cfg"):
+        if shell.prompt("Also remove /boot/retrogame.cfg?", default="n"):
+            shell.remove("/boot/retrogame.cfg")
+            print("Removed /boot/retrogame.cfg")
+        else:
+            print("Keeping /boot/retrogame.cfg")
+
+    print("\nretrogame has been uninstalled.")
+    shell.prompt_reboot()
+    print("Done")
+    shell.exit()
+
+
 def main():
     shell.clear()
     print("""This script downloads and installs
@@ -80,16 +123,18 @@ Run time <1 minute. Reboot recommended.
 
     retrogame_select = shell.select_n(
         "Select configuration:",
-        list(config.values()) + ["Quit without installing"],
+        list(config.values()) + ["Uninstall retrogame", "Quit without installing"],
     )
 
+    if retrogame_select == len(config) + 1:
+        uninstall()
+        return
     if retrogame_select > len(config):
         return
     config_name = list(config.keys())[retrogame_select - 1]
 
     if shell.exists("/boot/retrogame.cfg"):
-        print("/boot/retrogame.cfg already exists.\n"
-              "Continuing will overwrite file.\n")
+        print("/boot/retrogame.cfg already exists.\nContinuing will overwrite file.\n")
         if not shell.prompt("CONTINUE?", default="n"):
             print("Canceled.")
             shell.exit()
