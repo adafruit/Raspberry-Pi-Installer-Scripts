@@ -24,7 +24,7 @@ To install the dependencies for the Python scripts, run the following commands:
 sudo apt-get install python3-pip python3-venv
 python -m venv env --system-site-packages
 source env/bin/activate
-pip3 install adafruit-python-shell click
+pip3 install --upgrade setuptools adafruit-python-shell click
 ```
 Then to run the Python script, type the following replacing "scriptname.py" with the actual script name:
 
