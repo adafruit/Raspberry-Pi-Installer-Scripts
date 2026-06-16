@@ -51,9 +51,11 @@ ISOLCPUS_OPTS = (
 def set_isolcpus(cmdline_file, reserve, isolcpu_token):
     """Idempotently set the isolcpus=N token in cmdline.txt.
 
-    cmdline.txt is a single line; strip any previously-added isolcpus token
-    first (re-running the installer, or moving the SD card to a Pi with a
-    different core count), then append the new one if a core is reserved.
+    cmdline.txt is a single line. This installer manages the isolcpus token,
+    so any existing isolcpus= entry (including a user-managed range) is
+    stripped first, then the installer's token is appended when a core is
+    reserved. This keeps re-runs idempotent and avoids stacking multiple
+    isolcpus= entries.
     """
     line = shell.read_text_file(cmdline_file).strip()
     tokens = [t for t in line.split() if not t.startswith("isolcpus=")]
@@ -168,15 +170,19 @@ def main():
     shell.run_command("apt-get update")
 
     print("Downloading prerequisites...")
-    # cmake is required by scikit-build-core, the build backend the upstream
-    # repo now uses for its Python bindings.
+    # build-essential + python3-pip are needed to compile and pip-install the
+    # Cython bindings; cmake is required by scikit-build-core (the upstream
+    # build backend); unzip extracts the downloaded source archive.
     shell.run_command(
-        "apt-get install -y python3-dev python3-pillow cython3 python3-setuptools cmake"
+        "apt-get install -y build-essential python3-dev python3-pip "
+        "python3-pillow cython3 python3-setuptools cmake unzip"
     )
 
     print("Downloading RGB matrix software...")
+    # -f makes curl fail (non-zero) on HTTP errors instead of saving a 404
+    # HTML page that would later cause a confusing unzip failure.
     shell.run_command(
-        f"curl -L {GITUSER}/{REPO}/archive/{COMMIT}.zip -o {REPO}-{COMMIT}.zip"
+        f"curl -fL {GITUSER}/{REPO}/archive/{COMMIT}.zip -o {REPO}-{COMMIT}.zip"
     )
     shell.run_command(f"unzip -q {REPO}-{COMMIT}.zip")
     shell.remove(f"{REPO}-{COMMIT}.zip")
@@ -192,10 +198,13 @@ def main():
     shell.run_command(f'"{sys.executable}" -m pip install --upgrade pip')
     shell.run_command(f'"{sys.executable}" -m pip install .')
 
-    # Change ownership to the user who called sudo.
+    # Change ownership to the user who called sudo, using their actual primary
+    # group (which isn't always the same name as the username).
     sudo_user = os.environ.get("SUDO_USER")
     if sudo_user:
-        shell.run_command(f"chown -R {sudo_user}:{sudo_user} {os.getcwd()}")
+        sudo_gid = os.environ.get("SUDO_GID", "")
+        owner = f"{sudo_user}:{sudo_gid}" if sudo_gid else sudo_user
+        shell.run_command(f"chown -R {owner} {os.getcwd()}")
 
     # CONFIG ---------------------------------------------------------------
 
@@ -240,7 +249,7 @@ def main():
 
     print("Done.")
     print("")
-    print("The 'rgbmatrix' Python package is installed in:")
+    print("The 'rgbmatrix' Python package is installed for this interpreter:")
     print(f"  {sys.executable}")
     print("Run your programs with that interpreter so 'import rgbmatrix' works.")
     print("")
