@@ -59,7 +59,7 @@ def main():
     pi_model = ""
     if os.path.exists("/proc/device-tree/model"):
         pi_model = shell.read_text_file("/proc/device-tree/model").replace("\x00", "")
-    is_pi5 = "Raspberry Pi 5" in pi_model
+    is_pi5 = shell.is_pi5_or_newer()
 
     print("Adafruit Snake Eyes Bonnet installer")
     print("Raspberry Pi OS Trixie - Pi 3B / Pi 4 / Pi 5")
@@ -155,7 +155,7 @@ def main():
     shell.remove("master.zip")
     shell.remove("Pi_Eyes-master")
     shell.run_command(
-        "curl -sLO https://github.com/adafruit/Pi_Eyes/archive/master.zip"
+        "curl -fsSLO https://github.com/adafruit/Pi_Eyes/archive/master.zip"
     )
     shell.run_command("unzip -q master.zip")
     shell.run_command(f"mkdir -p {PI_EYES_DIR}")
@@ -183,7 +183,7 @@ def main():
         shell.remove("master.zip")
         shell.remove("Adafruit-GPIO-Halt-master")
         shell.run_command(
-            "curl -sLO https://github.com/adafruit/Adafruit-GPIO-Halt/"
+            "curl -fsSLO https://github.com/adafruit/Adafruit-GPIO-Halt/"
             "archive/master.zip"
         )
         shell.run_command("unzip -q master.zip")
