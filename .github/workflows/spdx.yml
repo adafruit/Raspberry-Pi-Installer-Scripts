@@ -10,11 +10,11 @@ jobs:
   spdx:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/setup-python@v6
-      with:
-        python-version: "3.x"
-    - name: Checkout Current Repo
-      uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+      - name: Checkout Current Repo
+        uses: actions/checkout@v6
 
-    - name: check SPDX licensing
-      run: python ./SPDX.py
+      - name: check SPDX licensing
+        run: python ./SPDX.py
