@@ -8,7 +8,7 @@ Many scripts are based heavily on get.pimoroni.com scripts!
 
 ## Python Scripts
 
-We are in the process of converting our Shell Scripts to Python. Instructions for running specific scripts are available in the [Adafruit Learning System](https://learn.adafruit.com/). Here are the general setup instructions.
+Our installer scripts are written in Python. Instructions for running specific scripts are available in the [Adafruit Learning System](https://learn.adafruit.com/). Here are the general setup instructions.
 
 ### Dependencies
 
@@ -18,18 +18,18 @@ We are in the process of converting our Shell Scripts to Python. Instructions fo
 
 ### Prepare your system
 
-To install the dependencies for the python scripts, run the following commands:
+To install the dependencies for the Python scripts, run the following commands:
 
 ```bash
-sudo apt-get install python3-pip
-sudo pip3 install --upgrade click
-sudo pip3 install --upgrade setuptools
-sudo pip3 install --upgrade adafruit-python-shell
+sudo apt-get install python3-pip python3-venv
+python -m venv env --system-site-packages
+source env/bin/activate
+pip3 install --upgrade setuptools adafruit-python-shell click
 ```
-Then to run the python script, type the following replacing "scriptname.py" with the actual script name:
+Then to run the Python script, type the following replacing "scriptname.py" with the actual script name:
 
 ```bash
-sudo python3 scriptname.py
+sudo -E env PATH=$PATH python3 scriptname.py
 ```
 
 ## Old Shell Scripts
