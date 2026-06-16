@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2020 caternuson for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 #-------------------------------------------------------------------------
 # Installer script for I2S microphone support on Raspberry Pi
 #

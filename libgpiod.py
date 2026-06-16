@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Melissa LeBlanc-Williams for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 # Instructions!
 # cd ~
 # sudo apt-get install python3-pip

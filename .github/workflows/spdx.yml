@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Melissa LeBlanc-Williams for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
+name: SPDX
+
+on: [pull_request, push]
+
+jobs:
+  spdx:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/setup-python@v6
+      with:
+        python-version: "3.x"
+    - name: Checkout Current Repo
+      uses: actions/checkout@v6
+
+    - name: check SPDX licensing
+      run: python ./SPDX.py

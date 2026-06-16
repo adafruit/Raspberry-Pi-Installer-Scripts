@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2017 Phillip Burgess for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 
 echo "NEWS: see https://learn.adafruit.com/read-only-raspberry-pi"
 echo "This script is deprecated, with better functionality now in"

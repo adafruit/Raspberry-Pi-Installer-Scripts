@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2021 Melissa LeBlanc-Williams for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 """
 Adafruit Raspberry Pi Joy Bonnet Setup Script
 (C) Adafruit Industries, Creative Commons 3.0 - Attribution Share Alike

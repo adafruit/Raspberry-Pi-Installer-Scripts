@@ -1,4 +1,8 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2016 ladyada for Adafruit Industries
+#
+# SPDX-License-Identifier: MIT
+
 
 : <<'DISCLAIMER'
 

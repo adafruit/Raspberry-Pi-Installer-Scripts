@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
+// SPDX-FileCopyrightText: 2015 Dennis Menschel
 /*
  * FB driver for the ST7789V LCD Controller
  *

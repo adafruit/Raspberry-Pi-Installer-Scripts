@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+// SPDX-License-Identifier: GPL-2.0+
+// SPDX-FileCopyrightText: 2013 Noralf Tronnes
 /* Copyright (C) 2013 Noralf Tronnes */
 
 #ifndef __LINUX_FBTFT_H
