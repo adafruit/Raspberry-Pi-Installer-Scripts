@@ -5,6 +5,7 @@
 # INSTALLER SCRIPT FOR ADAFRUIT RGB MATRIX BONNET OR HAT
 
 import os
+import sys
 
 try:
     from adafruit_shell import Shell
@@ -167,8 +168,10 @@ def main():
     shell.run_command("apt-get update")
 
     print("Downloading prerequisites...")
+    # cmake is required by scikit-build-core, the build backend the upstream
+    # repo now uses for its Python bindings.
     shell.run_command(
-        "apt-get install -y python3-dev python3-pillow cython3 python3-setuptools"
+        "apt-get install -y python3-dev python3-pillow cython3 python3-setuptools cmake"
     )
 
     print("Downloading RGB matrix software...")
@@ -180,13 +183,14 @@ def main():
     shell.remove("rpi-rgb-led-matrix")
     shell.run_command(f"mv {REPO}-{COMMIT} rpi-rgb-led-matrix")
 
-    print("Building RGB matrix software...")
+    print("Building and installing RGB matrix Python bindings...")
     shell.chdir("rpi-rgb-led-matrix")
-    user_defines = ""
-    if quality_mod == 2:
-        user_defines = " -DDISABLE_HARDWARE_PULSES"
-    shell.run_command("make clean")
-    shell.run_command(f'make build-python USER_DEFINES="{user_defines}"')
+    # The upstream repo is now a scikit-build-core/Cython package installed
+    # with `pip install .` (the old `make build-python` target is gone).
+    # Install into the same Python environment the installer is running in so
+    # `from rgbmatrix import RGBMatrix` works for the user's project.
+    shell.run_command(f'"{sys.executable}" -m pip install --upgrade pip')
+    shell.run_command(f'"{sys.executable}" -m pip install .')
 
     # Change ownership to the user who called sudo.
     sudo_user = os.environ.get("SUDO_USER")
@@ -229,7 +233,27 @@ def main():
 
     # PROMPT FOR REBOOT ----------------------------------------------------
 
+    # Tell the user which gpio mapping matches their build choice. With the
+    # current upstream the hardware mapping is a runtime option, not a
+    # compile-time define.
+    gpio_mapping = "adafruit-hat-pwm" if quality_mod == 1 else "adafruit-hat"
+
     print("Done.")
+    print("")
+    print("The 'rgbmatrix' Python package is installed in:")
+    print(f"  {sys.executable}")
+    print("Run your programs with that interpreter so 'import rgbmatrix' works.")
+    print("")
+    print("Use this LED GPIO mapping for your board/quality choice:")
+    print(f"  --led-gpio-mapping={gpio_mapping}")
+    print(f'(In python: RGBMatrixOptions().hardware_mapping = "{gpio_mapping}")')
+    print("")
+    # gpio_slowdown is a runtime option; 5 is a safe default that avoids
+    # flicker on solid white (worst case) on Pi 3/4. No effect on Pi 5's RP1
+    # backend. Lower it for higher refresh if you see no flicker.
+    print("If you see flicker (e.g. on solid white), increase the GPIO slowdown:")
+    print("  --led-slowdown-gpio=5")
+    print("(In python: RGBMatrixOptions().gpio_slowdown = 5)")
     print("")
     print("Settings take effect on next boot.")
     if install_rtc:
