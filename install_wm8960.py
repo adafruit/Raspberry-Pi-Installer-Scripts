@@ -99,11 +99,10 @@ def main():
     # Set modprobe blacklist
     append_if_missing("/etc/modprobe.d/raspi-blacklist.conf", "blacklist snd_bcm2835")
 
-    # Set dtoverlays
-    shell.pattern_replace(config, "^#dtparam=i2s=on", "dtparam=i2s=on")
-    shell.pattern_replace(config, "^#dtparam=i2c_arm=on", "dtparam=i2c_arm=on")
+    # Set dtoverlays (uncomment if present, else append)
+    shell.reconfig(config, "^#?dtparam=i2s=on", "dtparam=i2s=on")
+    shell.reconfig(config, "^#?dtparam=i2c_arm=on", "dtparam=i2c_arm=on")
     append_if_missing(config, "dtoverlay=i2s-mmap")
-    append_if_missing(config, "dtparam=i2s=on")
     append_if_missing(config, "dtoverlay=wm8960-soundcard")
 
     # Install config files
@@ -122,7 +121,7 @@ def main():
     shell.remove(CLONE_DIR)
 
     print("------------------------------------------------------")
-    print("Please reboot your raspberry pi to apply all settings")
+    print("Please reboot your Raspberry Pi to apply all settings")
     print("Enjoy!")
     print("------------------------------------------------------")
     shell.prompt_reboot()
