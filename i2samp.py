@@ -229,7 +229,7 @@ WantedBy=multi-user.target""", append=False)
     shell.write_text_file(f"/etc/systemd/system/{APLAY_SERVICE}", f"""
 [Unit]
 Description=Invoke aplay from /dev/zero at system start.
-Requires={I2SAMP_INIT_SERVICE}
+Wants={I2SAMP_INIT_SERVICE}
 After={I2SAMP_INIT_SERVICE}
 StartLimitBurst=5
 StartLimitIntervalSec=60
