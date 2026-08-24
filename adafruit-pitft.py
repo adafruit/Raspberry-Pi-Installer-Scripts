@@ -727,7 +727,10 @@ def install_mirror():
     # On console images the panel's own rotate= parameter is the orientation
     # and display_rotate is left to the caller (pitft-fbcp.py sets it per
     # project), so only the desktop needs the HDMI rotate/unrotate dance.
+    # Clear any stale HDMI rotation from a previous install so the mirror
+    # does not inherit it.
     if not is_desktop:
+        shell.reconfig(f"{boot_dir}/config.txt", "^.*display_hdmi_rotate.*$", "")
         return True
 
     try:
@@ -1032,10 +1035,12 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
     # means the classic rpi-fbcp framebuffer copy.
     fbcp_mirror = install_type == "mirror" and not is_desktop
     if fbcp_mirror and not is_legacy_display_stack():
-        shell.bail("""Mirroring on a console/lite image needs the legacy VideoCore display stack
-(Raspberry Pi OS Buster or earlier, e.g. RetroPie 4.8), which this OS does not have.
-Use --install-type console to show the console on the PiTFT, or install the
-desktop version of Raspberry Pi OS to use the PiTFT as a second display.""")
+        shell.bail(
+            "Mirroring on a console/lite image needs the legacy VideoCore display stack\n"
+            "(Raspberry Pi OS Buster or earlier, e.g. RetroPie 4.8), which this OS does not have.\n"
+            "Use --install-type console to show the console on the PiTFT, or install the\n"
+            "desktop version of Raspberry Pi OS to use the PiTFT as a second display."
+        )
     update_wayland_settings()
     if REMOVE_KERNEL_PINNING:
         # Checking if kernel is pinned
