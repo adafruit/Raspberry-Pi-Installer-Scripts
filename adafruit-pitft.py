@@ -25,7 +25,7 @@ except ImportError:
 shell = Shell()
 shell.group = 'PITFT'
 
-__version__ = "4.0.0"
+__version__ = "4.1.0"
 
 """
 This is the main configuration. Displays should be placed in the order
@@ -432,6 +432,18 @@ def use_mipi_driver(config = None):
         return False
     return True
 
+def is_legacy_display_stack():
+    """Check for the legacy VideoCore (DispmanX) display stack.
+
+    rpi-fbcp mirrors the screen by snapshotting DispmanX, which only exists
+    with the legacy userland in /opt/vc (Buster and earlier, e.g. RetroPie
+    4.8). Bookworm and later removed it, so there is nothing to copy from.
+    """
+    version = shell.get_raspbian_version()
+    if version is not None and shell.is_minimum_version("bookworm"):
+        return False
+    return shell.exists("/opt/vc/lib/libbcm_host.so")
+
 def is_kernel_upgrade_required(config = None):
     """Check if kernel upgrade is required"""
     if not config:
@@ -641,7 +653,7 @@ def uninstall_console():
 def install_mirror():
     global mirror_rotations
     print("Installing cmake...")
-    if not shell.run_command("apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake", suppress_message=True):
+    if not shell.run_command("apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install cmake libraspberrypi-dev", suppress_message=True):
         warn_exit("Apt failed to install software!")
     print("Downloading rpi-fbcp...")
     shell.pushd("/tmp")
@@ -669,6 +681,13 @@ def install_mirror():
 
     # Start fbcp in the appropriate place, depending on init system:
     if SYSTEMD:
+        # Install fbcp systemd service, first making sure it's not in rc.local:
+        uninstall_fbcp_rclocal()
+        print("We have systemd, so install fbcp systemd service...")
+        if not install_fbcp_service():
+            shell.bail("Unable to install fbcp service file")
+        shell.run_command("sudo systemctl enable fbcp.service")
+    else:
         # Add fbcp to /etc/rc.local:
         print("We have sysvinit, so add fbcp to /etc/rc.local...")
         if shell.pattern_search("/etc/rc.local", "fbcp"):
@@ -677,13 +696,6 @@ def install_mirror():
         else:
             # Insert fbcp into rc.local before final 'exit 0':
             shell.pattern_replace("/etc/rc.local", "^exit 0", "/usr/local/bin/fbcp \&\\nexit 0")
-    else:
-        # Install fbcp systemd service, first making sure it's not in rc.local:
-        uninstall_fbcp_rclocal()
-        print("We have systemd, so install fbcp systemd service...")
-        if not install_fbcp_service():
-            shell.bail("Unable to install fbcp service file")
-        shell.run_command("sudo systemctl enable fbcp.service")
 
     # if desktop environment is installed...
     if is_desktop:
@@ -697,6 +709,8 @@ def install_mirror():
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_force_hotplug.*$", "hdmi_force_hotplug=1")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_group.*$", "hdmi_group=2")
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_mode.*$", "hdmi_mode=87")
+    # Full KMS has no DispmanX, so fbcp cannot run alongside it. (fkms is fine.)
+    shell.pattern_replace(f"{boot_dir}/config.txt", "^[^#]*dtoverlay=vc4-kms-v3d.*$", "#dtoverlay=vc4-kms-v3d")
 
     # if using the desktop version, update driver scale...
     scale = 1
@@ -710,6 +724,15 @@ def install_mirror():
 
     shell.reconfig(f"{boot_dir}/config.txt", "^.*hdmi_cvt.*$", "hdmi_cvt={} {} 60 1 0 0 0".format(WIDTH, HEIGHT))
 
+    # On console images the panel's own rotate= parameter is the orientation
+    # and display_rotate is left to the caller (pitft-fbcp.py sets it per
+    # project), so only the desktop needs the HDMI rotate/unrotate dance.
+    # Clear any stale HDMI rotation from a previous install so the mirror
+    # does not inherit it.
+    if not is_desktop:
+        shell.reconfig(f"{boot_dir}/config.txt", "^.*display_hdmi_rotate.*$", "")
+        return True
+
     try:
         default_orientation = int(list(mirror_rotations.keys())[list(mirror_rotations.values()).index("0")])
     except ValueError:
@@ -722,7 +745,7 @@ def install_mirror():
         display_rotate = mirror_rotations[pitftrot]
         shell.reconfig(f"{boot_dir}/config.txt", "^.*display_hdmi_rotate.*$", "display_hdmi_rotate={}".format(display_rotate))
         # Because we rotate HDMI we have to 'unrotate' the TFT by overriding pitftrot!
-        if not update_configtxt(rotation=default_orientation):
+        if not update_configtxt(rotation_override=default_orientation):
             shell.bail(f"Unable to update {boot_dir}/config.txt")
     return True
 
@@ -916,7 +939,7 @@ if shell.get_raspbian_version() == "bullseye":
 @click.option('-u', '--user', nargs=1, default=target_homedir, type=str, help="Specify path of primary user's home directory", show_default=True)
 @click.option('--display', nargs=1, default=None, help="Specify a display option (1-{}) or type {}".format(len(config), get_config_types()))
 @click.option('--rotation', nargs=1, default=None, type=int, help="Specify a rotation option (1-4) or degrees {}".format(tuple(sorted([int(x) for x in PITFT_ROTATIONS]))))
-@click.option('--install-type', nargs=1, default=None, type=click.Choice(['mirror', 'fbcp', 'console', 'uninstall']), help="Installation Type")
+@click.option('--install-type', nargs=1, default=None, type=click.Choice(['mirror', 'fbcp', 'console', 'drivers', 'uninstall']), help="Installation Type (fbcp is an alias for mirror)")
 @click.option('--reboot', nargs=1, default=None, type=click.Choice(['yes', 'no']), help="Specify whether to reboot after the script is finished")
 @click.option('--boot', nargs=1, default=boot_dir, type=str, help="Specify the boot directory", show_default=True)
 def main(user, display, rotation, install_type, reboot, boot):
@@ -1005,6 +1028,19 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
         # Show a selection menu for install_types using shell.select_n and setting the selection to the key of install_types
         install_selection = shell.select_n("Select install type:", install_types.values())
         install_type = list(install_types.keys())[install_selection - 1]
+    if install_type == "fbcp":
+        # keep fbcp for backwards compatibility
+        install_type = "mirror"
+    # Without a compositor to extend onto, mirroring on a console image
+    # means the classic rpi-fbcp framebuffer copy.
+    fbcp_mirror = install_type == "mirror" and not is_desktop
+    if fbcp_mirror and not is_legacy_display_stack():
+        shell.bail(
+            "Mirroring on a console/lite image needs the legacy VideoCore display stack\n"
+            "(Raspberry Pi OS Buster or earlier, e.g. RetroPie 4.8), which this OS does not have.\n"
+            "Use --install-type console to show the console on the PiTFT, or install the\n"
+            "desktop version of Raspberry Pi OS to use the PiTFT as a second display."
+        )
     update_wayland_settings()
     if REMOVE_KERNEL_PINNING:
         # Checking if kernel is pinned
@@ -1051,7 +1087,9 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
             shell.bail("Unable to install display drivers")
 
     shell.info(f"Updating {boot_dir}/config.txt...")
-    use_tinydrm = install_type != "console"
+    # fbcp needs the fbtft framebuffer, not the DRM driver (and pre-Bookworm
+    # overlays do not know the drm parameter anyway).
+    use_tinydrm = install_type != "console" and not fbcp_mirror
     if not update_configtxt(tinydrm_install=use_tinydrm):
         shell.bail(f"Unable to update {boot_dir}/config.txt")
 
@@ -1089,6 +1127,10 @@ restart the script and choose a different orientation.""".format(rotation=pitftr
                 shell.info("Updating Desktop Touch calibration...")
                 if not update_xorg():
                     shell.bail("Unable to update calibration")
+            else:
+                shell.info("Adding fbcp mirror support...")
+                if not install_mirror():
+                    shell.bail("Unable to configure fbcp")
         else:
             if not uninstall_fbcp():
                 shell.bail("Unable to uninstall fbcp")
