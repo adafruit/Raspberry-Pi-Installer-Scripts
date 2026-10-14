@@ -327,7 +327,6 @@ WantedBy=multi-user.target
         "/etc/systemd/system/pi-eyes.service",
         f"""[Unit]
 Description=Pi Eyes animation
-After=multi-user.target
 
 [Service]
 Type=simple
